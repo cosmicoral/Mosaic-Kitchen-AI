@@ -30,10 +30,13 @@ Fridge inventory tracking
 Expiration date reminders
 Cultural food preferences
 OpenAI-powered recipe recommendations
+
 V2
 RAG-based food memory
 Long-term preference learning
 Personalised food recommendations
+
+
 V3
 Grocery platform integration
 
