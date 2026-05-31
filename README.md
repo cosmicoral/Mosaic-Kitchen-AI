@@ -2,183 +2,281 @@
 
 **AI-powered multicultural meal planning and grocery assistant for diverse households in the UK.**
 
+> Built on PhD research in healthy eating practices, food waste, digital food platforms, and multicultural food consumption.
+
 ---
 
 ## 🌍 Vision
 
 Mosaic Kitchen helps multicultural households make healthier, cheaper, and more culturally relevant food decisions.
 
-Most meal planning apps are designed for mainstream Western diets and often overlook the needs of diverse communities. Mosaic Kitchen bridges that gap by combining AI, cultural food knowledge, and grocery optimisation into a single platform.
+Most meal planning applications are designed around mainstream Western diets and often overlook the needs of diverse communities. Mosaic Kitchen bridges this gap by combining AI-powered meal planning, cultural food knowledge, and grocery optimisation into a single platform.
 
-### Key Principles
+### Research Inspiration
 
-* 🥢 Cultural food preferences
-* 🛒 Asian grocery ecosystem support
-* ♻️ Food waste reduction
-* ⏰ Expiration date tracking
-* 💰 Grocery cost optimisation
-* 🤖 AI-powered meal recommendations
+Mosaic Kitchen is informed by doctoral research on:
+
+- Healthy eating practices
+- Food waste reduction
+- Digital food platforms
+- Everyday food consumption
+- Ethnicity and food culture
+- Household food routines
+
+A key insight from this research is that people often struggle with healthy and sustainable eating not because of a lack of knowledge, but because of time constraints, disrupted routines, cultural preferences, and everyday practical challenges.
+
+---
+
+## 🥢 Key Principles
+
+- Cultural food preferences matter
+- AI should support everyday routines
+- Reduce food waste before it happens
+- Save money through smarter planning
+- Support multicultural households
+- Make healthy eating easier, not harder
 
 ---
 
 ## 👥 Target Users
 
-### Primary Users
+### Primary Users (MVP)
 
-* Chinese households
-* International students
-* Asian families living in the UK
+- Chinese households in the UK
+- International students
+- Asian families
+- Busy professionals
 
 ### Future Expansion
 
-* Halal households
-* Japanese households
-* Korean households
-* South Asian households
-* Multicultural families
+- Halal households
+- Japanese households
+- Korean households
+- South Asian households
+- Multicultural families
 
 ---
 
-## 🚀 Product Roadmap
+# 🚀 Product Roadmap
 
-### MVP (V1)
+## MVP 0.5 — React Web Application
 
-Core AI meal planning experience.
+Goal: Validate core product value quickly.
 
-#### Features
+### Features
 
-* AI meal planning
-* Grocery list generation
-* Fridge inventory tracking
-* Expiration date reminders
-* Cultural food preferences
-* OpenAI-powered recipe recommendations
-
----
-
-### V2
-
-Personalisation and food intelligence.
-
-#### Features
-
-* RAG-based food knowledge system
-* Long-term preference learning
-* Personalised meal recommendations
-* Household food habit analysis
-* Smart ingredient substitution
+- AI meal planning
+- Grocery list generation
+- Cultural cuisine preferences
+- Budget-aware meal planning
+- Fridge inventory (manual input)
+- Food waste reduction suggestions
+- English + Simplified Chinese interface
 
 ---
 
-### V3
+## MVP 1.0 — SwiftUI iOS Application
 
-Food ecosystem integration.
+Goal: Mobile-first experience.
 
-#### Potential Integrations
+### Features
 
-* Hungry Fresh
-* Hungry Panda
-* Wing Yip
-* Hoo Hing
-* Japan Centre
-* Tesco
-* Sainsbury's
-* Asda
+- All MVP 0.5 functionality
+- Native iOS experience
+- Push notifications
+- Expiration date reminders
+- Improved inventory management
+- TestFlight release
 
 ---
 
-## 🏗 Tech Stack
+## V2 — Personalisation & Food Intelligence
 
-### Frontend
+### Features
 
-* React (Web MVP)
-* SwiftUI (Future iOS App)
-* 🌐 Bilingual Interface (English + Simplified Chinese)
-
-### Backend
-
-* Node.js
-* Express
-
-### Database
-
-* PostgreSQL (Planned)
-* Supabase (Planned)
-
-### AI
-
-* OpenAI API ✅
-* RAG (Planned)
-* Vision-based ingredient recognition (Planned)
-
-### Infrastructure
-
-* GitHub
-* Vercel (Planned)
-* Render (Planned)
-
-## 🎯 Long-Term Goal
-
-Become the AI decision layer connecting multicultural households with the UK's food ecosystem.
-
-Mosaic Kitchen aims to help users answer everyday questions such as:
-
-* What should I cook this week?
-* What ingredients are already in my fridge?
-* What is about to expire?
-* Where can I buy missing ingredients?
-* How can I reduce food waste and stay within budget?
-
-By combining AI, cultural food knowledge, and grocery intelligence, Mosaic Kitchen seeks to make food planning simpler, healthier, and more sustainable.
+- RAG-based food knowledge system
+- Long-term preference learning
+- Personalised meal recommendations
+- Smart ingredient substitution
+- Household food habit insights
 
 ---
 
-## 📌 Development Status
+## V3 — Grocery Ecosystem Integration
 
-Currently under active development.
+### Potential Integrations
 
-### MVP Scope
-
-The first MVP will support:
-
-* 🇬🇧 English interface
-* 🇨🇳 Simplified Chinese interface
-* AI-powered meal planning
-* Grocery list generation
-* Food waste reduction suggestions
-* Multicultural meal recommendations
+- Tesco
+- Sainsbury's
+- Asda
+- Morrisons
+- UKCNSHOP
+- Longdan
+- Wing Yip
+- Japan Centre
+- Hungry Panda
 
 ---
 
-### Roadmap Progress
+# 🏗 Tech Stack
 
-#### Foundation
+| Layer | Technology |
+|---------|---------|
+| Web Frontend | React + Vite |
+| Mobile Frontend | SwiftUI |
+| Backend | Node.js + Express |
+| Database | Supabase (PostgreSQL) |
+| AI | OpenAI API |
+| Vector Search (V2) | pgvector |
+| Storage | Supabase Storage |
+| Deployment | Render + Vercel |
+| Testing | Jest + Supertest |
+| Version Control | GitHub |
 
-- [x] Project setup
-- [x] GitHub repository
+---
+
+# 🌐 Bilingual MVP
+
+Mosaic Kitchen is designed as a bilingual product from day one.
+
+### Supported Languages
+
+- 🇬🇧 English
+- 🇨🇳 Simplified Chinese
+
+Future versions may support:
+
+- 🇯🇵 Japanese
+- 🇰🇷 Korean
+- 🇸🇦 Arabic
+- 🇮🇳 Hindi
+
+---
+
+# 📁 Project Structure
+
+```text
+mosaic-kitchen/
+├── backend/
+│   ├── src/
+│   │   ├── routes/
+│   │   ├── controllers/
+│   │   ├── services/
+│   │   ├── utils/
+│   │   ├── app.js
+│   │   └── server.js
+│   ├── tests/
+│   └── package.json
+│
+├── web/
+│
+├── ios/
+│
+└── README.md
+```
+
+---
+
+# 🛠 Local Development
+
+```bash
+git clone https://github.com/cosmicoral/Mosaic-Kitchen-AI.git
+
+cd Mosaic-Kitchen-AI/backend
+
+npm install
+
+npm run dev
+```
+
+### Environment Variables
+
+```env
+OPENAI_API_KEY=your_openai_api_key
+```
+
+Future versions may additionally use:
+
+```env
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+```
+
+---
+
+# 📌 Development Status
+
+## ✅ Completed
+
+- [x] GitHub repository setup
 - [x] Express backend skeleton
 - [x] OpenAI API integration
-- [x] AI meal plan generation endpoint
+- [x] Meal planning endpoint
+- [x] Dynamic prompt generation
+- [x] JSON response generation
+- [x] Local API testing via curl
 
-#### In Progress
+---
 
-- [ ] Structured JSON meal plan output
-- [ ] User profile system
-- [ ] Fridge inventory management
-- [ ] Expiration date tracking
+## 🔄 In Progress
 
-#### Next Phase
+- [ ] Structured JSON formatting
+- [ ] Supabase database integration
+- [ ] User profile model
+- [ ] Inventory management API
 
-- [ ] OpenAI Vision ingredient recognition
-- [ ] Grocery list optimisation
-- [ ] React web frontend (English + Chinese)
-- [ ] User authentication
+---
 
-#### Future
+## 📋 Next Milestones
 
-- [ ] Grocery platform integrations
-- [ ] RAG food knowledge layer
-- [ ] Personalised recommendation engine
-- [ ] SwiftUI iOS application
-- [ ] TestFlight beta release
-- [ ] App Store launch
+- [ ] React frontend (MVP 0.5)
+- [ ] Bilingual UI
+- [ ] Fridge inventory feature
+- [ ] Grocery list page
+- [ ] SwiftUI iOS version
+- [ ] TestFlight deployment
+
+---
+
+# 🎯 Long-Term Goal
+
+Become the AI decision layer connecting multicultural households with the UK food ecosystem.
+
+Helping users answer questions such as:
+
+- What should I cook this week?
+- What ingredients do I already have?
+- What is about to expire?
+- What should I buy?
+- How can I reduce food waste?
+- How can I stay within budget?
+
+By combining AI, cultural food knowledge, and grocery intelligence, Mosaic Kitchen aims to make food planning simpler, healthier, and more sustainable.
+
+---
+## 📚 Research Background
+
+Mosaic Kitchen is informed by doctoral research on:
+
+- Healthy eating practices
+- Food waste reduction
+- Digital food platforms
+- Ethnicity and food culture
+- Household food consumption
+
+Research profile:
+
+Google Scholar:
+[View Publications](https://scholar.google.com/citations?user=Gp9ylswAAAAJ)
+
+PhD Thesis:
+Everyday Practices, Identities and Materiality of Food Consumption and Waste:
+A Case Study of Middle-Class Consumers in Kunming (China)
+
+University of Surrey, 2026
+
+---
+
+Built in London 🇬🇧
+
+By Coral Yu Han
