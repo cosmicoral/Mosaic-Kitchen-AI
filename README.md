@@ -93,6 +93,7 @@ Food ecosystem integration.
 
 * React (Web MVP)
 * SwiftUI (Future iOS App)
+* 🌐 Bilingual Interface (English + Simplified Chinese)
 
 ### Backend
 
@@ -101,22 +102,20 @@ Food ecosystem integration.
 
 ### Database
 
-* PostgreSQL
-* Supabase
+* PostgreSQL (Planned)
+* Supabase (Planned)
 
 ### AI
 
-* OpenAI API
+* OpenAI API ✅
 * RAG (Planned)
 * Vision-based ingredient recognition (Planned)
 
 ### Infrastructure
 
 * GitHub
-* Vercel
-* Render
-
----
+* Vercel (Planned)
+* Render (Planned)
 
 ## 🎯 Long-Term Goal
 
@@ -134,19 +133,52 @@ By combining AI, cultural food knowledge, and grocery intelligence, Mosaic Kitch
 
 ---
 
-## 📌 Status
+## 📌 Development Status
 
 Currently under active development.
 
-Roadmap:
+### MVP Scope
 
-* [x] Project setup
-* [x] Express backend skeleton
-* [ ] OpenAI meal planning integration
-* [ ] User profiles
-* [ ] Inventory management
-* [ ] React frontend
-* [ ] Grocery integrations
-* [ ] RAG knowledge layer
-* [ ] TestFlight release
-* [ ] App Store launch
+The first MVP will support:
+
+* 🇬🇧 English interface
+* 🇨🇳 Simplified Chinese interface
+* AI-powered meal planning
+* Grocery list generation
+* Food waste reduction suggestions
+* Multicultural meal recommendations
+
+---
+
+### Roadmap Progress
+
+#### Foundation
+
+- [x] Project setup
+- [x] GitHub repository
+- [x] Express backend skeleton
+- [x] OpenAI API integration
+- [x] AI meal plan generation endpoint
+
+#### In Progress
+
+- [ ] Structured JSON meal plan output
+- [ ] User profile system
+- [ ] Fridge inventory management
+- [ ] Expiration date tracking
+
+#### Next Phase
+
+- [ ] OpenAI Vision ingredient recognition
+- [ ] Grocery list optimisation
+- [ ] React web frontend (English + Chinese)
+- [ ] User authentication
+
+#### Future
+
+- [ ] Grocery platform integrations
+- [ ] RAG food knowledge layer
+- [ ] Personalised recommendation engine
+- [ ] SwiftUI iOS application
+- [ ] TestFlight beta release
+- [ ] App Store launch
