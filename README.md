@@ -190,12 +190,22 @@ Inventory and food waste records update automatically.
 | Backend | Node.js + Express |
 | Database | Supabase (PostgreSQL) |
 | AI | OpenAI API |
+| UI/UX Design | Figma |
 | Vector Search (V2) | pgvector |
 | Storage | Supabase Storage |
 | Deployment | Render + Vercel |
 | Testing | Jest + Supertest |
 | Version Control | GitHub |
 
+## 🎨 Product Design
+
+Mosaic Kitchen is designed in Figma before implementation.
+
+The design workflow follows:
+
+Figma → React Web → SwiftUI iOS
+
+This allows rapid prototyping, user testing, and smoother collaboration between product design and engineering.
 ---
 
 # 🌐 Bilingual MVP
