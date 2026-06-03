@@ -88,17 +88,80 @@ Goal: Mobile-first experience.
 - Improved inventory management
 - TestFlight release
 
+###### Smart Food Expiry Notifications
+
+Users receive notifications when ingredients are approaching their expiry date.
+
+Notification example:
+
+⚠️ Your spinach expires in 2 days.
+
+Choose an action:
+
+1. Discard
+   - Estimate food waste cost
+   - Log waste statistics
+
+2. Use While Fresh
+   - Generate recipes using fresh ingredients
+
+3. Use Later
+   - Generate leftover-friendly recipes
+   - Suggest preservation methods
+
 ---
 
 ## V2 — Personalisation & Food Intelligence
 
 ### Features
 
-- RAG-based food knowledge system
-- Long-term preference learning
-- Personalised meal recommendations
-- Smart ingredient substitution
-- Household food habit insights
+## V2 — AI Food Intelligence
+
+### AI Vision Inventory Recognition
+
+Users can upload photos of:
+
+- Fridges
+- Pantries
+- Grocery bags
+
+OpenAI Vision identifies ingredients and automatically updates the inventory database.
+
+---
+
+### RAG-Powered Food Knowledge System
+
+The recommendation engine combines:
+
+- User preferences
+- Historical meal plans
+- Inventory data
+- Food knowledge retrieval
+- Cultural cuisine knowledge
+
+to generate more personalised meal plans.
+
+---
+
+### Food Waste Prevention Workflow
+
+Expiry notification
+
+↓
+
+User selects:
+
+Discard
+Use While Fresh
+Use Later
+
+↓
+
+AI generates an appropriate action plan.
+
+↓
+
+Inventory and food waste records update automatically.
 
 ---
 
@@ -237,6 +300,19 @@ SUPABASE_ANON_KEY=
 - [ ] TestFlight deployment
 
 ---
+
+## 🤖 Future AI Capabilities
+
+Planned AI features include:
+
+- Personalised meal planning
+- Retrieval-Augmented Generation (RAG)
+- Food inventory reasoning
+- Food waste prediction
+- Cultural cuisine recommendations
+- AI-powered ingredient substitution
+- Vision-based ingredient recognition
+- Behaviour-aware food recommendations
 
 # 🎯 Long-Term Goal
 
