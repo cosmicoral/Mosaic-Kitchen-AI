@@ -180,22 +180,23 @@ Inventory and food waste records update automatically.
 - Hungry Panda
 
 ---
-
 # 🏗 Tech Stack
-
 | Layer | Technology |
-|---------|---------|
-| Web Frontend | React + Vite |
-| Mobile Frontend | SwiftUI |
-| Backend | Node.js + Express |
-| Database | Supabase (PostgreSQL) |
-| AI | OpenAI API |
+|--------|------------|
 | UI/UX Design | Figma |
+| Web Frontend (MVP 0.5) | React + TypeScript + Vite |
+| Mobile Frontend (MVP 1.0) | SwiftUI |
+| Backend | Node.js + Express |
+| Database (V2) | Supabase (PostgreSQL) |
+| Authentication (V2) | Firebase Auth |
+| AI Text Generation | OpenAI GPT |
+| AI Vision (V2) | OpenAI Vision |
 | Vector Search (V2) | pgvector |
 | Storage | Supabase Storage |
-| Deployment | Render + Vercel |
+| Deployment | Vercel + Render |
 | Testing | Jest + Supertest |
 | Version Control | GitHub |
+
 
 ## 🎨 Product Design
 
