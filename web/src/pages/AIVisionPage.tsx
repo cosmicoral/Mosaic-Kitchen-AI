@@ -1,6 +1,7 @@
 import { Camera, Check, History, ImagePlus, ScanLine } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { aiScanMascot } from "../assets/mascots";
 import { TopNav } from "../components/navigation/TopNav";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -32,7 +33,7 @@ export function AIVisionPage() {
         <section className="section">
           <Card variant="dark">
             <div className="brand-row">
-              <MascotAvatar size="md" />
+              <MascotAvatar size="md" src={aiScanMascot} />
               <span>
                 <Badge variant="cream">Powered by Computer Vision</Badge>
                 <h2 style={{ margin: "8px 0 4px" }}>AI Food Vision</h2>
@@ -49,6 +50,11 @@ export function AIVisionPage() {
           </Card>
 
           <section className="page-heading">
+            <img
+              className="page-mascot"
+              src={aiScanMascot}
+              alt="Mosaic Kitchen mascot scanning food in a fridge"
+            />
             <h1>Scan Your Fridge</h1>
             <p>Take a photo of your fridge, pantry or groceries. AI will identify ingredients automatically.</p>
           </section>

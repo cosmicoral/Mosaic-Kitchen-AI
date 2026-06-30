@@ -1,6 +1,7 @@
 import { Check, ChevronDown, Edit, Plus, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { shoppingMascot } from "../assets/mascots";
 import { BottomNav } from "../components/navigation/BottomNav";
 import { TopNav } from "../components/navigation/TopNav";
 import { Badge } from "../components/ui/Badge";
@@ -92,7 +93,7 @@ export function ShoppingListPage() {
 
         <Card className="section" variant="soft">
           <div className="brand-row">
-            <MascotAvatar size="sm" />
+            <MascotAvatar size="sm" src={shoppingMascot} />
             <span>
               <strong>Mosaic AI</strong> <Badge variant="green">Tip</Badge>
               <br />

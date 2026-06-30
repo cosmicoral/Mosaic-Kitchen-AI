@@ -9,7 +9,7 @@ import {
   Utensils,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import mascotHero from "../assets/mascot-hero.png";
+import { genericAvatar, landingHero } from "../assets/mascots";
 import { BottomNav } from "../components/navigation/BottomNav";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -27,7 +27,7 @@ export function DashboardPage() {
       <div className="page page--nav">
         <header className="dashboard-header">
           <div className="brand-row">
-            <MascotAvatar size="sm" />
+            <MascotAvatar size="sm" src={genericAvatar} />
             <span>
               Welcome Back, {profile.name}
               <br />
@@ -40,7 +40,7 @@ export function DashboardPage() {
         </header>
 
         <section className="card dashboard-hero">
-          <img src={mascotHero} alt="Mosaic Kitchen AI meal table" />
+          <img src={landingHero} alt="Mosaic Kitchen AI meal table" />
           <div className="dashboard-hero__overlay">
             <Badge variant="dark">{profile.plan}</Badge>
             <div className="premium-strip">
@@ -140,7 +140,7 @@ export function DashboardPage() {
         <Card className="section">
           <div className="premium-strip">
             <h2 style={{ margin: 0 }}>Kitchen Insights</h2>
-            <MascotAvatar size="sm" />
+            <MascotAvatar size="sm" src={genericAvatar} />
           </div>
           <div className="stats-grid" style={{ marginTop: 14 }}>
             <div className="stat-card" style={{ background: "#fff4de", borderRadius: 14 }}>

@@ -1,0 +1,11 @@
+export { default as aiScanMascot } from "./ai-scan-mascot.png";
+export { default as detectionMascot } from "./detection-mascot.png";
+export { default as expiryMascot } from "./expiry-mascot.png";
+export { default as genericAvatar } from "./generic-avatar.png";
+export { default as landingHero } from "./landing-hero.png";
+export { default as landingMobile } from "./landing-mobile.png";
+export { default as loginMascot } from "./login-mascot.png";
+export { default as pantryMascot } from "./pantry-mascot.png";
+export { default as pricingMascot } from "./pricing-mascot.png";
+export { default as shoppingMascot } from "./shopping-mascot.png";
+export { default as signupMascot } from "./signup-mascot.png";

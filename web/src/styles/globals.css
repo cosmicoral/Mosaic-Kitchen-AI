@@ -508,6 +508,10 @@ img {
   color: var(--color-muted);
 }
 
+.landing-secondary-grid {
+  display: grid;
+}
+
 .feature-card {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -558,6 +562,58 @@ img {
 .page-heading p {
   margin: 0;
   color: var(--color-muted);
+}
+
+.auth-desktop-grid {
+  display: block;
+}
+
+.auth-form-panel {
+  width: 100%;
+}
+
+.auth-mascot-panel {
+  display: none;
+}
+
+.auth-mascot-image {
+  width: 100%;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+}
+
+.auth-mascot-copy {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.auth-mascot-copy h2 {
+  margin: 0;
+  color: var(--color-forest);
+  font-size: 2rem;
+  line-height: 1.05;
+}
+
+.auth-mascot-copy p {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 1rem;
+}
+
+.auth-benefit-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.auth-benefit-list li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-forest);
+  font-weight: 900;
 }
 
 .form-grid {
@@ -1055,6 +1111,21 @@ img {
   gap: var(--space-4);
 }
 
+.pricing-hero {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: start;
+}
+
+.pricing-hero__image {
+  width: 96px;
+  height: 96px;
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  object-fit: cover;
+  box-shadow: var(--shadow-card);
+}
+
 .pricing-card {
   position: relative;
 }
@@ -1161,6 +1232,15 @@ button.check-item {
   font-weight: 800;
 }
 
+.page-mascot {
+  width: 92px;
+  height: 92px;
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  object-fit: cover;
+  box-shadow: var(--shadow-card);
+}
+
 @media (min-width: 680px) {
   .language-toggle {
     display: inline-flex;
@@ -1183,5 +1263,133 @@ button.check-item {
   .footer-actions {
     margin-inline: calc(var(--space-6) * -1);
     padding-inline: var(--space-6);
+  }
+}
+
+@media (min-width: 900px) {
+  body {
+    background:
+      radial-gradient(circle at 16% 10%, rgba(154, 205, 34, 0.12), transparent 28%),
+      radial-gradient(circle at 86% 18%, rgba(245, 164, 0, 0.1), transparent 24%),
+      var(--color-cream);
+  }
+
+  .public-shell,
+  .auth-shell {
+    width: min(100%, 1100px);
+    background: transparent;
+  }
+
+  .public-shell .page,
+  .auth-shell .page {
+    padding: var(--space-6) var(--space-7) calc(var(--space-7) + 20px);
+  }
+
+  .auth-layout-page {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+  }
+
+  .auth-layout-page .top-nav {
+    flex: 0 0 auto;
+  }
+
+  .auth-desktop-grid {
+    display: grid;
+    min-height: calc(100vh - 116px);
+    flex: 1;
+    grid-template-columns: minmax(360px, 520px) minmax(360px, 420px);
+    align-items: center;
+    justify-content: center;
+    gap: clamp(40px, 6vw, 84px);
+  }
+
+  .auth-form-panel {
+    width: min(100%, 420px);
+    justify-self: center;
+  }
+
+  .auth-form-panel > .card,
+  .auth-form-panel > .button,
+  .auth-form-panel > .form-grid {
+    width: 100%;
+  }
+
+  .auth-mascot-panel {
+    display: grid;
+    gap: var(--space-5);
+    align-content: center;
+  }
+
+  .auth-mascot-image {
+    max-height: 520px;
+    object-fit: cover;
+  }
+
+  .auth-desktop-grid .auth-head {
+    margin-top: 0;
+    text-align: left;
+    justify-items: start;
+  }
+
+  .auth-desktop-grid .auth-head .mascot-avatar {
+    display: none;
+  }
+
+  .auth-mobile-only {
+    display: none;
+  }
+
+  .hero-card {
+    display: grid;
+    min-height: 520px;
+    grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+  }
+
+  .hero-card__image {
+    height: 100%;
+    aspect-ratio: auto;
+  }
+
+  .hero-card__content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: clamp(32px, 5vw, 56px);
+    text-align: left;
+  }
+
+  .hero-card h1 {
+    font-size: clamp(2.5rem, 4.8vw, 4.8rem);
+  }
+
+  .feature-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .landing-secondary-grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+
+  .pricing-hero {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    align-items: center;
+    margin-bottom: var(--space-6);
+  }
+
+  .pricing-hero .page-heading h1 {
+    font-size: clamp(2.4rem, 4vw, 4rem);
+  }
+
+  .pricing-hero__image {
+    width: 320px;
+    height: 320px;
+    justify-self: end;
+  }
+
+  .pricing-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }

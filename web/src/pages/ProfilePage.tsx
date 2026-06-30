@@ -1,6 +1,7 @@
 import { Crown, Edit, LogOut, Save, Settings } from "lucide-react";
 import { ChangeEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { genericAvatar } from "../assets/mascots";
 import { BottomNav } from "../components/navigation/BottomNav";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -74,7 +75,7 @@ export function ProfilePage() {
         <div className="profile-cover" />
 
         <Card className="profile-card">
-          <MascotAvatar size="lg" />
+          <MascotAvatar size="lg" src={genericAvatar} />
           {isEditing ? (
             <div className="form-grid" style={{ marginTop: 18, textAlign: "left" }}>
               <Input label="Display Name" name="name" onChange={updateField} value={draftProfile.name} />

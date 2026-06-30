@@ -1,5 +1,6 @@
 import { Check, Crown, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { pricingMascot } from "../assets/mascots";
 import { TopNav } from "../components/navigation/TopNav";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -22,14 +23,21 @@ export function PricingPage() {
   };
 
   return (
-    <main className="app-shell app-shell--wide">
+    <main className="app-shell app-shell--wide public-shell">
       <div className="page">
         <TopNav fallbackBackTo="/dashboard" title="Pricing" />
 
-        <section className="page-heading">
-          <p className="eyebrow">Choose your plan</p>
-          <h1>Unlock smarter food routines</h1>
-          <p>Static pricing cards for now. Payments are not connected in this phase.</p>
+        <section className="pricing-hero">
+          <div className="page-heading">
+            <p className="eyebrow">Choose your plan</p>
+            <h1>Unlock smarter food routines</h1>
+            <p>Static pricing cards for now. Payments are not connected in this phase.</p>
+          </div>
+          <img
+            className="pricing-hero__image"
+            src={pricingMascot}
+            alt="Mosaic Kitchen mascot presenting premium features"
+          />
         </section>
 
         <section className="section pricing-grid">

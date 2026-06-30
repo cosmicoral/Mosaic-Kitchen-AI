@@ -1,6 +1,7 @@
 import { Check, Edit, Plus, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { detectionMascot } from "../assets/mascots";
 import { TopNav } from "../components/navigation/TopNav";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -48,7 +49,7 @@ export function DetectionResultsPage() {
         <section className="section">
           <Card variant="dark">
             <div style={{ display: "grid", justifyItems: "center", textAlign: "center" }}>
-              <MascotAvatar size="lg" />
+              <MascotAvatar size="lg" src={detectionMascot} />
               <Badge variant="cream" style={{ marginTop: 12 }}>
                 AI Vision Complete
               </Badge>
@@ -105,7 +106,7 @@ export function DetectionResultsPage() {
 
           <Card className="suggestion-card">
             <div className="brand-row">
-              <MascotAvatar size="sm" />
+              <MascotAvatar size="sm" src={detectionMascot} />
               <span>
                 <strong>AI Expiry Prediction</strong> <Badge variant="green">Smart</Badge>
                 <br />
@@ -134,7 +135,7 @@ export function DetectionResultsPage() {
 
           <Card className="suggestion-card">
             <div className="brand-row">
-              <MascotAvatar size="sm" />
+              <MascotAvatar size="sm" src={detectionMascot} />
               <span>
                 <strong>Mosaic AI Suggestion</strong> <Badge variant="green">Tip</Badge>
                 <br />

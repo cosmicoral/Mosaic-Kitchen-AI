@@ -1,6 +1,7 @@
 import { Bookmark, Check, Snowflake, Trash2, Utensils } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { expiryMascot } from "../assets/mascots";
 import { TopNav } from "../components/navigation/TopNav";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -24,6 +25,11 @@ export function ExpiryAlertPage() {
         />
 
         <section className="page-heading">
+          <img
+            className="page-mascot"
+            src={expiryMascot}
+            alt="Worried Mosaic Kitchen mascot holding expiring spinach"
+          />
           <h1>Food Expiry Alert</h1>
           <p>Prevent food waste before it happens.</p>
         </section>

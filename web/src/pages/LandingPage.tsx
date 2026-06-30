@@ -1,6 +1,6 @@
-import { Check, ChevronRight, Globe2, Leaf, Recycle, Sparkles, Wallet } from "lucide-react";
+import { Check, ChevronRight, Leaf, Recycle, Sparkles, Wallet } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import mascotHero from "../assets/mascot-hero.png";
+import { landingHero } from "../assets/mascots";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -16,7 +16,7 @@ export function LandingPage() {
   const navigate = useNavigate();
 
   return (
-    <main className="app-shell app-shell--wide">
+    <main className="app-shell app-shell--wide public-shell">
       <div className="page">
         <header className="landing-header">
           <Link className="brand-row" to="/">
@@ -38,7 +38,7 @@ export function LandingPage() {
         <section className="hero-card">
           <img
             className="hero-card__image"
-            src={mascotHero}
+            src={landingHero}
             alt="Mosaic Kitchen AI mascot holding food at a multicultural meal table"
           />
           <div className="hero-card__content">
@@ -78,7 +78,7 @@ export function LandingPage() {
           })}
         </section>
 
-        <section className="section">
+        <section className="section landing-secondary-grid">
           <Card variant="dark">
             <p className="eyebrow" style={{ color: "#bfea73" }}>
               Perfect for

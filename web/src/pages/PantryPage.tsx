@@ -1,6 +1,7 @@
 import { Camera, ChevronDown, Filter, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { pantryMascot } from "../assets/mascots";
 import { BottomNav } from "../components/navigation/BottomNav";
 import { TopNav } from "../components/navigation/TopNav";
 import { Badge } from "../components/ui/Badge";
@@ -151,7 +152,7 @@ export function PantryPage() {
 
         <Card className="section suggestion-card">
           <div className="brand-row">
-            <MascotAvatar size="sm" />
+            <MascotAvatar size="sm" src={pantryMascot} />
             <span>
               <strong>Mosaic AI Tip</strong> <Badge variant="green">Suggest</Badge>
               <br />
