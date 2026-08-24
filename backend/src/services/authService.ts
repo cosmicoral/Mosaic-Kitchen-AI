@@ -1,10 +1,12 @@
-const crypto = require('crypto');
-const bcrypt = require('bcrypt');
-const userRepository = require('../repositories/userRepository');
-const sessionRepository = require('../repositories/sessionRepository');
+import crypto from 'node:crypto';
+import bcrypt from 'bcrypt';
+import * as userRepository from '../repositories/userRepository.ts';
+import * as sessionRepository from '../repositories/sessionRepository.ts';
+import { AppError } from '../types/index.ts';
+import type { Session, User } from '../types/index.ts';
 
 const SALT_ROUNDS = 12;
-const SESSION_TTL_DAYS = 30;
+export const SESSION_TTL_DAYS = 30;
 const MIN_PASSWORD_LENGTH = 8;
 const MAX_PASSWORD_LENGTH = 200;
 const MAX_EMAIL_LENGTH = 254; // RFC 5321 upper bound
@@ -19,60 +21,62 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // timing cannot be used to enumerate which emails are registered.
 const DUMMY_HASH = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), SALT_ROUNDS);
 
-function validationError(message) {
-  const error = new Error(message);
-  error.code = 'VALIDATION_ERROR';
-  return error;
-}
-
-function normalizeEmail(email) {
+function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function assertValidCredentials(email, password) {
+function assertValidCredentials(email: string, password: string): string {
   const normalizedEmail = normalizeEmail(email);
 
   if (normalizedEmail.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(normalizedEmail)) {
-    throw validationError('A valid email address is required');
+    throw new AppError('A valid email address is required', 'VALIDATION_ERROR');
   }
 
   if (password.length < MIN_PASSWORD_LENGTH) {
-    throw validationError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+    throw new AppError(
+      `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+      'VALIDATION_ERROR'
+    );
   }
 
   // bcrypt silently truncates beyond 72 bytes; reject long input outright
   // rather than accept a password whose tail is ignored.
   if (password.length > MAX_PASSWORD_LENGTH) {
-    throw validationError(`Password must be at most ${MAX_PASSWORD_LENGTH} characters`);
+    throw new AppError(
+      `Password must be at most ${MAX_PASSWORD_LENGTH} characters`,
+      'VALIDATION_ERROR'
+    );
   }
 
   return normalizedEmail;
 }
 
-function generateSessionId() {
+function generateSessionId(): string {
   // 32 bytes = 256 bits of entropy, hex-encoded to 64 characters.
   return crypto.randomBytes(32).toString('hex');
 }
 
-function sessionExpiry() {
+function sessionExpiry(): Date {
   return new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
 }
 
-async function startSession(userId) {
+async function startSession(userId: string): Promise<Session> {
   const id = generateSessionId();
   const expiresAt = sessionExpiry();
-  await sessionRepository.create(id, userId, expiresAt);
-  return { id, expiresAt };
+  return sessionRepository.create(id, userId, expiresAt);
 }
 
-async function signup(email, password) {
+export interface AuthResult {
+  user: User;
+  session: Session;
+}
+
+export async function signup(email: string, password: string): Promise<AuthResult> {
   const normalizedEmail = assertValidCredentials(email, password);
 
   const existingUser = await userRepository.findByEmail(normalizedEmail);
   if (existingUser) {
-    const error = new Error('Email already registered');
-    error.code = 'EMAIL_TAKEN';
-    throw error;
+    throw new AppError('Email already registered', 'EMAIL_TAKEN');
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
@@ -82,7 +86,7 @@ async function signup(email, password) {
   return { user, session };
 }
 
-async function login(email, password) {
+export async function login(email: string, password: string): Promise<AuthResult> {
   const normalizedEmail = normalizeEmail(email);
   const user = await userRepository.findByEmail(normalizedEmail);
 
@@ -94,9 +98,7 @@ async function login(email, password) {
   );
 
   if (!user || !passwordMatches) {
-    const error = new Error('Invalid email or password');
-    error.code = 'INVALID_CREDENTIALS';
-    throw error;
+    throw new AppError('Invalid email or password', 'INVALID_CREDENTIALS');
   }
 
   const session = await startSession(user.id);
@@ -107,12 +109,12 @@ async function login(email, password) {
   };
 }
 
-async function logout(sessionId) {
+export async function logout(sessionId: string | undefined): Promise<void> {
   if (!sessionId) return;
   await sessionRepository.deleteById(sessionId);
 }
 
-async function getSessionUser(sessionId) {
+export async function getSessionUser(sessionId: string | undefined): Promise<User | null> {
   if (!sessionId) return null;
 
   const row = await sessionRepository.findActiveWithUser(sessionId);
@@ -124,11 +126,3 @@ async function getSessionUser(sessionId) {
     created_at: row.user_created_at,
   };
 }
-
-module.exports = {
-  signup,
-  login,
-  logout,
-  getSessionUser,
-  SESSION_TTL_DAYS,
-};

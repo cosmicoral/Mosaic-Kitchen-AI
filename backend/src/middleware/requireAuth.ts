@@ -1,9 +1,13 @@
-const authService = require('../services/authService');
-const { SESSION_COOKIE_NAME } = require('../config/cookies');
+import type { NextFunction, Request, Response } from 'express';
+import * as authService from '../services/authService.ts';
+import { SESSION_COOKIE_NAME } from '../config/cookies.ts';
 
 // Attaches req.user when the request carries a valid, unexpired session
 // cookie. Any route mounted behind this middleware can assume req.user exists.
-async function requireAuth(req, res, next) {
+//
+// `user` and `sessionId` are added to express's Request by declaration merging
+// in src/types/express.d.ts.
+async function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {
     const sessionId = req.cookies?.[SESSION_COOKIE_NAME];
     const user = await authService.getSessionUser(sessionId);
@@ -21,4 +25,4 @@ async function requireAuth(req, res, next) {
   }
 }
 
-module.exports = requireAuth;
+export default requireAuth;

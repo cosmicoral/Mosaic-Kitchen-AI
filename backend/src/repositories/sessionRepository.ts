@@ -1,18 +1,25 @@
-const pool = require('../db/pool');
+import pool from '../db/pool.ts';
+import type { Session, SessionWithUser } from '../types/index.ts';
 
-async function create(id, userId, expiresAt) {
-  const result = await pool.query(
+export async function create(
+  id: string,
+  userId: string,
+  expiresAt: Date
+): Promise<Session> {
+  const result = await pool.query<Session>(
     'INSERT INTO sessions (id, user_id, expires_at) VALUES ($1, $2, $3) RETURNING id, user_id, expires_at',
     [id, userId, expiresAt]
   );
-  return result.rows[0];
+  const session = result.rows[0];
+  if (!session) throw new Error('INSERT ... RETURNING returned no row');
+  return session;
 }
 
 // Expiry is filtered in SQL so callers can never accidentally use a stale
 // session, and so the database clock is the single source of truth.
 // Joins to users so the auth middleware needs only one round trip.
-async function findActiveWithUser(id) {
-  const result = await pool.query(
+export async function findActiveWithUser(id: string): Promise<SessionWithUser | null> {
+  const result = await pool.query<SessionWithUser>(
     `SELECT s.id            AS session_id,
             s.expires_at    AS expires_at,
             u.id            AS user_id,
@@ -24,16 +31,14 @@ async function findActiveWithUser(id) {
         AND s.expires_at > now()`,
     [id]
   );
-  return result.rows[0] || null;
+  return result.rows[0] ?? null;
 }
 
-async function deleteById(id) {
+export async function deleteById(id: string): Promise<void> {
   await pool.query('DELETE FROM sessions WHERE id = $1', [id]);
 }
 
-async function deleteExpired() {
+export async function deleteExpired(): Promise<number> {
   const result = await pool.query('DELETE FROM sessions WHERE expires_at <= now()');
-  return result.rowCount;
+  return result.rowCount ?? 0;
 }
-
-module.exports = { create, findActiveWithUser, deleteById, deleteExpired };
