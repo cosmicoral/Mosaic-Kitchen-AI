@@ -1,11 +1,18 @@
-const authService = require('../services/authService');
-const {
+import type { Request, Response } from 'express';
+import * as authService from '../services/authService.ts';
+import { AppError } from '../types/index.ts';
+import {
   SESSION_COOKIE_NAME,
   sessionCookieOptions,
   clearCookieOptions,
-} = require('../config/cookies');
+} from '../config/cookies.ts';
 
-function readCredentials(req) {
+interface Credentials {
+  email: string;
+  password: string;
+}
+
+function readCredentials(req: Request): Credentials | null {
   const { email, password } = req.body || {};
   if (typeof email !== 'string' || typeof password !== 'string') {
     return null;
@@ -13,7 +20,7 @@ function readCredentials(req) {
   return { email, password };
 }
 
-async function signup(req, res) {
+export async function signup(req: Request, res: Response) {
   const credentials = readCredentials(req);
   if (!credentials) {
     return res.status(400).json({ error: 'Email and password are required' });
@@ -28,18 +35,22 @@ async function signup(req, res) {
     res.cookie(SESSION_COOKIE_NAME, session.id, sessionCookieOptions);
     return res.status(201).json({ user });
   } catch (error) {
-    if (error.code === 'VALIDATION_ERROR') {
-      return res.status(400).json({ error: error.message });
-    }
-    if (error.code === 'EMAIL_TAKEN') {
-      return res.status(409).json({ error: 'Email already registered' });
+    // `error` is typed `unknown`; instanceof narrows it to AppError so .code
+    // and .message are safe to read.
+    if (error instanceof AppError) {
+      if (error.code === 'VALIDATION_ERROR') {
+        return res.status(400).json({ error: error.message });
+      }
+      if (error.code === 'EMAIL_TAKEN') {
+        return res.status(409).json({ error: 'Email already registered' });
+      }
     }
     console.error('Signup error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
 
-async function login(req, res) {
+export async function login(req: Request, res: Response) {
   const credentials = readCredentials(req);
   if (!credentials) {
     return res.status(400).json({ error: 'Email and password are required' });
@@ -56,7 +67,7 @@ async function login(req, res) {
   } catch (error) {
     // Same generic message whether the email is unknown or the password is
     // wrong, so the response body cannot be used to enumerate accounts.
-    if (error.code === 'INVALID_CREDENTIALS') {
+    if (error instanceof AppError && error.code === 'INVALID_CREDENTIALS') {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
     console.error('Login error:', error);
@@ -64,7 +75,7 @@ async function login(req, res) {
   }
 }
 
-async function logout(req, res) {
+export async function logout(req: Request, res: Response) {
   try {
     await authService.logout(req.cookies?.[SESSION_COOKIE_NAME]);
     res.clearCookie(SESSION_COOKIE_NAME, clearCookieOptions);
@@ -76,8 +87,6 @@ async function logout(req, res) {
 }
 
 // requireAuth has already resolved the user by the time this runs.
-async function me(req, res) {
+export async function me(req: Request, res: Response) {
   return res.status(200).json({ user: req.user });
 }
-
-module.exports = { signup, login, logout, me };

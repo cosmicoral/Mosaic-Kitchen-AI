@@ -1,9 +1,9 @@
-const rateLimit = require('express-rate-limit');
+import rateLimit from 'express-rate-limit';
 
 // Auth endpoints are the expensive, attackable ones: every login attempt costs
 // a deliberately slow bcrypt comparison, and unlimited attempts allow
 // credential stuffing. Keyed by IP.
-const authLimiter = rateLimit({
+export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
   standardHeaders: 'draft-7',
@@ -15,12 +15,10 @@ const authLimiter = rateLimit({
 });
 
 // Broad backstop for everything else.
-const globalLimiter = rateLimit({
+export const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 300,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: { error: 'Too many requests. Please try again later.' },
 });
-
-module.exports = { authLimiter, globalLimiter };

@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    // Node 26 runs TypeScript directly by stripping types, so tsc is only ever
+    // used for checking (`npm run typecheck`) and editor intellisense.
+    "noEmit": true,
+
+    // Only allow syntax that can be erased. Rules out enum, namespace, and
+    // constructor parameter properties, which would need real compilation.
+    "erasableSyntaxOnly": true,
+
+    "target": "esnext",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": ["esnext"],
+    "types": ["node"],
+
+    // Relative imports must carry the .ts extension at runtime under ESM,
+    // so the compiler has to accept them too.
+    "allowImportingTsExtensions": true,
+
+    // Keeps `import type` from being confused with a value import — required
+    // so type-only imports are guaranteed to disappear at runtime.
+    "verbatimModuleSyntax": true,
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*.ts", "scripts/**/*.ts"]
+}
