@@ -51,7 +51,7 @@ export interface PantryItem {
     category: PantryCategory;
     quantity: string | null;
     unit: string | null;
-    expires_on: Date | null;
+    expires_on: string | null;
     created_at: Date;
     updated_at: Date;
 }
