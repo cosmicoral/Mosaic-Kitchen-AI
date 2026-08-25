@@ -10,7 +10,7 @@
     "start": "node src/server.ts",
     "dev": "node --watch src/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --env-file=.env.test --test \"tests/**/*.test.ts\"",
+    "test": "node --env-file=.env.test --test-concurrency=1 --test \"tests/**/*.test.ts\"",
     "migrate:create": "node-pg-migrate create --migration-file-language sql",
     "migrate:up": "node-pg-migrate up",
     "migrate:down": "node-pg-migrate down",
