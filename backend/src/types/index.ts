@@ -22,7 +22,7 @@ export interface SessionWithUser {
     user_created_at: Date;
 }
 
-export type AppErrorCode = 'VALIDATION_ERROR' | 'EMAIL_TAKEN' | 'INVALID_CREDENTIALS';
+export type AppErrorCode = 'VALIDATION_ERROR' | 'EMAIL_TAKEN' | 'INVALID_CREDENTIALS'| 'NOT_FOUND';
 
 export class AppError extends Error {
     code: AppErrorCode;
