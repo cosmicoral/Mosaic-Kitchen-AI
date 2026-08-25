@@ -1,5 +1,17 @@
-backend/node_modules/
-backend/.env
+# Matches at any depth, so root/, backend/ and web/ are all covered.
+node_modules/
+
+# Every local env file. .env.example and .env.test.example are committed
+# because the negation below re-includes them.
+.env
+.env.*
+!.env.example
+!.env.test.example
+
+# Cookie jars written by curl during manual API testing.
+cookies.txt
+c.txt
+
 .DS_Store
 # Xcode
 #
