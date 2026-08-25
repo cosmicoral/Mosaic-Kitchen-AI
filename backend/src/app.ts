@@ -4,7 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
-
+import pantryRouter from './routes/pantry.ts';
 import mealPlanRouter from './routes/mealPlan.ts';
 import authRouter from './routes/auth.ts';
 import { globalLimiter } from './middleware/rateLimiters.ts';
@@ -57,6 +57,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRouter);
+app.use('/api/pantry', pantryRouter);
 app.use('/api/meal-plan', mealPlanRouter);
 
 export default app;
