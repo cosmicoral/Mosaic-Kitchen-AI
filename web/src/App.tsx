@@ -24,6 +24,8 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { ShoppingListPage } from "./pages/ShoppingListPage";
 import { SignupPage } from "./pages/SignupPage";
 import { ToastProvider } from "./components/ui/Toast";
+import { AuthProvider } from "./context/AuthContext";
+import { RequireAuth } from "./components/RequireAuth";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -38,29 +40,35 @@ function ScrollToTop() {
 export default function App() {
   return (
     <BrowserRouter>
-      <ToastProvider>
-        <ScrollToTop />
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/pricing" element={<PricingPage />} />
-          <Route path="/payment-placeholder" element={<PaymentPlaceholderPage />} />
-          <Route path="/onboarding/user-info" element={<OnboardingUserInfoPage />} />
-          <Route path="/onboarding/eating-habits" element={<OnboardingEatingHabitsPage />} />
-          <Route path="/onboarding/goals" element={<OnboardingGoalsPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/meal-plan" element={<MealPlanPage />} />
-          <Route path="/shopping-list" element={<ShoppingListPage />} />
-          <Route path="/pantry" element={<PantryPage />} />
-          <Route path="/expiry-alert" element={<ExpiryAlertPage />} />
-          <Route path="/ai-vision" element={<AIVisionPage />} />
-          <Route path="/detection-results" element={<DetectionResultsPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="*" element={<Navigate replace to="/" />} />
-        </Routes>
-      </ToastProvider>
+      <AuthProvider>
+        <ToastProvider>
+          <ScrollToTop />
+          <Routes>
+            {/* Public */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/payment-placeholder" element={<PaymentPlaceholderPage />} />
+
+            {/* Protected */}
+            <Route path="/onboarding/user-info" element={<RequireAuth><OnboardingUserInfoPage /></RequireAuth>} />
+            <Route path="/onboarding/eating-habits" element={<RequireAuth><OnboardingEatingHabitsPage /></RequireAuth>} />
+            <Route path="/onboarding/goals" element={<RequireAuth><OnboardingGoalsPage /></RequireAuth>} />
+            <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
+            <Route path="/meal-plan" element={<RequireAuth><MealPlanPage /></RequireAuth>} />
+            <Route path="/shopping-list" element={<RequireAuth><ShoppingListPage /></RequireAuth>} />
+            <Route path="/pantry" element={<RequireAuth><PantryPage /></RequireAuth>} />
+            <Route path="/expiry-alert" element={<RequireAuth><ExpiryAlertPage /></RequireAuth>} />
+            <Route path="/ai-vision" element={<RequireAuth><AIVisionPage /></RequireAuth>} />
+            <Route path="/detection-results" element={<RequireAuth><DetectionResultsPage /></RequireAuth>} />
+            <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+
+            <Route path="*" element={<Navigate replace to="/" />} />
+          </Routes>
+        </ToastProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

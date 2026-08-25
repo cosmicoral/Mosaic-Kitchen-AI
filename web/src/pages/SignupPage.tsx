@@ -1,4 +1,4 @@
-import { Apple, Check, Lock, Mail, User } from "lucide-react";
+import { Apple, Check, Lock, Mail } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { TopNav } from "../components/navigation/TopNav";
 import { signupMascot } from "../assets/mascots";
@@ -9,10 +9,45 @@ import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
+import { useState, type FormEvent } from "react";
+import { useAuth } from "../context/AuthContext";
 
 export function SignupPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { signup } = useAuth();
+const [email, setEmail] = useState("");
+const [password, setPassword] = useState("");
+const [confirmPassword, setConfirmPassword] = useState("");
+const [agreed, setAgreed] = useState(false);
+const [error, setError] = useState<string | null>(null);
+const [submitting, setSubmitting] = useState(false);
+
+async function handleSubmit(event: FormEvent) {
+  event.preventDefault();
+  setError(null);
+
+  // Checked here rather than on the server: the backend has no idea the UI
+  // asked for the password twice.
+  if (password !== confirmPassword) {
+    setError("Passwords do not match");
+    return;
+  }
+  if (!agreed) {
+    setError("Please accept the Terms of Service to continue");
+    return;
+  }
+
+  setSubmitting(true);
+  try {
+    await signup(email, password);
+    navigate("/onboarding/user-info");
+  } catch (submitError) {
+    setError(submitError instanceof Error ? submitError.message : "Sign up failed");
+  } finally {
+    setSubmitting(false);
+  }
+}
 
   return (
     <main className="app-shell auth-shell">
@@ -40,29 +75,72 @@ export function SignupPage() {
               <p>Create your free account and start planning meals in minutes.</p>
             </section>
 
-            <Card>
-              <form className="form-grid">
-                <Input icon={<User size={17} />} label="Full Name" placeholder="Your name" />
-                <Input icon={<Mail size={17} />} label="Email Address" placeholder="you@example.com" type="email" />
-                <Input icon={<Lock size={17} />} label="Password" placeholder="Min. 6 characters" type="password" />
-                <Input icon={<Lock size={17} />} label="Confirm Password" placeholder="Repeat your password" type="password" />
-                <label className="small muted" style={{ display: "flex", gap: 8 }}>
-                  <input type="checkbox" />
-                  <span>
-                    I agree to the <strong>Terms of Service</strong> and <strong>Privacy Policy</strong>
-                  </span>
-                </label>
-              </form>
-            </Card>
+            <form onSubmit={handleSubmit}>
+              <Card>
+                <div className="form-grid">
+                  <Input
+                    autoComplete="email"
+                    icon={<Mail size={17} />}
+                    label="Email Address"
+                    onChange={(event) => setEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    required
+                    type="email"
+                    value={email}
+                  />
+                  <Input
+                    autoComplete="new-password"
+                    icon={<Lock size={17} />}
+                    label="Password"
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Min. 8 characters"
+                    required
+                    type="password"
+                    value={password}
+                  />
+                  <Input
+                    autoComplete="new-password"
+                    icon={<Lock size={17} />}
+                    label="Confirm Password"
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    placeholder="Repeat your password"
+                    required
+                    type="password"
+                    value={confirmPassword}
+                  />
+                  <label className="small muted" style={{ display: "flex", gap: 8 }}>
+                    <input
+                      checked={agreed}
+                      onChange={(event) => setAgreed(event.target.checked)}
+                      type="checkbox"
+                    />
+                    <span>
+                      I agree to the <strong>Terms of Service</strong> and <strong>Privacy Policy</strong>
+                    </span>
+                  </label>
+                </div>
+              </Card>
 
-            <Button
-              fullWidth
-              icon={<Check size={18} />}
-              onClick={() => navigate("/onboarding/user-info")}
-              style={{ marginTop: 14 }}
-            >
-              Create Free Account
-            </Button>
+              {error ? (
+                <p
+                  className="small"
+                  role="alert"
+                  style={{ color: "var(--danger, #c0392b)", marginTop: 10 }}
+                >
+                  {error}
+                </p>
+              ) : null}
+
+              <Button
+                disabled={submitting}
+                fullWidth
+                icon={<Check size={18} />}
+                style={{ marginTop: 14 }}
+                type="submit"
+              >
+                {submitting ? "Creating account…" : "Create Free Account"}
+              </Button>
+            </form>
 
             <div className="auth-divider">OR</div>
 

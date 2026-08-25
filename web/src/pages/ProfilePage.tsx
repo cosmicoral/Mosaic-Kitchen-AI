@@ -9,6 +9,7 @@ import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
+import { useAuth } from "../context/AuthContext";
 import { profile } from "../data/mockData";
 
 type LocalProfile = {
@@ -22,6 +23,7 @@ type LocalProfile = {
 export function ProfilePage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { logout } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [savedProfile, setSavedProfile] = useState<LocalProfile>({
     name: profile.name,
@@ -190,7 +192,17 @@ export function ProfilePage() {
             </div>
           </Card>
 
-          <Button fullWidth icon={<LogOut size={17} />} onClick={() => navigate("/login")} variant="secondary">
+          <Button
+            fullWidth
+            icon={<LogOut size={17} />}
+            onClick={async () => {
+              await logout();
+              // replace, so Back does not return to a page the session no
+              // longer authorises.
+              navigate("/login", { replace: true });
+            }}
+            variant="secondary"
+          >
             Log Out
           </Button>
         </section>
