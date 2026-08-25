@@ -11,10 +11,24 @@ if (process.env.NODE_ENV !== 'test') {
   );
 }
 
+// NOTE: every test file clears the same database, so the files must not run in
+// parallel — two suites interleaving would let one wipe rows another is
+// mid-way through using. `npm test` passes --test-concurrency=1 for exactly
+// this reason. If the suite ever grows too slow, the fix is a schema (or Neon
+// branch) per file, not re-enabling parallelism.
+//
+// DELETE rather than TRUNCATE: TRUNCATE needs an ACCESS EXCLUSIVE lock and
+// waits forever if any other connection still holds a lock on the table, which
+// hangs the run with no error. DELETE takes a weaker lock, and these tables
+// never hold more than a handful of rows.
 export async function resetDb(): Promise<void> {
-  // One statement so the foreign key between sessions and users never blocks
-  // the truncate.
-  await pool.query('TRUNCATE sessions, users RESTART IDENTITY CASCADE');
+  // One call so all three statements run on the same pooled connection —
+  // separate pool.query() calls can each be handed a different one, which
+  // would leave the lock_timeout applied to the wrong session.
+  // sessions first: it holds the foreign key into users.
+  await pool.query(
+    "SET lock_timeout = '5s'; DELETE FROM sessions; DELETE FROM users;"
+  );
 }
 
 export async function closeDb(): Promise<void> {
@@ -51,4 +65,20 @@ export async function findUserRow(
     [email]
   );
   return result.rows[0] ?? null;
+}
+
+export async function countAllSessions(): Promise<number> {
+  const result = await pool.query<{ count: string }>('SELECT COUNT(*) AS count FROM sessions');
+  return Number(result.rows[0]?.count ?? 0);
+}
+
+export async function sessionExists(id: string): Promise<boolean> {
+  const result = await pool.query('SELECT 1 FROM sessions WHERE id = $1', [id]);
+  return result.rowCount === 1;
+}
+
+// Deletes straight through the database so the ON DELETE CASCADE on
+// sessions.user_id can be observed.
+export async function deleteUserRow(userId: string): Promise<void> {
+  await pool.query('DELETE FROM users WHERE id = $1', [userId]);
 }
