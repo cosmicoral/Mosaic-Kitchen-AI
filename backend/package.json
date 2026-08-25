@@ -10,7 +10,7 @@
     "start": "node src/server.ts",
     "dev": "node --watch src/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "jest",
+    "test": "node --env-file=.env.test --test \"tests/**/*.test.ts\"",
     "migrate:create": "node-pg-migrate create --migration-file-language sql",
     "migrate:up": "node-pg-migrate up",
     "migrate:down": "node-pg-migrate down",
@@ -40,7 +40,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "^26.1.2",
     "@types/pg": "^8.20.0",
-    "jest": "^30.4.2",
+    "@types/supertest": "^7.2.1",
     "supertest": "^7.2.2",
     "typescript": "^7.0.2"
   }
