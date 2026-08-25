@@ -22,12 +22,17 @@ if (process.env.NODE_ENV !== 'test') {
 // hangs the run with no error. DELETE takes a weaker lock, and these tables
 // never hold more than a handful of rows.
 export async function resetDb(): Promise<void> {
-  // One call so all three statements run on the same pooled connection —
-  // separate pool.query() calls can each be handed a different one, which
-  // would leave the lock_timeout applied to the wrong session.
-  // sessions first: it holds the foreign key into users.
+  // One call so all statements run on the same pooled connection — separate
+  // pool.query() calls can each be handed a different one, which would leave
+  // the lock_timeout applied to the wrong session.
+  //
+  // Children before parents. ON DELETE CASCADE would handle this, but naming
+  // each table means a new one cannot be silently forgotten here.
   await pool.query(
-    "SET lock_timeout = '5s'; DELETE FROM sessions; DELETE FROM users;"
+    `SET lock_timeout = '5s';
+     DELETE FROM pantry_items;
+     DELETE FROM sessions;
+     DELETE FROM users;`
   );
 }
 

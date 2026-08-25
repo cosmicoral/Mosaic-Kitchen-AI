@@ -64,10 +64,11 @@ function parseQuantity(value: unknown): number | null {
   }
   if (value <= 0) throw invalid('quantity must be greater than zero');
   if (value > MAX_QUANTITY) throw invalid('quantity is unrealistically large');
-  // The column is NUMERIC(10, 2). Rounding here means the value that comes
-  // back out is the value the caller sent, rather than one Postgres quietly
-  // truncated.
-  return Math.round(value * 100) / 100;
+   // Rounding via multiplication compounds the error already present in the
+  // binary representation: 1.005 is stored as 1.00499999..., so 1.005 * 100
+  // is 100.49999... and rounds down to 1.00. Shifting the decimal point
+  // through the string form instead lets the parser produce an exact 100.5.
+  return Number(Math.round(Number(`${value}e+2`)) + 'e-2');
 }
 
 function parseUnit(value: unknown): string | null {
