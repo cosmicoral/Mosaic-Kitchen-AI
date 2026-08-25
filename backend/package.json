@@ -17,6 +17,9 @@
     "cleanup:sessions": "node scripts/cleanup-sessions.ts",
     "migrate:up:test": "node-pg-migrate up --envPath .env.test"
   },
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
