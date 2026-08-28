@@ -1,5 +1,5 @@
-import { Camera, ChevronDown, Filter, Plus, X } from "lucide-react";
-import { useState } from "react";
+import { Camera, Loader2, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { pantryMascot } from "../assets/mascots";
 import { BottomNav } from "../components/navigation/BottomNav";
@@ -10,35 +10,117 @@ import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
-import { iconMap, pantryCategories } from "../data/mockData";
+import { usePantry } from "../hooks/usePantry";
+import { daysUntil, expiryTone, formatAmount, formatExpiry } from "../lib/pantryFormat";
+import { PANTRY_CATEGORIES, type PantryCategory, type PantryItem } from "../types";
+
+const CATEGORY_LABELS: Record<PantryCategory, string> = {
+  vegetables: "Vegetables",
+  protein: "Protein",
+  grains: "Grains",
+  condiments: "Condiments",
+  frozen: "Frozen",
+  dairy: "Dairy",
+  other: "Other",
+};
+
+const EXPIRING_WINDOW_DAYS = 7;
 
 export function PantryPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [showAllExpiring, setShowAllExpiring] = useState(false);
+  const { items, status, error, refresh, addItem, removeItem } = usePantry();
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [showAllExpiring, setShowAllExpiring] = useState(false);
 
-  const expiringItems = [
-    ["Spinach", "Expires in 2 days", "spinach"],
-    ["Chicken Breast", "Expires tomorrow", "chicken"],
-    ["Milk", "Expires in 3 days", "milk"],
-    ["Eggs", "Expires in 6 days", "egg"],
-    ["Tomatoes", "Expires in 4 days", "tomato"],
-  ];
-  const visibleExpiringItems = showAllExpiring ? expiringItems : expiringItems.slice(0, 3);
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState<PantryCategory>("vegetables");
+  const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState("");
+  const [expiresOn, setExpiresOn] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  const addIngredient = () => {
-    setIsAddModalOpen(false);
-    showToast("Ingredient added to mock pantry");
-  };
+  // Derived from `items`, so it can never disagree with the list on screen.
+  // useMemo because grouping and sorting on every keystroke in the modal would
+  // be wasted work.
+  const expiringItems = useMemo(
+    () =>
+      items.filter(
+        (item) => item.expires_on && daysUntil(item.expires_on) <= EXPIRING_WINDOW_DAYS
+      ),
+    [items]
+  );
+
+  // The API returns one flat list; the UI groups it. Doing the grouping here
+  // rather than adding a second endpoint keeps the two views guaranteed
+  // consistent.
+  const grouped = useMemo(() => {
+    const buckets = new Map<PantryCategory, PantryItem[]>();
+    for (const item of items) {
+      const bucket = buckets.get(item.category) ?? [];
+      bucket.push(item);
+      buckets.set(item.category, bucket);
+    }
+    return PANTRY_CATEGORIES.map((key) => ({
+      key,
+      label: CATEGORY_LABELS[key],
+      items: buckets.get(key) ?? [],
+    })).filter((group) => group.items.length > 0);
+  }, [items]);
+
+  const visibleExpiring = showAllExpiring ? expiringItems : expiringItems.slice(0, 3);
+
+  function resetForm() {
+    setName("");
+    setCategory("vegetables");
+    setQuantity("");
+    setUnit("");
+    setExpiresOn("");
+    setFormError(null);
+  }
+
+  async function handleAdd(event: FormEvent) {
+    event.preventDefault();
+    setFormError(null);
+    setSubmitting(true);
+
+    try {
+      await addItem({
+        name,
+        category,
+        // An empty field means "not specified", which is null — not 0, which
+        // the server would reject as a non-positive quantity.
+        quantity: quantity.trim() === "" ? null : Number(quantity),
+        unit: unit.trim() === "" ? null : unit.trim(),
+        expires_on: expiresOn === "" ? null : expiresOn,
+      });
+      setIsAddModalOpen(false);
+      resetForm();
+      showToast(`${name} added to your pantry`);
+    } catch (caught) {
+      setFormError(caught instanceof Error ? caught.message : "Could not add the item");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleRemove(item: PantryItem) {
+    try {
+      await removeItem(item.id);
+      showToast(`${item.name} removed`);
+    } catch {
+      showToast("Could not remove that item");
+    }
+  }
 
   return (
     <main className="app-shell">
       <div className="page page--nav">
         <TopNav
-          onRightAction={() => setIsFilterOpen((open) => !open)}
-          rightLabel="Filter"
+          onRightAction={() => void refresh()}
+          rightLabel="Refresh"
           showBack={false}
           title="My Kitchen"
         />
@@ -54,118 +136,148 @@ export function PantryPage() {
               <p className="eyebrow" style={{ color: "#bfea73" }}>
                 Pantry overview
               </p>
-              <h2 style={{ margin: 0 }}>12 ingredients stored</h2>
-              <p>
-                <strong>£43</strong> pantry value
-                <br />
-                <strong>£18 this month</strong> waste prevented
-              </p>
-              <div className="choice-grid">
-                <Badge variant="dark">Mostly healthy</Badge>
-                <Badge variant="dark">3 expiring</Badge>
-                <Badge variant="dark">Well stocked</Badge>
+              <h2 style={{ margin: 0 }}>
+                {items.length} {items.length === 1 ? "ingredient" : "ingredients"} stored
+              </h2>
+              <div className="choice-grid" style={{ marginTop: 12 }}>
+                <Badge variant="dark">{grouped.length} categories</Badge>
+                <Badge variant="dark">{expiringItems.length} expiring soon</Badge>
               </div>
-            </span>
-            <span className="score-ring">
-              <strong>84</strong>
-              <span className="tiny">Score</span>
             </span>
           </div>
         </Card>
 
-        {isFilterOpen ? (
-          <Card className="section filter-panel" variant="soft">
+        {status === "loading" ? (
+          <Card className="section">
             <div className="brand-row">
-              <Filter size={18} />
-              <strong>Filter Pantry</strong>
-            </div>
-            <div className="choice-grid">
-              {["Expiring soon", "Vegetables", "Protein", "Well stocked", "Needs restock"].map((filter, index) => (
-                <button className={`choice-pill${index === 0 ? " is-selected" : ""}`} key={filter} type="button">
-                  {filter}
-                </button>
-              ))}
+              <Loader2 size={18} />
+              <span className="small muted">Loading your pantry…</span>
             </div>
           </Card>
         ) : null}
 
-        <div className="section-title">
-          <h2>Expiring Soon</h2>
-          <button className="top-nav__right" onClick={() => setShowAllExpiring((showAll) => !showAll)} type="button">
-            {showAllExpiring ? "Show Less" : "See All"}
-          </button>
-        </div>
+        {status === "error" ? (
+          <Card className="section">
+            <strong>Could not load your pantry</strong>
+            <p className="small muted">{error}</p>
+            <Button icon={<RefreshCw size={16} />} onClick={() => void refresh()} variant="secondary">
+              Try again
+            </Button>
+          </Card>
+        ) : null}
 
-        <section className="form-grid">
-          {visibleExpiringItems.map(([name, expiry, icon]) => (
-            <Card className="alert-choice" key={name}>
-              <span className="item-icon">{iconMap[icon]}</span>
+        {status === "ready" && items.length === 0 ? (
+          <Card className="section">
+            <div className="brand-row">
+              <MascotAvatar size="sm" src={pantryMascot} />
               <span>
-                <strong>{name}</strong>
+                <strong>Your pantry is empty</strong>
                 <br />
-                <Badge variant={expiry.includes("tomorrow") ? "red" : "gold"}>{expiry}</Badge>
-              </span>
-              <Button onClick={() => navigate("/expiry-alert")} variant="primary">
-                Use Fresh
-              </Button>
-            </Card>
-          ))}
-        </section>
-
-        <div className="section-title">
-          <h2>Pantry Categories</h2>
-          <button className="top-nav__right" onClick={() => setIsAddModalOpen(true)} type="button">
-            Add Item
-          </button>
-        </div>
-
-        <section className="form-grid">
-          {pantryCategories.map((category, index) => (
-            <Card className="category-card" key={category.name}>
-              <div className="category-head">
-                <span className="brand-row">
-                  <span className="item-icon">{iconMap[category.icon]}</span>
-                  <span>
-                    <strong>{category.name}</strong>
-                    <br />
-                    <span className="small muted">{category.count}</span>
-                  </span>
+                <span className="small muted">
+                  Add what you already have and Mosaic can plan around it.
                 </span>
-                <ChevronDown size={18} />
-              </div>
-              {index === 0
-                ? category.items.map((item) => (
-                    <div className="check-item" key={item.name}>
-                      <span className="check-circle" />
+              </span>
+            </div>
+            <Button
+              fullWidth
+              icon={<Plus size={17} />}
+              onClick={() => setIsAddModalOpen(true)}
+              style={{ marginTop: 14 }}
+            >
+              Add your first ingredient
+            </Button>
+          </Card>
+        ) : null}
+
+        {expiringItems.length > 0 ? (
+          <>
+            <div className="section-title">
+              <h2>Expiring Soon</h2>
+              {expiringItems.length > 3 ? (
+                <button
+                  className="top-nav__right"
+                  onClick={() => setShowAllExpiring((value) => !value)}
+                  type="button"
+                >
+                  {showAllExpiring ? "Show Less" : "See All"}
+                </button>
+              ) : null}
+            </div>
+
+            <section className="form-grid">
+              {visibleExpiring.map((item) => (
+                <Card className="alert-choice" key={item.id}>
+                  <span>
+                    <strong>{item.name}</strong>
+                    <br />
+                    <Badge variant={expiryTone(item.expires_on)}>
+                      {formatExpiry(item.expires_on)}
+                    </Badge>
+                  </span>
+                  <Button onClick={() => navigate("/expiry-alert")} variant="primary">
+                    Use Fresh
+                  </Button>
+                </Card>
+              ))}
+            </section>
+          </>
+        ) : null}
+
+        {grouped.length > 0 ? (
+          <>
+            <div className="section-title">
+              <h2>Pantry Categories</h2>
+              <button
+                className="top-nav__right"
+                onClick={() => setIsAddModalOpen(true)}
+                type="button"
+              >
+                Add Item
+              </button>
+            </div>
+
+            <section className="form-grid">
+              {grouped.map((group) => (
+                <Card className="category-card" key={group.key}>
+                  <div className="category-head">
+                    <span className="brand-row">
+                      <span>
+                        <strong>{group.label}</strong>
+                        <br />
+                        <span className="small muted">
+                          {group.items.length} {group.items.length === 1 ? "item" : "items"}
+                        </span>
+                      </span>
+                    </span>
+                  </div>
+
+                  {group.items.map((item) => (
+                    <div className="check-item" key={item.id}>
                       <span>
                         <strong>{item.name}</strong>
                         <br />
-                        <span className="small muted">{item.amount}</span>
+                        <span className="small muted">
+                          {formatAmount(item) || "No quantity set"}
+                        </span>
                       </span>
-                      <Badge variant={item.tone === "gold" ? "gold" : "green"}>{item.expiresIn}</Badge>
+                      <Badge variant={expiryTone(item.expires_on)}>
+                        {formatExpiry(item.expires_on)}
+                      </Badge>
+                      <button
+                        aria-label={`Remove ${item.name}`}
+                        className="icon-only"
+                        onClick={() => void handleRemove(item)}
+                        type="button"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-                  ))
-                : null}
-            </Card>
-          ))}
-        </section>
-
-        <Card className="section suggestion-card">
-          <div className="brand-row">
-            <MascotAvatar size="sm" src={pantryMascot} />
-            <span>
-              <strong>Mosaic AI Tip</strong> <Badge variant="green">Suggest</Badge>
-              <br />
-              <span className="small muted">Based on what is in your kitchen.</span>
-            </span>
-          </div>
-          <p className="small">You already have: spinach, eggs and soy sauce.</p>
-          <Card variant="soft">
-            <span className="eyebrow">Generate</span>
-            <h3 style={{ margin: 0 }}>Vegetable Fried Rice</h3>
-            <p className="small muted">~20 min - saves £4.20</p>
-          </Card>
-        </Card>
+                  ))}
+                </Card>
+              ))}
+            </section>
+          </>
+        ) : null}
 
         <div className="footer-actions">
           <Button icon={<Plus size={17} />} onClick={() => setIsAddModalOpen(true)} variant="secondary">
@@ -185,18 +297,79 @@ export function PantryPage() {
               <h2 id="add-ingredient-title" style={{ margin: 0 }}>
                 Add Ingredient
               </h2>
-              <button className="icon-only" onClick={() => setIsAddModalOpen(false)} type="button">
+              <button
+                className="icon-only"
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  resetForm();
+                }}
+                type="button"
+              >
                 <X size={18} />
               </button>
             </div>
-            <div className="form-grid" style={{ marginTop: 16 }}>
-              <Input label="Ingredient" placeholder="Spinach, rice, tofu..." />
-              <Input label="Quantity" placeholder="200g, 1 pack, 6 units..." />
-              <Input label="Expiry" placeholder="In 3 days" />
-              <Button fullWidth icon={<Plus size={17} />} onClick={addIngredient}>
-                Add Ingredient
-              </Button>
-            </div>
+
+            <form onSubmit={handleAdd}>
+              <div className="form-grid" style={{ marginTop: 16 }}>
+                <Input
+                  label="Ingredient"
+                  maxLength={100}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Spinach, rice, tofu..."
+                  required
+                  value={name}
+                />
+
+                <div className="input-field">
+                  <label>Category</label>
+                  <div className="choice-grid">
+                    {PANTRY_CATEGORIES.map((key) => (
+                      <button
+                        className={`choice-pill${key === category ? " is-selected" : ""}`}
+                        key={key}
+                        onClick={() => setCategory(key)}
+                        type="button"
+                      >
+                        {CATEGORY_LABELS[key]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <Input
+                  label="Quantity (optional)"
+                  min="0"
+                  onChange={(event) => setQuantity(event.target.value)}
+                  placeholder="200"
+                  step="0.01"
+                  type="number"
+                  value={quantity}
+                />
+                <Input
+                  label="Unit (optional)"
+                  maxLength={20}
+                  onChange={(event) => setUnit(event.target.value)}
+                  placeholder="g, ml, pack, units"
+                  value={unit}
+                />
+                <Input
+                  label="Expiry date (optional)"
+                  onChange={(event) => setExpiresOn(event.target.value)}
+                  type="date"
+                  value={expiresOn}
+                />
+
+                {formError ? (
+                  <p className="small" role="alert" style={{ color: "var(--danger, #c0392b)" }}>
+                    {formError}
+                  </p>
+                ) : null}
+
+                <Button disabled={submitting} fullWidth icon={<Plus size={17} />} type="submit">
+                  {submitting ? "Adding…" : "Add Ingredient"}
+                </Button>
+              </div>
+            </form>
           </Card>
         </div>
       ) : null}
