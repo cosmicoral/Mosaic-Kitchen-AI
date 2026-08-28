@@ -65,3 +65,63 @@ export interface PantryItemInput {
 }
 
 export type PantryItemPatch = Partial<PantryItemInput>;
+
+// Drives RAG retrieval later, so it has to match the tags on the recipe
+// corpus — that is why this is a closed list rather than free text.
+export const CUISINES = [
+  'chinese', 'british', 'indian', 'pakistani', 'middle-eastern',
+  'japanese', 'korean', 'thai', 'vietnamese', 'italian',
+  'mexican', 'caribbean', 'west-african', 'mediterranean',
+] as const;
+
+export type Cuisine = (typeof CUISINES)[number];
+
+export const COOKING_STYLES = [
+  'quick',      // under 25 minutes
+  'balanced',   // 30-45 minutes
+  'batch',      // cook once, eat several times
+  'relaxed',    // happy to spend an hour
+] as const;
+
+export type CookingStyle = (typeof COOKING_STYLES)[number];
+
+export const PRIORITIES = [
+  'budget', 'health', 'taste', 'convenience',
+  'waste-reduction', 'cultural-authenticity',
+] as const;
+
+export type Priority = (typeof PRIORITIES)[number];
+
+export interface UserProfile {
+  user_id: string;
+  adults: number;
+  teenagers: number;
+  children: number;
+  toddlers: number;
+  household_size: number;
+  meals_per_week: number;
+  weekly_budget: string | null;
+  cuisines: Cuisine[];
+  // Free text on purpose: a closed list cannot cover every allergy or dislike,
+  // and getting this wrong is a safety problem, not a taste one.
+  avoid_ingredients: string[];
+  priorities: Priority[];
+  cooking_style: CookingStyle | null;
+  postcode: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface UserProfileInput {
+  adults: number;
+  teenagers: number;
+  children: number;
+  toddlers: number;
+  meals_per_week: number;
+  weekly_budget: number | null;
+  cuisines: Cuisine[];
+  avoid_ingredients: string[];
+  priorities: Priority[];
+  cooking_style: CookingStyle | null;
+  postcode: string | null;
+}
