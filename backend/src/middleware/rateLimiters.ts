@@ -27,3 +27,14 @@ export const globalLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many requests. Please try again later.' },
 });
+// Generation is slow and each call costs real money, so it gets a far tighter
+// window than ordinary requests. This complements the monthly quota rather
+// than duplicating it: the quota is about spend over a month, this is about a
+// retry loop or a double-clicked button.
+export const generationLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: isTest ? 10_000 : 3,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Please wait a moment before generating another plan.' },
+});
