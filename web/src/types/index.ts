@@ -37,3 +37,52 @@ export interface PantryItemInput {
   unit: string | null;
   expires_on: string | null;
 }
+
+export const CUISINES = [
+  'chinese', 'british', 'indian', 'pakistani', 'middle-eastern',
+  'japanese', 'korean', 'thai', 'vietnamese', 'italian',
+  'mexican', 'caribbean', 'west-african', 'mediterranean',
+] as const;
+
+export type Cuisine = (typeof CUISINES)[number];
+
+export const COOKING_STYLES = ['quick', 'balanced', 'batch', 'relaxed'] as const;
+export type CookingStyle = (typeof COOKING_STYLES)[number];
+
+export const PRIORITIES = [
+  'budget', 'health', 'taste', 'convenience',
+  'waste-reduction', 'cultural-authenticity',
+] as const;
+export type Priority = (typeof PRIORITIES)[number];
+
+export interface UserProfile {
+  user_id: string;
+  adults: number;
+  teenagers: number;
+  children: number;
+  toddlers: number;
+  household_size: number;
+  meals_per_week: number;
+  weekly_budget: string | null;
+  cuisines: Cuisine[];
+  avoid_ingredients: string[];
+  priorities: Priority[];
+  cooking_style: CookingStyle | null;
+  postcode: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserProfileInput {
+  adults: number;
+  teenagers: number;
+  children: number;
+  toddlers: number;
+  meals_per_week: number;
+  weekly_budget: number | null;
+  cuisines: Cuisine[];
+  avoid_ingredients: string[];
+  priorities: Priority[];
+  cooking_style: CookingStyle | null;
+  postcode: string | null;
+}

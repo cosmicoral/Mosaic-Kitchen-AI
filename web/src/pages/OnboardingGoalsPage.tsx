@@ -1,164 +1,185 @@
-import { Sparkles } from "lucide-react";
-import { useState } from "react";
+import { Check, MapPin, Sparkles, Wallet } from "lucide-react";
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { TopNav } from "../components/navigation/TopNav";
+import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
-import { MascotAvatar } from "../components/ui/MascotAvatar";
+import { Input } from "../components/ui/Input";
+import { useToast } from "../components/ui/Toast";
+import { useOnboarding } from "../context/OnboardingContext";
+import {
+  COOKING_STYLE_LABELS,
+  CUISINE_LABELS,
+  PRIORITY_LABELS,
+} from "../lib/profileOptions";
+import { PRIORITIES, type Priority } from "../types";
 
-function ProgressHeader({ onBack }: { onBack: () => void }) {
-  return (
-    <div className="progress-header">
-      <div className="progress-header__top">
-        <button className="top-nav__back" onClick={onBack} type="button">
-          Back
-        </button>
-        <span className="small muted">Step 3 of 3</span>
-      </div>
-      <div className="progress-track">
-        <span className="progress-segment is-complete" />
-        <span className="progress-segment is-complete" />
-        <span className="progress-segment is-complete" />
-      </div>
-    </div>
-  );
-}
+const MEAL_OPTIONS = [3, 5, 7, 14, 21];
+const MAX_PRIORITIES = 3;
 
 export function OnboardingGoalsPage() {
   const navigate = useNavigate();
-  const goals = [
-    "Save Money",
-    "Eat Healthier",
-    "Reduce Food Waste",
-    "Lose Weight",
-    "Gain Muscle",
-    "Family Friendly",
-    "Quick and Easy",
-    "Explore Cuisines",
-    "Heart Healthy",
-    "Diabetes Friendly",
-  ];
-  const mealOptions = ["3 meals", "5 meals", "7 meals", "14 meals"];
-  const priorityOptions = ["Taste", "Health", "Budget", "Convenience", "Food Waste Reduction", "Cultural Authenticity", "Family Needs"];
-  const [selectedGoals, setSelectedGoals] = useState(["Save Money", "Eat Healthier", "Reduce Food Waste"]);
-  const [selectedMeals, setSelectedMeals] = useState("7 meals");
-  const [selectedPriorities, setSelectedPriorities] = useState(["Budget", "Cultural Authenticity"]);
+  const { showToast } = useToast();
+  const { draft, update, submit } = useOnboarding();
 
-  const toggleSelection = (value: string, selected: string[], setSelected: (value: string[]) => void) => {
-    setSelected(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value]);
-  };
+  const [budgetText, setBudgetText] = useState(
+    draft.weekly_budget === null ? "" : String(draft.weekly_budget)
+  );
+  const [postcodeText, setPostcodeText] = useState(draft.postcode ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Capped: asking someone to rank everything as important tells the planner
+  // nothing. Three forces a real trade-off.
+  function togglePriority(priority: Priority) {
+    if (draft.priorities.includes(priority)) {
+      update({ priorities: draft.priorities.filter((entry) => entry !== priority) });
+      return;
+    }
+    if (draft.priorities.length >= MAX_PRIORITIES) {
+      showToast(`Pick up to ${MAX_PRIORITIES} priorities`);
+      return;
+    }
+    update({ priorities: [...draft.priorities, priority] });
+  }
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+    setSubmitting(true);
+
+    try {
+      // Written into the draft only at submit time: keeping every keystroke in
+      // context state would rerender all three screens on each character.
+      await submit();
+      navigate("/dashboard", { replace: true });
+      showToast("Your preferences are saved");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not save your preferences");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function commitBudget(value: string) {
+    setBudgetText(value);
+    const trimmed = value.trim();
+    update({ weekly_budget: trimmed === "" ? null : Number(trimmed) });
+  }
+
+  function commitPostcode(value: string) {
+    setPostcodeText(value);
+    update({ postcode: value.trim() === "" ? null : value.trim() });
+  }
 
   return (
     <main className="app-shell">
       <div className="page">
-        <ProgressHeader onBack={() => navigate("/onboarding/eating-habits")} />
+        <TopNav backTo="/onboarding/eating-habits" title="Step 3 of 3" />
 
-        <section className="auth-head">
-          <MascotAvatar size="md" />
-          <h1>What are your goals?</h1>
-          <p>Help us craft a meal plan that truly fits you.</p>
+        <section className="page-heading">
+          <h1>What matters most?</h1>
+          <p>Pick up to three. We use them to break ties when planning.</p>
         </section>
 
-        <section className="section">
+        <form onSubmit={handleSubmit}>
           <Card>
-            <h2>Meal Planning Goals</h2>
-            <p className="small muted">Select all that apply.</p>
-            <div className="choice-grid" style={{ marginTop: 14 }}>
-              {goals.map((goal) => (
+            <div className="choice-grid">
+              {PRIORITIES.map((priority) => (
                 <button
-                  className={`choice-pill${selectedGoals.includes(goal) ? " is-selected" : ""}`}
-                  key={goal}
-                  onClick={() => toggleSelection(goal, selectedGoals, setSelectedGoals)}
+                  className={`choice-pill${draft.priorities.includes(priority) ? " is-selected" : ""}`}
+                  key={priority}
+                  onClick={() => togglePriority(priority)}
                   type="button"
                 >
-                  {goal}
+                  {PRIORITY_LABELS[priority]}
                 </button>
               ))}
             </div>
           </Card>
 
+          <div className="section-title">
+            <h2>Meals per week</h2>
+          </div>
           <Card>
-            <h2>Weekly Food Budget</h2>
-            <p className="small muted">How much do you usually spend on food each week?</p>
-            <div style={{ padding: "24px 0 10px", textAlign: "center" }}>
-              <strong style={{ color: "var(--color-forest)", fontSize: "2.4rem" }}>£80</strong>
-              <br />
-              <span className="small muted">per week</span>
-            </div>
-            <div style={{ height: 5, borderRadius: 999, background: "#e4ebdc" }}>
-              <div style={{ width: "28%", height: "100%", borderRadius: 999, background: "var(--color-primary)" }} />
-            </div>
-            <div className="premium-strip tiny muted" style={{ marginTop: 8 }}>
-              <span>£20</span>
-              <span>£300+</span>
-            </div>
-          </Card>
-
-          <Card>
-            <h2>Meals to Plan</h2>
-            <p className="small muted">How many meals would you like us to plan?</p>
-            <div className="two-col" style={{ marginTop: 14 }}>
-              {mealOptions.map((item) => (
+            <div className="choice-grid">
+              {MEAL_OPTIONS.map((count) => (
                 <button
-                  className={`select-card${selectedMeals === item ? " is-selected" : ""}`}
-                  key={item}
-                  onClick={() => setSelectedMeals(item)}
+                  className={`choice-pill${draft.meals_per_week === count ? " is-selected" : ""}`}
+                  key={count}
+                  onClick={() => update({ meals_per_week: count })}
                   type="button"
                 >
-                  <strong>{item}</strong>
-                  <br />
-                  <span className="tiny muted">{selectedMeals === item ? "Selected" : "Tap to select"}</span>
+                  {count} meals
                 </button>
               ))}
             </div>
           </Card>
 
+          <div className="section-title">
+            <h2>Budget and location</h2>
+          </div>
           <Card>
-            <h2>Meal Planning Priorities</h2>
-            <p className="small muted">Select what matters most to you.</p>
-            <div className="choice-grid" style={{ marginTop: 14 }}>
-              {priorityOptions.map((item) => (
-                <button
-                  className={`choice-pill${selectedPriorities.includes(item) ? " is-selected" : ""}`}
-                  key={item}
-                  onClick={() => toggleSelection(item, selectedPriorities, setSelectedPriorities)}
-                  type="button"
-                >
-                  {item}
-                </button>
-              ))}
+            <div className="form-grid">
+              <Input
+                helper="Roughly what you spend on groceries each week."
+                icon={<Wallet size={16} />}
+                label="Weekly budget (£, optional)"
+                min="0"
+                onChange={(event) => commitBudget(event.target.value)}
+                placeholder="80"
+                step="0.01"
+                type="number"
+                value={budgetText}
+              />
+              <Input
+                helper="Only used later to show prices and shops near you. Optional."
+                icon={<MapPin size={16} />}
+                label="Postcode (optional)"
+                maxLength={8}
+                onChange={(event) => commitPostcode(event.target.value)}
+                placeholder="SW1A 1AA"
+                value={postcodeText}
+              />
             </div>
           </Card>
 
-          <Card variant="soft">
-            <h2>Review Summary</h2>
-            <div className="summary-list">
+          <Card className="section" variant="soft">
+            <div className="brand-row">
+              <Sparkles size={18} />
+              <strong>Your setup</strong>
+            </div>
+            <div className="form-grid" style={{ marginTop: 12 }}>
               {[
-                ["Household Size", "2 people"],
-                ["Food Cultures", "Chinese, British"],
-                ["Dietary Requirements", "Halal"],
-                ["Eating Habits", "Mostly Cook at Home"],
-                ["Weekly Budget", "£80"],
+                ["Household", `${draft.adults + draft.teenagers + draft.children + draft.toddlers} people`],
+                ["Cuisines", draft.cuisines.map((c) => CUISINE_LABELS[c]).join(", ") || "Not set"],
+                ["Cooking", draft.cooking_style ? COOKING_STYLE_LABELS[draft.cooking_style] : "Not set"],
+                ["Avoiding", draft.avoid_ingredients.join(", ") || "Nothing"],
+                ["Meals", `${draft.meals_per_week} per week`],
               ].map(([label, value]) => (
-                <div className="summary-row" key={label}>
+                <div className="check-item" key={label}>
                   <span className="small muted">{label}</span>
-                  <strong className="small">{value}</strong>
+                  <span className="small">
+                    <strong>{value}</strong>
+                  </span>
                 </div>
               ))}
             </div>
           </Card>
-        </section>
 
-        <Button
-          fullWidth
-          icon={<Sparkles size={18} />}
-          onClick={() => navigate("/meal-plan")}
-          style={{ marginTop: 22 }}
-        >
-          Generate My Meal Plan
-        </Button>
-        <p className="tiny muted" style={{ textAlign: "center" }}>
-          Your personalized plan is generated securely using AI.
-        </p>
+          {error ? (
+            <p className="small" role="alert" style={{ color: "var(--danger, #c0392b)", marginTop: 10 }}>
+              {error}
+            </p>
+          ) : null}
+
+          <div className="footer-actions">
+            <Button disabled={submitting} fullWidth icon={<Check size={17} />} type="submit">
+              {submitting ? "Saving…" : "Finish setup"}
+            </Button>
+          </div>
+        </form>
       </div>
     </main>
   );

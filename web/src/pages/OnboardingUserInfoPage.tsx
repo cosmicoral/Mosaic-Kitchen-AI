@@ -1,152 +1,138 @@
-import { Minus, Plus } from "lucide-react";
-import { useState } from "react";
+import { ArrowRight, Minus, Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Badge } from "../components/ui/Badge";
+import { TopNav } from "../components/navigation/TopNav";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
-import { Input } from "../components/ui/Input";
-import { MascotAvatar } from "../components/ui/MascotAvatar";
+import { useOnboarding } from "../context/OnboardingContext";
+import { CUISINE_LABELS } from "../lib/profileOptions";
+import { CUISINES, type Cuisine, type UserProfileInput } from "../types";
 
-function ProgressHeader({ onBack }: { onBack: () => void }) {
-  return (
-    <div className="progress-header">
-      <div className="progress-header__top">
-        <button className="top-nav__back" onClick={onBack} type="button">
-          Back
-        </button>
-        <span className="small muted">1 of 3</span>
-      </div>
-      <div className="progress-track">
-        <span className="progress-segment is-complete" />
-        <span className="progress-segment" />
-        <span className="progress-segment" />
-      </div>
-    </div>
-  );
-}
+// Each band feeds the plan differently, so the copy has to make the age
+// boundaries unambiguous — nobody guesses where "child" ends.
+const HOUSEHOLD_BANDS: Array<{
+  key: 'adults' | 'teenagers' | 'children' | 'toddlers';
+  label: string;
+  hint: string;
+}> = [
+  { key: 'adults', label: 'Adults', hint: '18 and over' },
+  { key: 'teenagers', label: 'Teenagers', hint: '13 to 17' },
+  { key: 'children', label: 'Children', hint: '5 to 12' },
+  { key: 'toddlers', label: 'Toddlers', hint: '1 to 4' },
+];
 
 export function OnboardingUserInfoPage() {
   const navigate = useNavigate();
-  const ageRanges = ["18-24", "25-34", "35-44", "45-54", "55+"];
-  const genders = ["Male", "Female", "Non-binary", "Prefer not to say"];
-  const cultures = ["Chinese", "British", "Indian", "Pakistani", "Middle Eastern", "Japanese", "Korean", "Thai", "Italian", "Mexican", "African", "Other"];
-  const dietary = ["Halal", "Kosher", "Vegetarian", "Vegan", "No Pork", "No Beef", "Gluten Free", "Dairy Free", "Nut Allergy", "None"];
-  const [selectedAge, setSelectedAge] = useState("25-34");
-  const [selectedGender, setSelectedGender] = useState("Prefer not to say");
-  const [householdSize, setHouseholdSize] = useState(2);
-  const [selectedCultures, setSelectedCultures] = useState(["Chinese", "British"]);
-  const [selectedDietary, setSelectedDietary] = useState(["Halal"]);
+  const { draft, update } = useOnboarding();
 
-  const toggleSelection = (value: string, selected: string[], setSelected: (value: string[]) => void) => {
-    setSelected(selected.includes(value) ? selected.filter((item) => item !== value) : [...selected, value]);
-  };
+  const householdTotal =
+    draft.adults + draft.teenagers + draft.children + draft.toddlers;
+
+  function step(key: (typeof HOUSEHOLD_BANDS)[number]['key'], delta: number) {
+    // Clamped to the same range the database CHECK enforces, so the UI can
+    // never produce a value the API will reject.
+    const next = Math.min(20, Math.max(0, draft[key] + delta));
+    update({ [key]: next } as Partial<UserProfileInput>);
+  }
+
+  function toggleCuisine(cuisine: Cuisine) {
+    const selected = draft.cuisines.includes(cuisine)
+      ? draft.cuisines.filter((entry) => entry !== cuisine)
+      : [...draft.cuisines, cuisine];
+    update({ cuisines: selected });
+  }
+
+  const canContinue = householdTotal >= 1 && draft.cuisines.length > 0;
 
   return (
     <main className="app-shell">
       <div className="page">
-        <ProgressHeader onBack={() => navigate("/signup")} />
+        <TopNav backTo="/signup" title="Step 1 of 3" />
 
-        <section className="auth-head">
-          <MascotAvatar size="md" />
-          <h1>Tell us about yourself</h1>
-          <p>Help us personalize your meal plans.</p>
+        <section className="page-heading">
+          <h1>Who are you cooking for?</h1>
+          <p>This sets portion sizes and keeps meals suitable for everyone at the table.</p>
         </section>
 
-        <section className="section">
-          <Card>
-            <p className="eyebrow">Age range</p>
-            <div className="choice-grid">
-              {ageRanges.map((item) => (
-                <button
-                  className={`choice-pill${selectedAge === item ? " is-selected" : ""}`}
-                  key={item}
-                  onClick={() => setSelectedAge(item)}
-                  type="button"
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
+        <Card>
+          <div className="brand-row">
+            <Users size={18} />
+            <strong>Household</strong>
+          </div>
 
-            <p className="eyebrow" style={{ marginTop: 22 }}>
-              Gender
-            </p>
-            <div className="choice-grid">
-              {genders.map((item) => (
-                <button
-                  className={`choice-pill${selectedGender === item ? " is-selected" : ""}`}
-                  key={item}
-                  onClick={() => setSelectedGender(item)}
-                  type="button"
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
+          <div className="form-grid" style={{ marginTop: 16 }}>
+            {HOUSEHOLD_BANDS.map((band) => (
+              <div className="check-item" key={band.key}>
+                <span>
+                  <strong>{band.label}</strong>
+                  <br />
+                  <span className="small muted">{band.hint}</span>
+                </span>
+                <div className="stepper">
+                  <button
+                    aria-label={`Fewer ${band.label.toLowerCase()}`}
+                    className="icon-only"
+                    disabled={draft[band.key] === 0}
+                    onClick={() => step(band.key, -1)}
+                    type="button"
+                  >
+                    <Minus size={16} />
+                  </button>
+                  <strong style={{ minWidth: 24, textAlign: "center" }}>
+                    {draft[band.key]}
+                  </strong>
+                  <button
+                    aria-label={`More ${band.label.toLowerCase()}`}
+                    className="icon-only"
+                    disabled={draft[band.key] === 20}
+                    onClick={() => step(band.key, 1)}
+                    type="button"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
 
-            <div className="form-grid" style={{ marginTop: 22 }}>
-              <Input label="Nationality" placeholder="Search nationality..." />
-              <Input label="Occupation" placeholder="Search occupation..." />
-            </div>
+          <p className="small muted" style={{ marginTop: 12 }}>
+            {householdTotal === 0
+              ? "Add at least one person."
+              : `Planning for ${householdTotal} ${householdTotal === 1 ? "person" : "people"}.`}
+          </p>
+        </Card>
 
-            <p className="eyebrow" style={{ marginTop: 22 }}>
-              Household size
-            </p>
-            <div className="stepper">
-              <button className="icon-only" onClick={() => setHouseholdSize((size) => Math.max(1, size - 1))} type="button">
-                <Minus size={17} />
-              </button>
-              <span>
-                <strong>{householdSize}</strong>
-                <span className="tiny muted">{householdSize === 1 ? "person" : "people"}</span>
-              </span>
-              <button className="icon-only" onClick={() => setHouseholdSize((size) => size + 1)} type="button">
-                <Plus size={17} />
-              </button>
-            </div>
-          </Card>
-
-          <Card>
-            <h2>Your Food Culture</h2>
-            <p className="small muted">Select the cultures that matter to you.</p>
-            <div className="choice-grid" style={{ marginTop: 14 }}>
-              {cultures.map((item) => (
-                <button
-                  className={`choice-pill${selectedCultures.includes(item) ? " is-selected" : ""}`}
-                  key={item}
-                  onClick={() => toggleSelection(item, selectedCultures, setSelectedCultures)}
-                  type="button"
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </Card>
-
-          <Card>
-            <h2>Dietary Requirements</h2>
-            <p className="small muted">Any restrictions or preferences?</p>
-            <div className="choice-grid" style={{ marginTop: 14 }}>
-              {dietary.map((item) => (
-                <button
-                  className={`choice-pill${selectedDietary.includes(item) ? " is-selected" : ""}`}
-                  key={item}
-                  onClick={() => toggleSelection(item, selectedDietary, setSelectedDietary)}
-                  type="button"
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </Card>
-        </section>
-
-        <Button fullWidth onClick={() => navigate("/onboarding/eating-habits")} style={{ marginTop: 22 }}>
-          Continue
-        </Button>
-        <p className="tiny muted" style={{ textAlign: "center" }}>
-          Your data is encrypted and never shared with third parties.
+        <div className="section-title">
+          <h2>Which cuisines do you cook?</h2>
+        </div>
+        <p className="small muted">
+          Pick as many as you like. We use these to choose recipes, not to guess anything about you.
         </p>
+
+        <Card className="section">
+          <div className="choice-grid">
+            {CUISINES.map((cuisine) => (
+              <button
+                className={`choice-pill${draft.cuisines.includes(cuisine) ? " is-selected" : ""}`}
+                key={cuisine}
+                onClick={() => toggleCuisine(cuisine)}
+                type="button"
+              >
+                {CUISINE_LABELS[cuisine]}
+              </button>
+            ))}
+          </div>
+        </Card>
+
+        <div className="footer-actions">
+          <Button
+            disabled={!canContinue}
+            fullWidth
+            icon={<ArrowRight size={17} />}
+            onClick={() => navigate("/onboarding/eating-habits")}
+          >
+            Continue
+          </Button>
+        </div>
       </div>
     </main>
   );
