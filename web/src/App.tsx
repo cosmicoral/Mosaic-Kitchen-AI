@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import {
   BrowserRouter,
   Navigate,
+  Outlet,
   Route,
   Routes,
   useLocation,
@@ -25,6 +26,7 @@ import { ShoppingListPage } from "./pages/ShoppingListPage";
 import { SignupPage } from "./pages/SignupPage";
 import { ToastProvider } from "./components/ui/Toast";
 import { AuthProvider } from "./context/AuthContext";
+import { OnboardingProvider } from "./context/OnboardingContext";
 import { RequireAuth } from "./components/RequireAuth";
 
 function ScrollToTop() {
@@ -52,10 +54,23 @@ export default function App() {
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/payment-placeholder" element={<PaymentPlaceholderPage />} />
 
+            {/* Onboarding: a pathless layout route, so all three screens share
+                one OnboardingProvider and the draft survives navigation. */}
+            <Route
+              element={
+                <RequireAuth>
+                  <OnboardingProvider>
+                    <Outlet />
+                  </OnboardingProvider>
+                </RequireAuth>
+              }
+            >
+              <Route path="/onboarding/user-info" element={<OnboardingUserInfoPage />} />
+              <Route path="/onboarding/eating-habits" element={<OnboardingEatingHabitsPage />} />
+              <Route path="/onboarding/goals" element={<OnboardingGoalsPage />} />
+            </Route>
+
             {/* Protected */}
-            <Route path="/onboarding/user-info" element={<RequireAuth><OnboardingUserInfoPage /></RequireAuth>} />
-            <Route path="/onboarding/eating-habits" element={<RequireAuth><OnboardingEatingHabitsPage /></RequireAuth>} />
-            <Route path="/onboarding/goals" element={<RequireAuth><OnboardingGoalsPage /></RequireAuth>} />
             <Route path="/dashboard" element={<RequireAuth><DashboardPage /></RequireAuth>} />
             <Route path="/meal-plan" element={<RequireAuth><MealPlanPage /></RequireAuth>} />
             <Route path="/shopping-list" element={<RequireAuth><ShoppingListPage /></RequireAuth>} />
