@@ -1,3 +1,5 @@
+import { getStoredLocale } from '../context/LocaleContext';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export class ApiError extends Error {
@@ -20,6 +22,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
         credentials: 'include',
         headers: {
         'Content-Type': 'application/json',
+        'Accept-Language': getStoredLocale() === 'zh' ? 'zh-CN' : 'en-GB',
         ...options.headers,
         },
     });

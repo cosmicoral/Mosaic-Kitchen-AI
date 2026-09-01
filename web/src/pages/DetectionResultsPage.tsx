@@ -9,10 +9,12 @@ import { Card } from "../components/ui/Card";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
 import { detectedIngredients, iconMap } from "../data/mockData";
+import { useLocale } from "../context/LocaleContext";
 
 export function DetectionResultsPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLocale();
   const [isEditing, setIsEditing] = useState(false);
   const [selectedIngredients, setSelectedIngredients] = useState(
     detectedIngredients.map((ingredient) => ingredient.name),
@@ -42,7 +44,7 @@ export function DetectionResultsPage() {
         />
 
         <section className="page-heading">
-          <h1>Detected Ingredients</h1>
+          <h1>{t("Detected Ingredients")}</h1>
           <p>{detectedIngredients.length} ingredients identified successfully.</p>
         </section>
 
@@ -54,33 +56,33 @@ export function DetectionResultsPage() {
                 AI Vision Complete
               </Badge>
               <h2>{detectedIngredients.length} Ingredients Detected</h2>
-              <p className="small">Review before adding to pantry.</p>
+              <p className="small">{t("Review before adding to pantry.")}</p>
               <div className="metric-grid" style={{ width: "100%", marginTop: 12 }}>
                 <div>
                   <strong>91%</strong>
                   <br />
-                  <span className="tiny">Avg confidence</span>
+                  <span className="tiny">{t("Avg confidence")}</span>
                 </div>
                 <div>
                   <strong>3 items</strong>
                   <br />
-                  <span className="tiny">Expiring soon</span>
+                  <span className="tiny">{t("Expiring soon")}</span>
                 </div>
                 <div>
                   <strong>£17.50</strong>
                   <br />
-                  <span className="tiny">Est. value</span>
+                  <span className="tiny">{t("Est. value")}</span>
                 </div>
               </div>
             </div>
           </Card>
 
           <div className="premium-strip">
-            <h2 style={{ margin: 0 }}>Detected Ingredients</h2>
-            <strong style={{ color: "var(--color-primary-strong)" }}>{selectedCount} selected</strong>
+            <h2 style={{ margin: 0 }}>{t("Detected Ingredients")}</h2>
+            <strong style={{ color: "var(--color-primary-strong)" }}>{selectedCount} {t("selected")}</strong>
           </div>
 
-          {isEditing ? <div className="edit-banner">Edit detection mode is on. Tap ingredients to include or remove them.</div> : null}
+          {isEditing ? <div className="edit-banner">{t("Edit detection mode is on. Tap ingredients to include or remove them.")}</div> : null}
 
           <Card className="detection-list">
             {detectedIngredients.map((item) => {
@@ -108,9 +110,9 @@ export function DetectionResultsPage() {
             <div className="brand-row">
               <MascotAvatar size="sm" src={detectionMascot} />
               <span>
-                <strong>AI Expiry Prediction</strong> <Badge variant="green">Smart</Badge>
+                <strong>{t("AI Expiry Prediction")}</strong> <Badge variant="green">{t("Smart")}</Badge>
                 <br />
-                <span className="small muted">Suggested expiry dates.</span>
+                <span className="small muted">{t("Suggested expiry dates.")}</span>
               </span>
             </div>
             <div className="summary-list">
@@ -137,9 +139,9 @@ export function DetectionResultsPage() {
             <div className="brand-row">
               <MascotAvatar size="sm" src={detectionMascot} />
               <span>
-                <strong>Mosaic AI Suggestion</strong> <Badge variant="green">Tip</Badge>
+                <strong>{t("Mosaic AI Suggestion")}</strong> <Badge variant="green">{t("Tip")}</Badge>
                 <br />
-                <span className="small muted">Use spinach first - expires in 2 days.</span>
+                <span className="small muted">{t("Use spinach first - expires in 2 days.")}</span>
               </span>
             </div>
             <div className="form-grid" style={{ marginTop: 14 }}>
@@ -151,7 +153,7 @@ export function DetectionResultsPage() {
               ))}
             </div>
             <Card variant="soft">
-              <p className="eyebrow">Potential waste reduction</p>
+              <p className="eyebrow">{t("Potential waste reduction")}</p>
               <h2 style={{ color: "var(--color-forest)", margin: 0 }}>£6.80</h2>
             </Card>
           </Card>
@@ -159,7 +161,7 @@ export function DetectionResultsPage() {
           <Card>
             <div className="premium-strip">
               <span>
-                <p className="eyebrow">Ready to add</p>
+                <p className="eyebrow">{t("Ready to add")}</p>
                 <h2 style={{ margin: 0 }}>{selectedCount} ingredients</h2>
                 <p className="small muted">
                   Estimated pantry value <strong style={{ color: "var(--color-primary-deep)" }}>£17.50</strong>
@@ -189,13 +191,13 @@ export function DetectionResultsPage() {
 
         <div className="footer-actions">
           <Button icon={<Edit size={17} />} onClick={() => setIsEditing((editing) => !editing)} variant="secondary">
-            {isEditing ? "Done Editing" : "Edit Detection"}
+            {isEditing ? t("Done Editing") : t("Edit Detection")}
           </Button>
           <Button
             icon={<ShieldCheck size={17} />}
             onClick={addToPantry}
           >
-            Add to Pantry ({selectedCount})
+            {t("Add to Pantry")} ({selectedCount})
           </Button>
         </div>
       </div>

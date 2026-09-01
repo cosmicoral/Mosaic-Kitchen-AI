@@ -19,11 +19,13 @@ import {
   PRIORITY_LABELS,
 } from "../lib/profileOptions";
 import { CUISINES, type Cuisine, type UserProfileInput } from "../types";
+import { useLocale } from "../context/LocaleContext";
 
 export function ProfilePage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { user, logout } = useAuth();
+  const { t } = useLocale();
   const { profile, status, error, refresh, save } = useProfile();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -104,17 +106,17 @@ export function ProfilePage() {
           <MascotAvatar size="lg" src={genericAvatar} />
           {/* Email lives on the account, not the profile, so it comes from the
               auth context and is not editable here. */}
-          <h1 style={{ marginBottom: 4 }}>{user?.email ?? "Your account"}</h1>
-          <Badge variant="cream">Free Account</Badge>
+          <h1 style={{ marginBottom: 4 }}>{user?.email ?? t("Your account")}</h1>
+          <Badge variant="cream">{t("Free Account")}</Badge>
 
           <div className="profile-actions" style={{ marginTop: 18 }}>
             {isEditing ? (
               <>
                 <Button disabled={saving} onClick={cancelEditing} variant="secondary">
-                  Cancel
+                  {t("Cancel")}
                 </Button>
                 <Button disabled={saving} icon={<Save size={17} />} onClick={() => void saveChanges()}>
-                  {saving ? "Saving…" : "Save Changes"}
+                  {saving ? t("Saving…") : t("Save Changes")}
                 </Button>
               </>
             ) : (
@@ -125,14 +127,14 @@ export function ProfilePage() {
                   onClick={startEditing}
                   variant="secondary"
                 >
-                  Edit Preferences
+                  {t("Edit Preferences")}
                 </Button>
                 <Button
                   icon={<Settings size={17} />}
                   onClick={() => showToast("Settings are not built yet")}
                   variant="secondary"
                 >
-                  Settings
+                  {t("Settings")}
                 </Button>
               </>
             )}
@@ -144,17 +146,17 @@ export function ProfilePage() {
             <Card>
               <div className="brand-row">
                 <Loader2 size={18} />
-                <span className="small muted">Loading your preferences…</span>
+                <span className="small muted">{t("Loading your preferences…")}</span>
               </div>
             </Card>
           ) : null}
 
           {status === "error" ? (
             <Card>
-              <strong>Could not load your preferences</strong>
+              <strong>{t("Could not load your preferences")}</strong>
               <p className="small muted">{error}</p>
               <Button icon={<RefreshCw size={16} />} onClick={() => void refresh()} variant="secondary">
-                Try again
+                {t("Try again")}
               </Button>
             </Card>
           ) : null}
@@ -163,12 +165,12 @@ export function ProfilePage() {
               was never finished. */}
           {status === "ready" && !profile ? (
             <Card>
-              <strong>You have not set up your preferences yet</strong>
+              <strong>{t("You have not set up your preferences yet")}</strong>
               <p className="small muted">
-                Tell us who you cook for and we can start planning meals around it.
+                {t("Tell us who you cook for and we can start planning meals around it.")}
               </p>
               <Button fullWidth onClick={() => navigate("/onboarding/user-info")}>
-                Set up preferences
+                {t("Set up preferences")}
               </Button>
             </Card>
           ) : null}
@@ -178,21 +180,21 @@ export function ProfilePage() {
               <Card variant="premium">
                 <div className="premium-strip">
                   <span>
-                    <Badge variant="gold">Premium</Badge>
-                    <h2>Upgrade your kitchen intelligence</h2>
+                    <Badge variant="gold">{t("Premium")}</Badge>
+                    <h2>{t("Upgrade your kitchen intelligence")}</h2>
                     <p className="small muted">
-                      Unlimited plans, AI Vision scanning and deeper pantry insights.
+                      {t("Unlimited plans, AI Vision scanning and deeper pantry insights.")}
                     </p>
                   </span>
                   <Crown color="var(--color-orange)" size={34} />
                 </div>
                 <Button fullWidth onClick={() => navigate("/pricing")} variant="premium">
-                  Upgrade
+                  {t("Upgrade")}
                 </Button>
               </Card>
 
               <Card>
-                <h2>Household</h2>
+                <h2>{t("Household")}</h2>
                 {isEditing && draft ? (
                   <div className="form-grid" style={{ marginTop: 12 }}>
                     {(
@@ -204,9 +206,9 @@ export function ProfilePage() {
                       ] as const
                     ).map(([key, label, hint]) => (
                       <Input
-                        helper={hint}
+                        helper={t(hint)}
                         key={key}
-                        label={label}
+                        label={t(label)}
                         max="20"
                         min="0"
                         onChange={(event) =>
@@ -220,13 +222,13 @@ export function ProfilePage() {
                 ) : (
                   <div className="summary-list">
                     <div className="summary-row">
-                      <span className="small muted">Cooking for</span>
+                      <span className="small muted">{t("Cooking for")}</span>
                       <strong>
-                        {householdTotal} {householdTotal === 1 ? "person" : "people"}
+                        {householdTotal} {t(householdTotal === 1 ? "person" : "people")}
                       </strong>
                     </div>
                     <div className="summary-row">
-                      <span className="small muted">Adults / teens / children / toddlers</span>
+                      <span className="small muted">{t("Adults / teens / children / toddlers")}</span>
                       <strong>
                         {profile.adults} / {profile.teenagers} / {profile.children} / {profile.toddlers}
                       </strong>
@@ -236,11 +238,11 @@ export function ProfilePage() {
               </Card>
 
               <Card>
-                <h2>Planning</h2>
+                <h2>{t("Planning")}</h2>
                 {isEditing && draft ? (
                   <div className="form-grid" style={{ marginTop: 12 }}>
                     <Input
-                      label="Meals per week"
+                      label={t("Meals per week")}
                       max="21"
                       min="1"
                       onChange={(event) => updateDraft({ meals_per_week: Number(event.target.value) })}
@@ -248,7 +250,7 @@ export function ProfilePage() {
                       value={draft.meals_per_week}
                     />
                     <Input
-                      label="Weekly budget (£)"
+                      label={t("Weekly budget (£)")}
                       min="0"
                       onChange={(event) =>
                         updateDraft({
@@ -263,7 +265,7 @@ export function ProfilePage() {
                     />
                     <Input
                       helper="Used later to show shops and prices near you."
-                      label="Postcode"
+                      label={t("Postcode")}
                       maxLength={8}
                       onChange={(event) =>
                         updateDraft({
@@ -277,23 +279,23 @@ export function ProfilePage() {
                 ) : (
                   <div className="summary-list">
                     <div className="summary-row">
-                      <span className="small muted">Meals per week</span>
+                      <span className="small muted">{t("Meals per week")}</span>
                       <strong>{profile.meals_per_week}</strong>
                     </div>
                     <div className="summary-row">
-                      <span className="small muted">Weekly budget</span>
+                      <span className="small muted">{t("Weekly budget")}</span>
                       <strong>
-                        {profile.weekly_budget ? `£${Number(profile.weekly_budget).toFixed(2)}` : "Not set"}
+                        {profile.weekly_budget ? `£${Number(profile.weekly_budget).toFixed(2)}` : t("Not set")}
                       </strong>
                     </div>
                     <div className="summary-row">
-                      <span className="small muted">Postcode</span>
-                      <strong>{profile.postcode ?? "Not set"}</strong>
+                      <span className="small muted">{t("Postcode")}</span>
+                      <strong>{profile.postcode ?? t("Not set")}</strong>
                     </div>
                     <div className="summary-row">
-                      <span className="small muted">Cooking style</span>
+                      <span className="small muted">{t("Cooking style")}</span>
                       <strong>
-                        {profile.cooking_style ? COOKING_STYLE_LABELS[profile.cooking_style] : "Not set"}
+                        {profile.cooking_style ? t(COOKING_STYLE_LABELS[profile.cooking_style]) : t("Not set")}
                       </strong>
                     </div>
                   </div>
@@ -301,7 +303,7 @@ export function ProfilePage() {
               </Card>
 
               <Card>
-                <h2>Cuisines</h2>
+                <h2>{t("Cuisines")}</h2>
                 <div className="choice-grid" style={{ marginTop: 12 }}>
                   {isEditing && draft
                     ? CUISINES.map((cuisine) => (
@@ -311,22 +313,22 @@ export function ProfilePage() {
                           onClick={() => toggleCuisine(cuisine)}
                           type="button"
                         >
-                          {CUISINE_LABELS[cuisine]}
+                          {t(CUISINE_LABELS[cuisine])}
                         </button>
                       ))
                     : profile.cuisines.map((cuisine) => (
                         <Badge key={cuisine} variant="green">
-                          {CUISINE_LABELS[cuisine]}
+                          {t(CUISINE_LABELS[cuisine])}
                         </Badge>
                       ))}
                   {!isEditing && profile.cuisines.length === 0 ? (
-                    <span className="small muted">None selected</span>
+                    <span className="small muted">{t("None selected")}</span>
                   ) : null}
                 </div>
               </Card>
 
               <Card>
-                <h2>Avoiding</h2>
+                <h2>{t("Avoiding")}</h2>
                 <div className="choice-grid" style={{ marginTop: 12 }}>
                   {isEditing && draft ? (
                     <>
@@ -353,18 +355,18 @@ export function ProfilePage() {
                     ))
                   )}
                   {!isEditing && profile.avoid_ingredients.length === 0 ? (
-                    <span className="small muted">Nothing excluded</span>
+                    <span className="small muted">{t("Nothing excluded")}</span>
                   ) : null}
                 </div>
               </Card>
 
               {!isEditing && profile.priorities.length > 0 ? (
                 <Card>
-                  <h2>Priorities</h2>
+                  <h2>{t("Priorities")}</h2>
                   <div className="choice-grid" style={{ marginTop: 12 }}>
                     {profile.priorities.map((priority) => (
                       <Badge key={priority} variant="green">
-                        {PRIORITY_LABELS[priority]}
+                        {t(PRIORITY_LABELS[priority])}
                       </Badge>
                     ))}
                   </div>
@@ -388,7 +390,7 @@ export function ProfilePage() {
             }}
             variant="secondary"
           >
-            Log Out
+            {t("Log Out")}
           </Button>
         </section>
       </div>

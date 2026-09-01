@@ -12,6 +12,7 @@ import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
 import { useShoppingList } from "../hooks/useShoppingList";
 import { PANTRY_CATEGORIES, type PantryCategory, type ShoppingListItem } from "../types";
+import { useLocale } from "../context/LocaleContext";
 
 const CATEGORY_LABELS: Record<PantryCategory, string> = {
   vegetables: "Vegetables",
@@ -36,6 +37,7 @@ function formatAmount(item: ShoppingListItem): string {
 export function ShoppingListPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLocale();
   const {
     items, status, error, refresh,
     generate, generating, generateError,
@@ -99,36 +101,36 @@ export function ShoppingListPage() {
         <TopNav fallbackBackTo="/dashboard" title="Shopping List" />
 
         <section className="page-heading">
-          <h1>Your Shopping List</h1>
-          <p>Built from your meal plan, minus what you already have.</p>
+          <h1>{t("Your Shopping List")}</h1>
+          <p>{t("Built from your meal plan, minus what you already have.")}</p>
         </section>
 
         {status === "loading" ? (
           <Card>
             <div className="brand-row">
               <Loader2 size={18} />
-              <span className="small muted">Loading your list…</span>
+              <span className="small muted">{t("Loading your list…")}</span>
             </div>
           </Card>
         ) : null}
 
         {status === "error" ? (
           <Card>
-            <strong>Could not load your list</strong>
+            <strong>{t("Could not load your list")}</strong>
             <p className="small muted">{error}</p>
             <Button icon={<RefreshCw size={16} />} onClick={() => void refresh()} variant="secondary">
-              Try again
+              {t("Try again")}
             </Button>
           </Card>
         ) : null}
 
         {generateError ? (
           <Card>
-            <strong>Could not build your list</strong>
+            <strong>{t("Could not build your list")}</strong>
             <p className="small muted">{generateError.message}</p>
             {generateError.code === "NOT_FOUND" ? (
               <Button fullWidth onClick={() => navigate("/meal-plan")}>
-                Generate a meal plan first
+                {t("Generate a meal plan first")}
               </Button>
             ) : null}
           </Card>
@@ -139,10 +141,10 @@ export function ShoppingListPage() {
             <div className="brand-row">
               <MascotAvatar size="sm" src={shoppingMascot} />
               <span>
-                <strong>Nothing on the list yet</strong>
+                <strong>{t("Nothing on the list yet")}</strong>
                 <br />
                 <span className="small muted">
-                  Build one from your meal plan, or add items yourself.
+                  {t("Build one from your meal plan, or add items yourself.")}
                 </span>
               </span>
             </div>
@@ -153,10 +155,10 @@ export function ShoppingListPage() {
                 icon={<ShoppingCart size={17} />}
                 onClick={() => void generate()}
               >
-                Build from my meal plan
+                {t("Build from my meal plan")}
               </Button>
               <Button fullWidth icon={<Plus size={17} />} onClick={() => setIsAdding(true)} variant="secondary">
-                Add an item
+                {t("Add an item")}
               </Button>
             </div>
           </Card>
@@ -166,26 +168,26 @@ export function ShoppingListPage() {
           <>
             <Card className="shopping-total">
               <span>
-                <span className="eyebrow">Progress</span>
+                <span className="eyebrow">{t("Progress")}</span>
                 <strong>
                   {checkedCount} of {items.length}
                 </strong>
                 <span className="small muted">
-                  {items.length - checkedCount} still to get
+                  {items.length - checkedCount} {t("still to get")}
                 </span>
               </span>
               <span className="progress-ring">{progress}%</span>
             </Card>
 
             <div className="section-title">
-              <h2>Categories</h2>
+              <h2>{t("Categories")}</h2>
               <button
                 className="top-nav__right"
                 disabled={generating}
                 onClick={() => void generate()}
                 type="button"
               >
-                {generating ? "Rebuilding…" : "Rebuild"}
+                {generating ? t("Rebuilding…") : t("Rebuild")}
               </button>
             </div>
 
@@ -195,7 +197,7 @@ export function ShoppingListPage() {
                   <div className="category-head">
                     <span className="brand-row">
                       <span>
-                        <strong>{group.label}</strong>
+                        <strong>{t(group.label)}</strong>
                         <br />
                         <span className="small muted">
                           {group.items.filter((item) => item.is_checked).length} of{" "}
@@ -225,9 +227,9 @@ export function ShoppingListPage() {
                       >
                         <strong>{item.name}</strong>
                         <br />
-                        <span className="small muted">{formatAmount(item) || "No amount set"}</span>
+                        <span className="small muted">{formatAmount(item) || t("No amount set")}</span>
                       </span>
-                      {item.source === "manual" ? <Badge variant="cream">Added</Badge> : null}
+                      {item.source === "manual" ? <Badge variant="cream">{t("Added")}</Badge> : null}
                       <button
                         aria-label={`Remove ${item.name}`}
                         className="icon-only"
@@ -246,7 +248,7 @@ export function ShoppingListPage() {
 
             <div className="footer-actions">
               <Button icon={<Plus size={17} />} onClick={() => setIsAdding(true)} variant="secondary">
-                Add item
+                {t("Add item")}
               </Button>
               <Button
                 disabled={checkedCount === 0}
@@ -256,7 +258,7 @@ export function ShoppingListPage() {
                   showToast(`${removed} item${removed === 1 ? "" : "s"} cleared`);
                 }}
               >
-                Clear {checkedCount} done
+                {t("Clear checked")} ({checkedCount})
               </Button>
             </div>
           </>
@@ -269,7 +271,7 @@ export function ShoppingListPage() {
           <Card className="modal-panel">
             <div className="premium-strip">
               <h2 id="add-item-title" style={{ margin: 0 }}>
-                Add to list
+                {t("Add to list")}
               </h2>
               <button className="icon-only" onClick={() => setIsAdding(false)} type="button">
                 <X size={18} />
@@ -279,7 +281,7 @@ export function ShoppingListPage() {
             <form onSubmit={handleAdd}>
               <div className="form-grid" style={{ marginTop: 16 }}>
                 <Input
-                  label="Item"
+                  label={t("Item")}
                   maxLength={100}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Bin bags, milk, washing up liquid..."
@@ -287,7 +289,7 @@ export function ShoppingListPage() {
                   value={name}
                 />
                 <Input
-                  label="Quantity (optional)"
+                  label={t("Quantity (optional)")}
                   min="0"
                   onChange={(event) => setQuantity(event.target.value)}
                   placeholder="2"
@@ -296,7 +298,7 @@ export function ShoppingListPage() {
                   value={quantity}
                 />
                 <Input
-                  label="Unit (optional)"
+                  label={t("Unit (optional)")}
                   maxLength={20}
                   onChange={(event) => setUnit(event.target.value)}
                   placeholder="pack, kg, bottle"
@@ -304,7 +306,7 @@ export function ShoppingListPage() {
                 />
 
                 <div className="input-field">
-                  <label>Category</label>
+                  <label>{t("Category")}</label>
                   <div className="choice-grid">
                     {PANTRY_CATEGORIES.map((key) => (
                       <button
@@ -313,7 +315,7 @@ export function ShoppingListPage() {
                         onClick={() => setCategory(key)}
                         type="button"
                       >
-                        {CATEGORY_LABELS[key]}
+                        {t(CATEGORY_LABELS[key])}
                       </button>
                     ))}
                   </div>
@@ -326,7 +328,7 @@ export function ShoppingListPage() {
                 ) : null}
 
                 <Button disabled={submitting} fullWidth icon={<Plus size={17} />} type="submit">
-                  {submitting ? "Adding…" : "Add item"}
+                  {submitting ? t("Adding…") : t("Add item")}
                 </Button>
               </div>
             </form>

@@ -14,6 +14,7 @@ import {
   PRIORITY_LABELS,
 } from "../lib/profileOptions";
 import { PRIORITIES, type Priority } from "../types";
+import { useLocale } from "../context/LocaleContext";
 
 const MEAL_OPTIONS = [3, 5, 7, 14, 21];
 const MAX_PRIORITIES = 3;
@@ -22,6 +23,7 @@ export function OnboardingGoalsPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { draft, update, submit } = useOnboarding();
+  const { t } = useLocale();
 
   const [budgetText, setBudgetText] = useState(
     draft.weekly_budget === null ? "" : String(draft.weekly_budget)
@@ -79,8 +81,8 @@ export function OnboardingGoalsPage() {
         <TopNav backTo="/onboarding/eating-habits" title="Step 3 of 3" />
 
         <section className="page-heading">
-          <h1>What matters most?</h1>
-          <p>Pick up to three. We use them to break ties when planning.</p>
+          <h1>{t("What matters most?")}</h1>
+          <p>{t("Pick up to three. We use them to break ties when planning.")}</p>
         </section>
 
         <form onSubmit={handleSubmit}>
@@ -93,14 +95,14 @@ export function OnboardingGoalsPage() {
                   onClick={() => togglePriority(priority)}
                   type="button"
                 >
-                  {PRIORITY_LABELS[priority]}
+                  {t(PRIORITY_LABELS[priority])}
                 </button>
               ))}
             </div>
           </Card>
 
           <div className="section-title">
-            <h2>Meals per week</h2>
+            <h2>{t("Meals per week")}</h2>
           </div>
           <Card>
             <div className="choice-grid">
@@ -111,21 +113,21 @@ export function OnboardingGoalsPage() {
                   onClick={() => update({ meals_per_week: count })}
                   type="button"
                 >
-                  {count} meals
+                  {count} {t("meals")}
                 </button>
               ))}
             </div>
           </Card>
 
           <div className="section-title">
-            <h2>Budget and location</h2>
+            <h2>{t("Budget and location")}</h2>
           </div>
           <Card>
             <div className="form-grid">
               <Input
                 helper="Roughly what you spend on groceries each week."
                 icon={<Wallet size={16} />}
-                label="Weekly budget (£, optional)"
+                label={t("Weekly budget (£, optional)")}
                 min="0"
                 onChange={(event) => commitBudget(event.target.value)}
                 placeholder="80"
@@ -136,7 +138,7 @@ export function OnboardingGoalsPage() {
               <Input
                 helper="Only used later to show prices and shops near you. Optional."
                 icon={<MapPin size={16} />}
-                label="Postcode (optional)"
+                label={t("Postcode (optional)")}
                 maxLength={8}
                 onChange={(event) => commitPostcode(event.target.value)}
                 placeholder="SW1A 1AA"
@@ -148,7 +150,7 @@ export function OnboardingGoalsPage() {
           <Card className="section" variant="soft">
             <div className="brand-row">
               <Sparkles size={18} />
-              <strong>Your setup</strong>
+              <strong>{t("Your setup")}</strong>
             </div>
             <div className="form-grid" style={{ marginTop: 12 }}>
               {[
@@ -159,7 +161,7 @@ export function OnboardingGoalsPage() {
                 ["Meals", `${draft.meals_per_week} per week`],
               ].map(([label, value]) => (
                 <div className="check-item" key={label}>
-                  <span className="small muted">{label}</span>
+                  <span className="small muted">{t(label)}</span>
                   <span className="small">
                     <strong>{value}</strong>
                   </span>
@@ -176,7 +178,7 @@ export function OnboardingGoalsPage() {
 
           <div className="footer-actions">
             <Button disabled={submitting} fullWidth icon={<Check size={17} />} type="submit">
-              {submitting ? "Saving…" : "Finish setup"}
+              {submitting ? t("Saving…") : t("Finish setup")}
             </Button>
           </div>
         </form>

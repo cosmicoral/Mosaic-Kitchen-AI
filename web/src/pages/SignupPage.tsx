@@ -12,11 +12,13 @@ import { useToast } from "../components/ui/Toast";
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
 import { isStrongPassword, passwordRequirements } from "../lib/passwordValidation";
+import { useLocale } from "../context/LocaleContext";
 
 export function SignupPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { signup } = useAuth();
+  const { t } = useLocale();
 const [email, setEmail] = useState("");
 const [password, setPassword] = useState("");
 const [confirmPassword, setConfirmPassword] = useState("");
@@ -67,18 +69,18 @@ async function handleSubmit(event: FormEvent) {
               "Shopping lists",
               "Expiry reminders",
               "3 AI meal plans total",
-            ]}
+            ].map(t)}
             src={signupMascot}
-            subtitle="Create a free account and start planning meals that fit your household, budget, and food culture."
-            title="Smarter meals start here"
+            subtitle={t("Create a free account and start planning meals that fit your household, budget, and food culture.")}
+            title={t("Smarter meals start here")}
           />
 
           <section className="auth-form-panel">
             <section className="auth-head">
               <MascotAvatar size="lg" src={signupMascot} />
-              <Badge variant="cream">Free - No Card Required</Badge>
-              <h1>Join Mosaic Kitchen AI</h1>
-              <p>Create your free account and start planning meals in minutes.</p>
+              <Badge variant="cream">{t("Free - No Card Required")}</Badge>
+              <h1>{t("Join Mosaic Kitchen AI")}</h1>
+              <p>{t("Create your free account and start planning meals in minutes.")}</p>
             </section>
 
             <form onSubmit={handleSubmit}>
@@ -87,7 +89,7 @@ async function handleSubmit(event: FormEvent) {
                   <Input
                     autoComplete="email"
                     icon={<Mail size={17} />}
-                    label="Email Address"
+                    label={t("Email Address")}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="you@example.com"
                     required
@@ -97,7 +99,7 @@ async function handleSubmit(event: FormEvent) {
                   <Input
                     autoComplete="new-password"
                     icon={<Lock size={17} />}
-                    label="Password"
+                    label={t("Password")}
                     maxLength={200}
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="Min. 8 characters"
@@ -116,16 +118,16 @@ async function handleSubmit(event: FormEvent) {
                         }}
                       >
                         <Check aria-hidden="true" size={15} style={{ opacity: requirement.met ? 1 : 0.35 }} />
-                        {requirement.label}
+                        {t(requirement.label)}
                       </span>
                     ))}
                   </div>
                   <Input
                     autoComplete="new-password"
                     icon={<Lock size={17} />}
-                    label="Confirm Password"
+                    label={t("Confirm Password")}
                     onChange={(event) => setConfirmPassword(event.target.value)}
-                    placeholder="Repeat your password"
+                    placeholder={t("Repeat your password")}
                     required
                     type="password"
                     value={confirmPassword}
@@ -137,7 +139,7 @@ async function handleSubmit(event: FormEvent) {
                       type="checkbox"
                     />
                     <span>
-                      I agree to the <strong>Terms of Service</strong> and <strong>Privacy Policy</strong>
+                      {t("I agree to the Terms of Service and Privacy Policy")}
                     </span>
                   </label>
                 </div>
@@ -149,7 +151,7 @@ async function handleSubmit(event: FormEvent) {
                   role="alert"
                   style={{ color: "var(--danger, #c0392b)", marginTop: 10 }}
                 >
-                  {error}
+                  {t(error)}
                 </p>
               ) : null}
 
@@ -160,15 +162,15 @@ async function handleSubmit(event: FormEvent) {
                 style={{ marginTop: 14 }}
                 type="submit"
               >
-                {submitting ? "Creating account…" : "Create Free Account"}
+                {submitting ? t("Creating account…") : t("Create Free Account")}
               </Button>
             </form>
 
-            <div className="auth-divider">OR</div>
+            <div className="auth-divider">{t("OR")}</div>
 
             <div className="form-grid">
               <Button fullWidth onClick={() => showToast("Google signup is mocked in this prototype")} variant="secondary">
-                Continue with Google
+                {t("Continue with Google")}
               </Button>
               <Button
                 fullWidth
@@ -176,14 +178,14 @@ async function handleSubmit(event: FormEvent) {
                 onClick={() => showToast("Apple signup is mocked in this prototype")}
                 variant="secondary"
               >
-                Continue with Apple
+                {t("Continue with Apple")}
               </Button>
             </div>
 
             <Card className="section auth-mobile-only" variant="dark">
               <div className="premium-strip">
-                <strong>Included in Free Account</strong>
-                <Badge variant="green">Free</Badge>
+                <strong>{t("Included in Free Account")}</strong>
+                <Badge variant="green">{t("Free")}</Badge>
               </div>
               <ul className="check-list" style={{ marginTop: 16 }}>
                 {[
@@ -196,16 +198,16 @@ async function handleSubmit(event: FormEvent) {
                 ].map((item) => (
                   <li key={item}>
                     <Check size={17} />
-                    <span>{item}</span>
+                    <span>{t(item)}</span>
                   </li>
                 ))}
               </ul>
             </Card>
 
             <p className="small muted" style={{ textAlign: "center" }}>
-              Already have an account?{" "}
+              {t("Already have an account?")}{" "}
               <Link className="text-link" to="/login">
-                Sign In
+                {t("Sign In")}
               </Link>
             </p>
           </section>

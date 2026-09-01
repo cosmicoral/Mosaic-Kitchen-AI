@@ -1,16 +1,18 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../context/LocaleContext';
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { status } = useAuth();
+  const { t } = useLocale();
   const location = useLocation();
 
   if (status === 'loading') {
     return (
       <main className="app-shell">
         <div className="page page--centered">
-          <p className="muted">Loading…</p>
+          <p className="muted">{t('Loading…')}</p>
         </div>
       </main>
     );

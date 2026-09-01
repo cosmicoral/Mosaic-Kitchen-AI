@@ -7,10 +7,12 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { useToast } from "../components/ui/Toast";
 import { pricingPlans } from "../data/mockData";
+import { useLocale } from "../context/LocaleContext";
 
 export function PricingPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLocale();
 
   const handlePlanClick = (planName: string) => {
     if (planName === "Free") {
@@ -29,9 +31,9 @@ export function PricingPage() {
 
         <section className="pricing-hero">
           <div className="page-heading">
-            <p className="eyebrow">Choose your plan</p>
-            <h1>Unlock smarter food routines</h1>
-            <p>Static pricing cards for now. Payments are not connected in this phase.</p>
+            <p className="eyebrow">{t("Choose your plan")}</p>
+            <h1>{t("Unlock smarter food routines")}</h1>
+            <p>{t("Static pricing cards for now. Payments are not connected in this phase.")}</p>
           </div>
           <img
             className="pricing-hero__image"
@@ -50,22 +52,22 @@ export function PricingPage() {
               <div className="premium-strip">
                 <div>
                   <Badge variant={plan.plus ? "gold" : plan.featured ? "dark" : "cream"}>
-                    {plan.plus ? "Premium Plus" : plan.featured ? "Best Value" : "Starter"}
+                    {t(plan.plus ? "Premium Plus" : plan.featured ? "Best Value" : "Starter")}
                   </Badge>
-                  <h2>{plan.name}</h2>
+                  <h2>{t(plan.name)}</h2>
                 </div>
                 {plan.plus ? <Crown size={28} /> : <Sparkles size={26} />}
               </div>
-              <p className={plan.featured ? "small" : "small muted"}>{plan.description}</p>
+              <p className={plan.featured ? "small" : "small muted"}>{t(plan.description)}</p>
               <div className="price">
                 <strong>{plan.price}</strong>
-                <span className={plan.featured ? "small" : "small muted"}>{plan.cadence}</span>
+                <span className={plan.featured ? "small" : "small muted"}>{t(plan.cadence)}</span>
               </div>
               <ul className="check-list">
                 {plan.features.map((feature) => (
                   <li key={feature}>
                     <Check size={17} />
-                    <span>{feature}</span>
+                    <span>{t(feature)}</span>
                   </li>
                 ))}
               </ul>
@@ -75,7 +77,7 @@ export function PricingPage() {
                 style={{ marginTop: 18 }}
                 variant={plan.plus ? "premium" : plan.featured ? "secondary" : "primary"}
               >
-                {plan.cta}
+                {t(plan.cta)}
               </Button>
             </Card>
           ))}

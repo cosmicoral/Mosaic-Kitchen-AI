@@ -20,13 +20,14 @@ export function dayDate(startsOn: string, dayIndex: number): Date {
   return new Date(Date.UTC(year ?? 1970, (month ?? 1) - 1, (day ?? 1) + dayIndex));
 }
 
-export function dayLabels(startsOn: string, dayIndex: number) {
+export function dayLabels(startsOn: string, dayIndex: number, locale: 'en' | 'zh' = 'en') {
   const date = dayDate(startsOn, dayIndex);
+  const language = locale === 'zh' ? 'zh-CN' : 'en-GB';
   return {
     // timeZone: 'UTC' matters — without it the formatter converts the UTC
     // midnight back into local time and can land on the previous day.
-    short: date.toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' }),
-    full: date.toLocaleDateString('en-GB', {
+    short: date.toLocaleDateString(language, { weekday: 'short', timeZone: 'UTC' }),
+    full: date.toLocaleDateString(language, {
       weekday: 'long',
       day: 'numeric',
       month: 'short',

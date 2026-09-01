@@ -99,7 +99,7 @@ Onboarding captures only what the meal planner consumes.
 
 ### Testing
 
-124 backend tests run against a dedicated Neon database branch, alongside 13 frontend unit and hook tests. Coverage includes cross-user isolation, expired-session rejection, password policy, dashboard aggregation, expiry queries, and a regression test for the DATE timezone bug.
+128 backend tests run against a dedicated Neon database branch, alongside 16 frontend unit and hook tests. Coverage includes cross-user isolation, expired-session rejection, password policy, bilingual AI prompts, dashboard aggregation, expiry queries, and a regression test for the DATE timezone bug.
 
 ---
 
@@ -278,7 +278,7 @@ Written down deliberately — an honest list is more useful than a clean one.
 - [x] Expiry alerts from real pantry data
 - [x] Dashboard wired to live data
 - [ ] Deployment
-- [ ] English + Simplified Chinese interface
+- [x] English + Simplified Chinese interface and locale-aware AI meal plans
 
 ## MVP 1.0 — iOS Application
 

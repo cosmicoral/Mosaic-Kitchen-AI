@@ -28,6 +28,8 @@ import { ToastProvider } from "./components/ui/Toast";
 import { AuthProvider } from "./context/AuthContext";
 import { OnboardingProvider } from "./context/OnboardingContext";
 import { RequireAuth } from "./components/RequireAuth";
+import { LocaleProvider } from "./context/LocaleContext";
+import { LanguageSwitcher } from "./components/LanguageSwitcher";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -41,9 +43,11 @@ function ScrollToTop() {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <ToastProvider>
+    <LocaleProvider>
+      <BrowserRouter>
+        <AuthProvider>
+          <ToastProvider>
+          <LanguageSwitcher />
           <ScrollToTop />
           <Routes>
             {/* Public */}
@@ -82,8 +86,9 @@ export default function App() {
 
             <Route path="*" element={<Navigate replace to="/" />} />
           </Routes>
-        </ToastProvider>
-      </AuthProvider>
-    </BrowserRouter>
+          </ToastProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </LocaleProvider>
   );
 }

@@ -1,4 +1,5 @@
 import type { PantryItem, UserProfile } from '../types/index.ts';
+import type { SupportedLocale } from './locale.ts';
 
 const PORTION_WEIGHTS = {
   adults: 1, teenagers: 1.2, children: 0.6, toddlers: 0.4,
@@ -163,7 +164,11 @@ give a supermarket substitute only if the dish survives one.
 
 Steps should be concise and practical, written for someone cooking after work.`;
 
-export function buildMealPlanPrompt(profile: UserProfile, pantry: PantryItem[]): string {
+export function buildMealPlanPrompt(
+  profile: UserProfile,
+  pantry: PantryItem[],
+  locale: SupportedLocale = 'en'
+): string {
   const servings = calculateServings(profile);
   const budget = profile.weekly_budget
     ? `£${Number(profile.weekly_budget).toFixed(2)}`
@@ -181,7 +186,15 @@ export function buildMealPlanPrompt(profile: UserProfile, pantry: PantryItem[]):
       ? `MUST NOT APPEAR ANYWHERE: ${profile.avoid_ingredients.join(', ')}`
       : 'No ingredient restrictions.';
 
-  return `Plan ${profile.meals_per_week} meals.
+  const languageInstruction = locale === 'zh'
+    ? `OUTPUT LANGUAGE
+Use natural Simplified Chinese for every user-facing value, including summary, meal names, ingredient names, steps and tips. Preserve authentic dish names in native_name. Keep JSON keys and schema enum values in English.`
+    : `OUTPUT LANGUAGE
+Use British English for user-facing values. Preserve authentic dish names in native_name.`;
+
+  return `${languageInstruction}
+
+Plan ${profile.meals_per_week} meals.
 
 HOUSEHOLD
 ${describeHousehold(profile)}

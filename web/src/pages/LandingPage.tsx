@@ -5,6 +5,7 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { landingFeatures } from "../data/mockData";
+import { useLocale } from "../context/LocaleContext";
 
 const featureIcons = {
   money: Wallet,
@@ -14,6 +15,7 @@ const featureIcons = {
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const { t } = useLocale();
 
   return (
     <main className="app-shell app-shell--wide public-shell">
@@ -24,14 +26,10 @@ export function LandingPage() {
             <span>Mosaic Kitchen</span>
           </Link>
           <div className="landing-actions">
-            <div className="language-toggle" aria-label="Language selector">
-              <span>EN</span>
-              <span>中文</span>
-            </div>
             <Button onClick={() => navigate("/login")} variant="secondary">
-              Sign In
+              {t("Sign In")}
             </Button>
-            <Button onClick={() => navigate("/signup")}>Sign Up</Button>
+            <Button onClick={() => navigate("/signup")}>{t("Sign Up")}</Button>
           </div>
         </header>
 
@@ -42,19 +40,19 @@ export function LandingPage() {
             alt="Mosaic Kitchen AI mascot holding food at a multicultural meal table"
           />
           <div className="hero-card__content">
-            <h1>Smarter Meal Planning For Multicultural Households</h1>
-            <p>Save money. Eat healthier. Reduce food waste. Without giving up the foods you love.</p>
+            <h1>{t("Smarter Meal Planning For Multicultural Households")}</h1>
+            <p>{t("Save money. Eat healthier. Reduce food waste. Without giving up the foods you love.")}</p>
             <Button
               fullWidth
               icon={<Sparkles size={18} />}
               onClick={() => navigate("/signup")}
             >
-              Generate My First Meal Plan
+              {t("Generate My First Meal Plan")}
             </Button>
             <p className="tiny" style={{ marginTop: 14 }}>
-              Already have an account?{" "}
+              {t("Already have an account?")}{" "}
               <Link className="text-link" to="/login">
-                Sign In
+                {t("Sign In")}
               </Link>
             </p>
           </div>
@@ -69,9 +67,9 @@ export function LandingPage() {
                   <Icon aria-hidden="true" size={20} />
                 </span>
                 <span>
-                  <strong>{feature.title}</strong>
+                  <strong>{t(feature.title)}</strong>
                   <br />
-                  <span className="small muted">{feature.description}</span>
+                  <span className="small muted">{t(feature.description)}</span>
                 </span>
               </Card>
             );
@@ -81,14 +79,14 @@ export function LandingPage() {
         <section className="section landing-secondary-grid">
           <Card variant="dark">
             <p className="eyebrow" style={{ color: "#bfea73" }}>
-              Perfect for
+              {t("Perfect for")}
             </p>
             <ul className="dark-list">
               {["International households", "Busy professionals", "Students", "Families", "Food lovers"].map(
                 (item) => (
                   <li key={item}>
                     <Check size={17} />
-                    <span>{item}</span>
+                    <span>{t(item)}</span>
                   </li>
                 ),
               )}
@@ -96,13 +94,13 @@ export function LandingPage() {
           </Card>
 
           <Card variant="premium">
-            <Badge variant="gold">Premium Plus</Badge>
-            <h2>Unlock AI Kitchen Intelligence</h2>
+            <Badge variant="gold">{t("Premium Plus")}</Badge>
+            <h2>{t("Unlock AI Kitchen Intelligence")}</h2>
             <ul className="check-list">
               {["AI fridge scanning", "Smart pantry recognition", "Unlimited meal plans"].map((item) => (
                 <li key={item}>
                   <Check color="#79ad16" size={18} />
-                  <span>{item}</span>
+                  <span>{t(item)}</span>
                 </li>
               ))}
             </ul>
@@ -113,17 +111,17 @@ export function LandingPage() {
               style={{ marginTop: 18 }}
               variant="secondary"
             >
-              Explore Premium
+              {t("Explore Premium")}
             </Button>
           </Card>
         </section>
 
         <footer className="section" style={{ justifyItems: "center", paddingBottom: 20 }}>
           <div className="small muted" style={{ display: "flex", gap: 16 }}>
-            <span>About</span>
-            <span>Privacy</span>
-            <span>Terms</span>
-            <span>Contact</span>
+            <span>{t("About")}</span>
+            <span>{t("Privacy")}</span>
+            <span>{t("Terms")}</span>
+            <span>{t("Contact")}</span>
           </div>
           <span className="tiny muted">2026 Mosaic Kitchen AI. Made with care in the UK</span>
         </footer>

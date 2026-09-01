@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import * as mealPlanService from '../services/mealPlanService.ts';
 import { AppError } from '../types/index.ts';
+import { readLocale } from '../utils/locale.ts';
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -32,7 +33,11 @@ export async function generate(req: Request, res: Response) {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
 
   try {
-    const { mealPlan, attempts } = await mealPlanService.generate(req.user.id);
+    const { mealPlan, attempts } = await mealPlanService.generate(
+      req.user.id,
+      undefined,
+      readLocale(req.headers['accept-language'])
+    );
     // attempts is returned so a rise in retries is visible without digging
     // through logs — it is the earliest signal that prompt quality has slipped.
     return res.status(201).json({ mealPlan, attempts });

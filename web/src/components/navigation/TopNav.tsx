@@ -1,5 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useLocale } from "../../context/LocaleContext";
 
 type TopNavProps = {
   title: string;
@@ -20,6 +21,7 @@ export function TopNav({
 }: TopNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useLocale();
 
   const goBack = () => {
     if (backTo) {
@@ -41,15 +43,15 @@ export function TopNav({
         {showBack ? (
           <button className="top-nav__back" onClick={goBack} type="button">
             <ArrowLeft aria-hidden="true" size={17} />
-            Back
+            {t("Back")}
           </button>
         ) : null}
       </div>
-      <h1 className="top-nav__title">{title}</h1>
+      <h1 className="top-nav__title">{t(title)}</h1>
       <div className="top-nav__right">
         {rightLabel ? (
           <button className="top-nav__right" onClick={onRightAction} type="button">
-            {rightLabel}
+            {t(rightLabel)}
           </button>
         ) : null}
       </div>
