@@ -9,6 +9,7 @@ import mealPlanRouter from './routes/mealPlan.ts';
 import authRouter from './routes/auth.ts';
 import { globalLimiter } from './middleware/rateLimiters.ts';
 import profileRouter from './routes/profile.ts';
+import shoppingListRouter from './routes/shoppingList.ts';
 
 const app = express();
 
@@ -61,5 +62,6 @@ app.use('/api/auth', authRouter);
 app.use('/api/pantry', pantryRouter);
 app.use('/api/meal-plan', mealPlanRouter);
 app.use('/api/profile', profileRouter);
+app.use('/api/shopping-list', shoppingListRouter);
 
 export default app;

@@ -134,3 +134,24 @@ export interface MealPlanQuota {
   limit: number;
   remaining: number;
 }
+
+export interface ShoppingListItem {
+  id: string;
+  user_id: string;
+  meal_plan_id: string | null;
+  name: string;
+  quantity: string | null;
+  unit: string | null;
+  category: PantryCategory;
+  is_checked: boolean;
+  source: 'plan' | 'manual';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShoppingListItemInput {
+  name: string;
+  quantity: number | null;
+  unit: string | null;
+  category: PantryCategory;
+}

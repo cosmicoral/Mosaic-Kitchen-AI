@@ -1,5 +1,5 @@
-import { Check, ChevronDown, Edit, Plus, ShoppingCart } from "lucide-react";
-import { useState } from "react";
+import { Check, Loader2, Plus, RefreshCw, ShoppingCart, Trash2, X } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { shoppingMascot } from "../assets/mascots";
 import { BottomNav } from "../components/navigation/BottomNav";
@@ -7,122 +7,332 @@ import { TopNav } from "../components/navigation/TopNav";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
+import { Input } from "../components/ui/Input";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
-import { iconMap, shoppingCategories } from "../data/mockData";
+import { useShoppingList } from "../hooks/useShoppingList";
+import { PANTRY_CATEGORIES, type PantryCategory, type ShoppingListItem } from "../types";
+
+const CATEGORY_LABELS: Record<PantryCategory, string> = {
+  vegetables: "Vegetables",
+  protein: "Protein",
+  grains: "Grains",
+  condiments: "Condiments",
+  frozen: "Frozen",
+  dairy: "Dairy",
+  other: "Other",
+};
+
+function formatAmount(item: ShoppingListItem): string {
+  if (!item.quantity) return item.unit ?? "";
+  const amount = Number(item.quantity);
+  const rounded = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
+  if (!item.unit) return rounded;
+  return ["g", "kg", "ml", "l"].includes(item.unit.toLowerCase())
+    ? `${rounded}${item.unit}`
+    : `${rounded} ${item.unit}`;
+}
 
 export function ShoppingListPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [checkedItems, setCheckedItems] = useState<string[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
+  const {
+    items, status, error, refresh,
+    generate, generating, generateError,
+    toggle, addItem, removeItem, clearChecked,
+  } = useShoppingList();
 
-  const toggle = (name: string) => {
-    setCheckedItems((items) =>
-      items.includes(name) ? items.filter((item) => item !== name) : [...items, name],
-    );
-  };
+  const [isAdding, setIsAdding] = useState(false);
+  const [name, setName] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState("");
+  const [category, setCategory] = useState<PantryCategory>("other");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const checkedCount = items.filter((item) => item.is_checked).length;
+  const progress = items.length === 0 ? 0 : Math.round((checkedCount / items.length) * 100);
+
+  // Grouped here rather than fetched pre-grouped, so the counts can never
+  // disagree with the list rendered beside them.
+  const grouped = useMemo(() => {
+    const buckets = new Map<PantryCategory, ShoppingListItem[]>();
+    for (const item of items) {
+      const bucket = buckets.get(item.category) ?? [];
+      bucket.push(item);
+      buckets.set(item.category, bucket);
+    }
+    return PANTRY_CATEGORIES.map((key) => ({
+      key,
+      label: CATEGORY_LABELS[key],
+      items: buckets.get(key) ?? [],
+    })).filter((group) => group.items.length > 0);
+  }, [items]);
+
+  async function handleAdd(event: FormEvent) {
+    event.preventDefault();
+    setFormError(null);
+    setSubmitting(true);
+    try {
+      await addItem({
+        name,
+        quantity: quantity.trim() === "" ? null : Number(quantity),
+        unit: unit.trim() === "" ? null : unit.trim(),
+        category,
+      });
+      setIsAdding(false);
+      setName("");
+      setQuantity("");
+      setUnit("");
+      setCategory("other");
+      showToast("Added to your list");
+    } catch (caught) {
+      setFormError(caught instanceof Error ? caught.message : "Could not add that item");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <main className="app-shell">
       <div className="page page--nav">
-        <TopNav
-          fallbackBackTo="/dashboard"
-          onRightAction={() => setIsEditing((editing) => !editing)}
-          rightLabel={isEditing ? "Done" : "Edit"}
-          title="Shopping List"
-        />
+        <TopNav fallbackBackTo="/dashboard" title="Shopping List" />
 
         <section className="page-heading">
           <h1>Your Shopping List</h1>
-          <p>Week of Jun 9 - 14 items</p>
+          <p>Built from your meal plan, minus what you already have.</p>
         </section>
 
-        <Card className="shopping-total">
-          <span>
-            <span className="eyebrow">Estimated total</span>
-            <strong>£25.10</strong>
-            <span className="small muted">14 items - {checkedItems.length} in cart</span>
-          </span>
-          <span className="progress-ring">{Math.round((checkedItems.length / 14) * 100)}%</span>
-        </Card>
+        {status === "loading" ? (
+          <Card>
+            <div className="brand-row">
+              <Loader2 size={18} />
+              <span className="small muted">Loading your list…</span>
+            </div>
+          </Card>
+        ) : null}
 
-        <div className="section-title">
-          <h2>Categories</h2>
-        </div>
+        {status === "error" ? (
+          <Card>
+            <strong>Could not load your list</strong>
+            <p className="small muted">{error}</p>
+            <Button icon={<RefreshCw size={16} />} onClick={() => void refresh()} variant="secondary">
+              Try again
+            </Button>
+          </Card>
+        ) : null}
 
-        {isEditing ? <div className="edit-banner">Edit mode is on. Tap items to update the mock cart state.</div> : null}
+        {generateError ? (
+          <Card>
+            <strong>Could not build your list</strong>
+            <p className="small muted">{generateError.message}</p>
+            {generateError.code === "NOT_FOUND" ? (
+              <Button fullWidth onClick={() => navigate("/meal-plan")}>
+                Generate a meal plan first
+              </Button>
+            ) : null}
+          </Card>
+        ) : null}
 
-        <section className="form-grid">
-          {shoppingCategories.map((category, index) => (
-            <Card className="category-card" key={category.name}>
-              <div className="category-head">
-                <span className="brand-row">
-                  <span className="item-icon">{iconMap[category.icon]}</span>
-                  <span>
-                    <strong>{category.name}</strong>
-                    <br />
-                    <span className="small muted">
-                      {category.progress} - {category.total}
-                    </span>
-                  </span>
+        {status === "ready" && items.length === 0 && !generating ? (
+          <Card>
+            <div className="brand-row">
+              <MascotAvatar size="sm" src={shoppingMascot} />
+              <span>
+                <strong>Nothing on the list yet</strong>
+                <br />
+                <span className="small muted">
+                  Build one from your meal plan, or add items yourself.
                 </span>
-                <ChevronDown size={18} />
-              </div>
-              {index === 0
-                ? category.items.map((item) => {
-                    const isOn = checkedItems.includes(item.name);
-                    return (
-                      <button className="check-item" key={item.name} onClick={() => toggle(item.name)} type="button">
-                        <span className={`check-circle${isOn ? " is-on" : ""}`}>
-                          {isOn ? <Check size={14} /> : null}
-                        </span>
-                        <span>
-                          <strong>{item.name}</strong>
-                          <br />
-                          <span className="small muted">{item.amount}</span>
-                        </span>
-                        <strong style={{ color: "var(--color-primary-strong)" }}>{item.price}</strong>
-                      </button>
-                    );
-                  })
-                : null}
+              </span>
+            </div>
+            <div className="form-grid" style={{ marginTop: 14 }}>
+              <Button
+                disabled={generating}
+                fullWidth
+                icon={<ShoppingCart size={17} />}
+                onClick={() => void generate()}
+              >
+                Build from my meal plan
+              </Button>
+              <Button fullWidth icon={<Plus size={17} />} onClick={() => setIsAdding(true)} variant="secondary">
+                Add an item
+              </Button>
+            </div>
+          </Card>
+        ) : null}
+
+        {items.length > 0 ? (
+          <>
+            <Card className="shopping-total">
+              <span>
+                <span className="eyebrow">Progress</span>
+                <strong>
+                  {checkedCount} of {items.length}
+                </strong>
+                <span className="small muted">
+                  {items.length - checkedCount} still to get
+                </span>
+              </span>
+              <span className="progress-ring">{progress}%</span>
             </Card>
-          ))}
-        </section>
 
-        <Card className="section" variant="soft">
-          <div className="brand-row">
-            <MascotAvatar size="sm" src={shoppingMascot} />
-            <span>
-              <strong>Mosaic AI</strong> <Badge variant="green">Tip</Badge>
-              <br />
-              <span className="small muted">You already have these in your pantry.</span>
-            </span>
-          </div>
-          <ul className="check-list" style={{ marginTop: 14 }}>
-            {["Soy Sauce", "Jasmine Rice", "Eggs"].map((item) => (
-              <li key={item}>
-                <Check color="var(--color-primary-strong)" size={16} />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-          <Button fullWidth onClick={() => showToast("Pantry duplicates skipped")} variant="secondary">
-            Skip these and save £6.20
-          </Button>
-        </Card>
+            <div className="section-title">
+              <h2>Categories</h2>
+              <button
+                className="top-nav__right"
+                disabled={generating}
+                onClick={() => void generate()}
+                type="button"
+              >
+                {generating ? "Rebuilding…" : "Rebuild"}
+              </button>
+            </div>
 
-        <div className="footer-actions">
-          <Button icon={<Plus size={17} />} onClick={() => navigate("/pantry")} variant="secondary">
-            Add to Pantry
-          </Button>
-          <Button icon={<ShoppingCart size={17} />} onClick={() => showToast("Shopping list exported")}>
-            Export Shopping List
-          </Button>
-        </div>
+            <section className="form-grid">
+              {grouped.map((group) => (
+                <Card className="category-card" key={group.key}>
+                  <div className="category-head">
+                    <span className="brand-row">
+                      <span>
+                        <strong>{group.label}</strong>
+                        <br />
+                        <span className="small muted">
+                          {group.items.filter((item) => item.is_checked).length} of{" "}
+                          {group.items.length}
+                        </span>
+                      </span>
+                    </span>
+                  </div>
+
+                  {group.items.map((item) => (
+                    <div className="check-item" key={item.id}>
+                      <button
+                        aria-label={item.is_checked ? `Untick ${item.name}` : `Tick ${item.name}`}
+                        className={`check-circle${item.is_checked ? " is-on" : ""}`}
+                        onClick={() => void toggle(item).catch(() => showToast("Could not update"))}
+                        type="button"
+                      >
+                        {item.is_checked ? <Check size={14} /> : null}
+                      </button>
+                      <span
+                        style={{
+                          // Ticked items stay visible but recede — a shopper
+                          // needs to see what is already in the trolley.
+                          opacity: item.is_checked ? 0.5 : 1,
+                          textDecoration: item.is_checked ? "line-through" : "none",
+                        }}
+                      >
+                        <strong>{item.name}</strong>
+                        <br />
+                        <span className="small muted">{formatAmount(item) || "No amount set"}</span>
+                      </span>
+                      {item.source === "manual" ? <Badge variant="cream">Added</Badge> : null}
+                      <button
+                        aria-label={`Remove ${item.name}`}
+                        className="icon-only"
+                        onClick={() =>
+                          void removeItem(item.id).catch(() => showToast("Could not remove"))
+                        }
+                        type="button"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </Card>
+              ))}
+            </section>
+
+            <div className="footer-actions">
+              <Button icon={<Plus size={17} />} onClick={() => setIsAdding(true)} variant="secondary">
+                Add item
+              </Button>
+              <Button
+                disabled={checkedCount === 0}
+                icon={<Check size={17} />}
+                onClick={async () => {
+                  const removed = await clearChecked();
+                  showToast(`${removed} item${removed === 1 ? "" : "s"} cleared`);
+                }}
+              >
+                Clear {checkedCount} done
+              </Button>
+            </div>
+          </>
+        ) : null}
       </div>
       <BottomNav />
+
+      {isAdding ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="add-item-title">
+          <Card className="modal-panel">
+            <div className="premium-strip">
+              <h2 id="add-item-title" style={{ margin: 0 }}>
+                Add to list
+              </h2>
+              <button className="icon-only" onClick={() => setIsAdding(false)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAdd}>
+              <div className="form-grid" style={{ marginTop: 16 }}>
+                <Input
+                  label="Item"
+                  maxLength={100}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Bin bags, milk, washing up liquid..."
+                  required
+                  value={name}
+                />
+                <Input
+                  label="Quantity (optional)"
+                  min="0"
+                  onChange={(event) => setQuantity(event.target.value)}
+                  placeholder="2"
+                  step="0.01"
+                  type="number"
+                  value={quantity}
+                />
+                <Input
+                  label="Unit (optional)"
+                  maxLength={20}
+                  onChange={(event) => setUnit(event.target.value)}
+                  placeholder="pack, kg, bottle"
+                  value={unit}
+                />
+
+                <div className="input-field">
+                  <label>Category</label>
+                  <div className="choice-grid">
+                    {PANTRY_CATEGORIES.map((key) => (
+                      <button
+                        className={`choice-pill${key === category ? " is-selected" : ""}`}
+                        key={key}
+                        onClick={() => setCategory(key)}
+                        type="button"
+                      >
+                        {CATEGORY_LABELS[key]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {formError ? (
+                  <p className="small" role="alert" style={{ color: "var(--danger, #c0392b)" }}>
+                    {formError}
+                  </p>
+                ) : null}
+
+                <Button disabled={submitting} fullWidth icon={<Plus size={17} />} type="submit">
+                  {submitting ? "Adding…" : "Add item"}
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      ) : null}
     </main>
   );
 }
