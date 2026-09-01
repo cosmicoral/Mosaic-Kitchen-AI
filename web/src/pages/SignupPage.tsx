@@ -11,6 +11,7 @@ import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
+import { isStrongPassword, passwordRequirements } from "../lib/passwordValidation";
 
 export function SignupPage() {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const [confirmPassword, setConfirmPassword] = useState("");
 const [agreed, setAgreed] = useState(false);
 const [error, setError] = useState<string | null>(null);
 const [submitting, setSubmitting] = useState(false);
+const requirements = passwordRequirements(password);
 
 async function handleSubmit(event: FormEvent) {
   event.preventDefault();
@@ -31,6 +33,10 @@ async function handleSubmit(event: FormEvent) {
   // asked for the password twice.
   if (password !== confirmPassword) {
     setError("Passwords do not match");
+    return;
+  }
+  if (!isStrongPassword(password)) {
+    setError("Please meet all password requirements");
     return;
   }
   if (!agreed) {
@@ -92,12 +98,28 @@ async function handleSubmit(event: FormEvent) {
                     autoComplete="new-password"
                     icon={<Lock size={17} />}
                     label="Password"
+                    maxLength={200}
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="Min. 8 characters"
                     required
                     type="password"
                     value={password}
                   />
+                  <div aria-label="Password requirements" className="small" style={{ display: "grid", gap: 5 }}>
+                    {requirements.map((requirement) => (
+                      <span
+                        key={requirement.label}
+                        style={{
+                          color: requirement.met ? "var(--color-primary-strong)" : "var(--color-text-muted, #667085)",
+                          display: "flex",
+                          gap: 6,
+                        }}
+                      >
+                        <Check aria-hidden="true" size={15} style={{ opacity: requirement.met ? 1 : 0.35 }} />
+                        {requirement.label}
+                      </span>
+                    ))}
+                  </div>
                   <Input
                     autoComplete="new-password"
                     icon={<Lock size={17} />}

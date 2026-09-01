@@ -3,9 +3,9 @@ import {
   Box,
   Camera,
   ChevronRight,
-  Crown,
+  Loader2,
+  RefreshCw,
   ShoppingCart,
-  Sparkles,
   Utensils,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -15,12 +15,20 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
-import { useToast } from "../components/ui/Toast";
-import { expiringSoon, iconMap, profile, recommendedMeals } from "../data/mockData";
+import { useAuth } from "../context/AuthContext";
+import { useDashboard } from "../hooks/useDashboard";
+import { expiryTone, formatExpiry } from "../lib/pantryFormat";
+import { totalMeals } from "../lib/mealPlanFormat";
 
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { showToast } = useToast();
+  const { user } = useAuth();
+  const { data, status, error, refresh } = useDashboard();
+  const displayName = user?.email.split("@")[0] || "there";
+  const recommendedMeals = data?.latestPlan?.plan.days
+    .flatMap((day) => day.meals)
+    .slice(0, 3) ?? [];
+  const itemsToBuy = data?.shoppingItems.filter((item) => !item.is_checked).length ?? 0;
 
   return (
     <main className="app-shell">
@@ -29,12 +37,12 @@ export function DashboardPage() {
           <div className="brand-row">
             <MascotAvatar size="sm" src={genericAvatar} />
             <span>
-              Welcome Back, {profile.name}
+              Welcome Back, {displayName}
               <br />
               <span className="small muted">Let us plan something delicious today.</span>
             </span>
           </div>
-          <button className="icon-only" onClick={() => showToast("No new alerts")} type="button">
+          <button className="icon-only" onClick={() => navigate("/expiry-alert")} type="button">
             <Bell size={18} />
           </button>
         </header>
@@ -42,11 +50,13 @@ export function DashboardPage() {
         <section className="card dashboard-hero">
           <img src={landingHero} alt="Mosaic Kitchen AI meal table" />
           <div className="dashboard-hero__overlay">
-            <Badge variant="dark">{profile.plan}</Badge>
+            <Badge variant="dark">Free Account</Badge>
             <div className="premium-strip">
               <div>
                 <span className="tiny">Current plan</span>
-                <h2 style={{ margin: 0 }}>2 of 3 AI Plans Left</h2>
+                <h2 style={{ margin: 0 }}>
+                  {data ? `${data.quota.remaining} of ${data.quota.limit} AI Plans Left` : "Loading plan allowance…"}
+                </h2>
               </div>
               <Button onClick={() => navigate("/pricing")} variant="premium">
                 Upgrade
@@ -54,6 +64,20 @@ export function DashboardPage() {
             </div>
           </div>
         </section>
+
+        {status === "loading" ? (
+          <Card className="section">
+            <div className="brand-row"><Loader2 size={18} /><span className="small muted">Loading your kitchen…</span></div>
+          </Card>
+        ) : null}
+
+        {status === "error" ? (
+          <Card className="section">
+            <strong>Could not load your dashboard</strong>
+            <p className="small muted">{error}</p>
+            <Button icon={<RefreshCw size={16} />} onClick={() => void refresh()} variant="secondary">Try again</Button>
+          </Card>
+        ) : null}
 
         <div className="section-title">
           <h2>What would you like to do today?</h2>
@@ -85,7 +109,7 @@ export function DashboardPage() {
               <br />
               <strong>Pantry</strong>
               <br />
-              <span className="small muted">12 ingredients</span>
+              <span className="small muted">{data?.pantryItems.length ?? 0} ingredients</span>
             </span>
           </button>
           <button
@@ -101,7 +125,7 @@ export function DashboardPage() {
               <br />
               <strong>Shopping List</strong>
               <br />
-              <span className="small muted">5 items to buy</span>
+              <span className="small muted">{itemsToBuy} items to buy</span>
             </span>
           </button>
         </section>
@@ -144,20 +168,20 @@ export function DashboardPage() {
           </div>
           <div className="stats-grid" style={{ marginTop: 14 }}>
             <div className="stat-card" style={{ background: "#fff4de", borderRadius: 14 }}>
-              <strong>3 items</strong>
+              <strong>{data?.expiringItems.length ?? 0} items</strong>
               <span className="tiny muted">Expiring soon</span>
             </div>
             <div className="stat-card" style={{ background: "#f4fae8", borderRadius: 14 }}>
-              <strong>£7.80</strong>
-              <span className="tiny muted">Potential savings</span>
+              <strong>{data?.pantryItems.length ?? 0}</strong>
+              <span className="tiny muted">Pantry items</span>
             </div>
             <div className="stat-card" style={{ background: "#edf4ed", borderRadius: 14 }}>
-              <strong>1.3kg</strong>
-              <span className="tiny muted">Waste avoided</span>
+              <strong>{itemsToBuy}</strong>
+              <span className="tiny muted">Still to buy</span>
             </div>
             <div className="stat-card" style={{ background: "#eef3ff", borderRadius: 14 }}>
-              <strong>87%</strong>
-              <span className="tiny muted">Health score</span>
+              <strong>{data?.latestPlan ? totalMeals(data.latestPlan.plan) : 0}</strong>
+              <span className="tiny muted">Meals planned</span>
             </div>
           </div>
         </Card>
@@ -167,15 +191,18 @@ export function DashboardPage() {
           <div className="form-grid">
             {recommendedMeals.map((meal) => (
               <div className="meal-row" key={meal.name}>
-                <span className="meal-icon">{iconMap[meal.icon]}</span>
+                <span className="meal-icon">{meal.name.slice(0, 2)}</span>
                 <span>
                   <strong>{meal.name}</strong>
                   <br />
-                  <span className="small muted">{meal.meta}</span>
+                  <span className="small muted">{meal.minutes} min · {meal.cuisine}</span>
                 </span>
                 <ChevronRight color="var(--color-primary-strong)" size={18} />
               </div>
             ))}
+            {status === "ready" && recommendedMeals.length === 0 ? (
+              <p className="small muted">Generate a meal plan to see recommendations here.</p>
+            ) : null}
           </div>
         </Card>
 
@@ -187,13 +214,16 @@ export function DashboardPage() {
             </button>
           </div>
           <div className="expiry-list" style={{ marginTop: 12 }}>
-            {expiringSoon.map((item) => (
-              <div className="expiry-row" key={item.name}>
-                <span className="item-icon">{iconMap[item.icon]}</span>
+            {(data?.expiringItems ?? []).slice(0, 3).map((item) => (
+              <div className="expiry-row" key={item.id}>
+                <span className="item-icon">{item.name.slice(0, 2)}</span>
                 <strong>{item.name}</strong>
-                <Badge variant={item.tone === "red" ? "red" : "gold"}>{item.timeLeft}</Badge>
+                <Badge variant={expiryTone(item.expires_on)}>{formatExpiry(item.expires_on)}</Badge>
               </div>
             ))}
+            {status === "ready" && data?.expiringItems.length === 0 ? (
+              <p className="small muted">Nothing expires in the next 7 days.</p>
+            ) : null}
           </div>
         </Card>
       </div>

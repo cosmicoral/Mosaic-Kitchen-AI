@@ -25,7 +25,7 @@ async function signIn(): Promise<Actor> {
   seq += 1;
   const res = await request(app)
     .post('/api/auth/signup')
-    .send({ email: `pantry-${seq}@example.com`, password: 'supersecret123' });
+    .send({ email: `pantry-${seq}@example.com`, password: 'Supersecret123!' });
 
   assert.equal(res.status, 201);
 

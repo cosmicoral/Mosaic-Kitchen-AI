@@ -13,7 +13,7 @@ import {
 } from './helpers/db.ts';
 
 const EMAIL = 'coral@example.com';
-const PASSWORD = 'supersecret123';
+const PASSWORD = 'Supersecret123!';
 
 // supertest gives back the raw Set-Cookie header; these pull out the bits the
 // assertions care about.
@@ -103,6 +103,21 @@ describe('POST /api/auth/signup', () => {
     assert.equal(res.status, 400);
     assert.match(res.body.error, /at least 8 characters/);
     assert.equal(await findUserRow('short@example.com'), null);
+  });
+
+  test('rejects passwords missing a required character class with 400', async () => {
+    const cases = [
+      ['NOLOWERCASE1!', /lowercase/],
+      ['nouppercase1!', /uppercase/],
+      ['NoNumber!', /number/],
+      ['NoSpecial1', /special/],
+    ] as const;
+
+    for (const [password, message] of cases) {
+      const res = await signup(`invalid-${password.length}-${message.source}@example.com`, password);
+      assert.equal(res.status, 400);
+      assert.match(res.body.error, message);
+    }
   });
 
   test('rejects a malformed email with 400', async () => {

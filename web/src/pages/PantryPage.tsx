@@ -214,7 +214,7 @@ export function PantryPage() {
                       {formatExpiry(item.expires_on)}
                     </Badge>
                   </span>
-                  <Button onClick={() => navigate("/expiry-alert")} variant="primary">
+                  <Button onClick={() => navigate(`/expiry-alert?item=${item.id}`)} variant="primary">
                     Use Fresh
                   </Button>
                 </Card>

@@ -7,7 +7,7 @@ import { AppError } from '../src/types/index.ts';
 import { closeDb, countSessions, findUserRow, insertSession, resetDb } from './helpers/db.ts';
 
 const EMAIL = 'service@example.com';
-const PASSWORD = 'supersecret123';
+const PASSWORD = 'Supersecret123!';
 
 async function expectAppError(
   run: () => Promise<unknown>,
@@ -33,12 +33,12 @@ after(async () => {
 
 describe('authService.signup validation', () => {
   test('accepts a password of exactly the minimum length', async () => {
-    const result = await authService.signup(EMAIL, '12345678');
+    const result = await authService.signup(EMAIL, 'Aa1!aaaa');
     assert.equal(result.user.email, EMAIL);
   });
 
   test('rejects a password one character short', async () => {
-    await expectAppError(() => authService.signup(EMAIL, '1234567'), 'VALIDATION_ERROR');
+    await expectAppError(() => authService.signup(EMAIL, 'Aa1!aaa'), 'VALIDATION_ERROR');
     assert.equal(await findUserRow(EMAIL), null);
   });
 
@@ -50,6 +50,23 @@ describe('authService.signup validation', () => {
       'VALIDATION_ERROR'
     );
     assert.match(error.message, /at most/);
+  });
+
+  test('requires lowercase, uppercase, number and special characters', async () => {
+    const cases = [
+      ['NOLOWERCASE1!', /lowercase/],
+      ['nouppercase1!', /uppercase/],
+      ['NoNumber!', /number/],
+      ['NoSpecial1', /special/],
+    ] as const;
+
+    for (const [password, message] of cases) {
+      const error = await expectAppError(
+        () => authService.signup(EMAIL, password),
+        'VALIDATION_ERROR'
+      );
+      assert.match(error.message, message);
+    }
   });
 
   test('rejects malformed email addresses', async () => {
@@ -94,7 +111,7 @@ describe('authService password hashing', () => {
   // Only the email is normalised. Trimming or lowercasing the password would
   // silently shrink the keyspace.
   test('does not trim or lowercase the password', async () => {
-    const padded = '  MiXeD Case  ';
+    const padded = '  MiXeD Case 1!  ';
     await authService.signup(EMAIL, padded);
 
     const row = await findUserRow(EMAIL);

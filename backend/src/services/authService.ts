@@ -48,6 +48,19 @@ function assertValidCredentials(email: string, password: string): string {
     );
   }
 
+  if (!/[a-z]/.test(password)) {
+    throw new AppError('Password must include a lowercase letter', 'VALIDATION_ERROR');
+  }
+  if (!/[A-Z]/.test(password)) {
+    throw new AppError('Password must include an uppercase letter', 'VALIDATION_ERROR');
+  }
+  if (!/\d/.test(password)) {
+    throw new AppError('Password must include a number', 'VALIDATION_ERROR');
+  }
+  if (!/[^A-Za-z0-9\s]/.test(password)) {
+    throw new AppError('Password must include a special character', 'VALIDATION_ERROR');
+  }
+
   return normalizedEmail;
 }
 

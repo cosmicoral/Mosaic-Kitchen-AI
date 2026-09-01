@@ -66,6 +66,7 @@ This section describes what is actually built and tested, as distinct from the r
 Hand-rolled session authentication rather than a library or a managed service, so that every part of it is understood and controllable.
 
 - bcrypt password hashing at cost factor 12
+- Signup requires at least 8 characters with uppercase, lowercase, number and special-character checks in both the UI and API
 - Sessions stored in PostgreSQL, so a session can be revoked with a `DELETE`
 - Session IDs are 256 bits from `crypto.randomBytes`, never a predictable value
 - `HttpOnly` cookies, so JavaScript cannot read the credential and XSS cannot exfiltrate it
@@ -98,7 +99,7 @@ Onboarding captures only what the meal planner consumes.
 
 ### Testing
 
-110 integration tests running against a dedicated Neon database branch, covering the HTTP layer, the service layer and both repositories. Notable cases include cross-user isolation, expired-session rejection, and a regression test for the DATE timezone bug.
+124 backend tests run against a dedicated Neon database branch, alongside 13 frontend unit and hook tests. Coverage includes cross-user isolation, expired-session rejection, password policy, dashboard aggregation, expiry queries, and a regression test for the DATE timezone bug.
 
 ---
 
@@ -273,9 +274,9 @@ Written down deliberately — an honest list is more useful than a clean one.
 - [x] Household profile and onboarding
 - [x] AI meal planning from real profile and pantry data
 - [x] Usage and cost tracking, monthly quota
-- [ ] Shopping list generated from the meal plan
-- [ ] Expiry alerts from real pantry data
-- [ ] Dashboard wired to live data
+- [x] Shopping list generated from the meal plan
+- [x] Expiry alerts from real pantry data
+- [x] Dashboard wired to live data
 - [ ] Deployment
 - [ ] English + Simplified Chinese interface
 
