@@ -86,3 +86,51 @@ export interface UserProfileInput {
   cooking_style: CookingStyle | null;
   postcode: string | null;
 }
+
+export const MEAL_SLOTS = ['breakfast', 'lunch', 'dinner'] as const;
+export type MealSlot = (typeof MEAL_SLOTS)[number];
+
+export interface GeneratedIngredient {
+  name: string;
+  quantity: number;
+  unit: string;
+  from_pantry: boolean;
+}
+
+export interface GeneratedMeal {
+  slot: MealSlot;
+  name: string;
+  cuisine: string;
+  minutes: number;
+  servings: number;
+  estimated_cost_gbp: number;
+  ingredients: GeneratedIngredient[];
+  steps: string[];
+}
+
+export interface GeneratedDay {
+  day_index: number;
+  meals: GeneratedMeal[];
+}
+
+export interface GeneratedMealPlan {
+  summary: string;
+  days: GeneratedDay[];
+  estimated_total_gbp: number;
+  waste_reduction_tip: string;
+}
+
+export interface MealPlanRecord {
+  id: string;
+  user_id: string;
+  starts_on: string;
+  plan: GeneratedMealPlan;
+  profile_snapshot: UserProfile;
+  created_at: string;
+}
+
+export interface MealPlanQuota {
+  used: number;
+  limit: number;
+  remaining: number;
+}
