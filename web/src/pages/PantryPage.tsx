@@ -11,8 +11,9 @@ import { Input } from "../components/ui/Input";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
 import { usePantry } from "../hooks/usePantry";
-import { daysUntil, expiryTone, formatAmount, formatExpiry } from "../lib/pantryFormat";
+import { daysUntil, expiryTone, formatAmount, formatExpiryForLocale } from "../lib/pantryFormat";
 import { PANTRY_CATEGORIES, type PantryCategory, type PantryItem } from "../types";
+import { useLocale } from "../context/LocaleContext";
 
 const CATEGORY_LABELS: Record<PantryCategory, string> = {
   vegetables: "Vegetables",
@@ -29,6 +30,7 @@ const EXPIRING_WINDOW_DAYS = 7;
 export function PantryPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { locale, t } = useLocale();
   const { items, status, error, refresh, addItem, removeItem } = usePantry();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -126,22 +128,22 @@ export function PantryPage() {
         />
 
         <section className="page-heading">
-          <h1>My Kitchen</h1>
-          <p>Track ingredients, reduce food waste and cook smarter.</p>
+          <h1>{t("My Kitchen")}</h1>
+          <p>{t("Track ingredients, reduce food waste and cook smarter.")}</p>
         </section>
 
         <Card variant="dark">
           <div className="pantry-overview">
             <span>
               <p className="eyebrow" style={{ color: "#bfea73" }}>
-                Pantry overview
+                {t("Pantry overview")}
               </p>
               <h2 style={{ margin: 0 }}>
-                {items.length} {items.length === 1 ? "ingredient" : "ingredients"} stored
+                {items.length} {t("ingredients")} {t("stored")}
               </h2>
               <div className="choice-grid" style={{ marginTop: 12 }}>
-                <Badge variant="dark">{grouped.length} categories</Badge>
-                <Badge variant="dark">{expiringItems.length} expiring soon</Badge>
+                <Badge variant="dark">{grouped.length} {t("categories")}</Badge>
+                <Badge variant="dark">{expiringItems.length} {t("expiring soon")}</Badge>
               </div>
             </span>
           </div>
@@ -151,17 +153,17 @@ export function PantryPage() {
           <Card className="section">
             <div className="brand-row">
               <Loader2 size={18} />
-              <span className="small muted">Loading your pantry…</span>
+              <span className="small muted">{t("Loading your pantry…")}</span>
             </div>
           </Card>
         ) : null}
 
         {status === "error" ? (
           <Card className="section">
-            <strong>Could not load your pantry</strong>
+            <strong>{t("Could not load your pantry")}</strong>
             <p className="small muted">{error}</p>
             <Button icon={<RefreshCw size={16} />} onClick={() => void refresh()} variant="secondary">
-              Try again
+              {t("Try again")}
             </Button>
           </Card>
         ) : null}
@@ -171,10 +173,10 @@ export function PantryPage() {
             <div className="brand-row">
               <MascotAvatar size="sm" src={pantryMascot} />
               <span>
-                <strong>Your pantry is empty</strong>
+                <strong>{t("Your pantry is empty")}</strong>
                 <br />
                 <span className="small muted">
-                  Add what you already have and Mosaic can plan around it.
+                  {t("Add what you already have and Mosaic can plan around it.")}
                 </span>
               </span>
             </div>
@@ -184,7 +186,7 @@ export function PantryPage() {
               onClick={() => setIsAddModalOpen(true)}
               style={{ marginTop: 14 }}
             >
-              Add your first ingredient
+              {t("Add your first ingredient")}
             </Button>
           </Card>
         ) : null}
@@ -192,14 +194,14 @@ export function PantryPage() {
         {expiringItems.length > 0 ? (
           <>
             <div className="section-title">
-              <h2>Expiring Soon</h2>
+              <h2>{t("Expiring Soon")}</h2>
               {expiringItems.length > 3 ? (
                 <button
                   className="top-nav__right"
                   onClick={() => setShowAllExpiring((value) => !value)}
                   type="button"
                 >
-                  {showAllExpiring ? "Show Less" : "See All"}
+                  {showAllExpiring ? t("Show Less") : t("See All")}
                 </button>
               ) : null}
             </div>
@@ -211,11 +213,11 @@ export function PantryPage() {
                     <strong>{item.name}</strong>
                     <br />
                     <Badge variant={expiryTone(item.expires_on)}>
-                      {formatExpiry(item.expires_on)}
+                      {formatExpiryForLocale(item.expires_on, locale)}
                     </Badge>
                   </span>
                   <Button onClick={() => navigate(`/expiry-alert?item=${item.id}`)} variant="primary">
-                    Use Fresh
+                    {t("Use Fresh")}
                   </Button>
                 </Card>
               ))}
@@ -226,13 +228,13 @@ export function PantryPage() {
         {grouped.length > 0 ? (
           <>
             <div className="section-title">
-              <h2>Pantry Categories</h2>
+              <h2>{t("Pantry Categories")}</h2>
               <button
                 className="top-nav__right"
                 onClick={() => setIsAddModalOpen(true)}
                 type="button"
               >
-                Add Item
+                {t("Add Item")}
               </button>
             </div>
 
@@ -242,10 +244,10 @@ export function PantryPage() {
                   <div className="category-head">
                     <span className="brand-row">
                       <span>
-                        <strong>{group.label}</strong>
+                        <strong>{t(group.label)}</strong>
                         <br />
                         <span className="small muted">
-                          {group.items.length} {group.items.length === 1 ? "item" : "items"}
+                          {group.items.length} {t("items")}
                         </span>
                       </span>
                     </span>
@@ -257,11 +259,11 @@ export function PantryPage() {
                         <strong>{item.name}</strong>
                         <br />
                         <span className="small muted">
-                          {formatAmount(item) || "No quantity set"}
+                          {formatAmount(item) || t("No quantity set")}
                         </span>
                       </span>
                       <Badge variant={expiryTone(item.expires_on)}>
-                        {formatExpiry(item.expires_on)}
+                        {formatExpiryForLocale(item.expires_on, locale)}
                       </Badge>
                       <button
                         aria-label={`Remove ${item.name}`}
@@ -295,7 +297,7 @@ export function PantryPage() {
           <Card className="modal-panel">
             <div className="premium-strip">
               <h2 id="add-ingredient-title" style={{ margin: 0 }}>
-                Add Ingredient
+                {t("Add Ingredient")}
               </h2>
               <button
                 className="icon-only"
@@ -312,7 +314,7 @@ export function PantryPage() {
             <form onSubmit={handleAdd}>
               <div className="form-grid" style={{ marginTop: 16 }}>
                 <Input
-                  label="Ingredient"
+                  label={t("Ingredient")}
                   maxLength={100}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Spinach, rice, tofu..."
@@ -321,7 +323,7 @@ export function PantryPage() {
                 />
 
                 <div className="input-field">
-                  <label>Category</label>
+                  <label>{t("Category")}</label>
                   <div className="choice-grid">
                     {PANTRY_CATEGORIES.map((key) => (
                       <button
@@ -330,14 +332,14 @@ export function PantryPage() {
                         onClick={() => setCategory(key)}
                         type="button"
                       >
-                        {CATEGORY_LABELS[key]}
+                        {t(CATEGORY_LABELS[key])}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <Input
-                  label="Quantity (optional)"
+                  label={t("Quantity (optional)")}
                   min="0"
                   onChange={(event) => setQuantity(event.target.value)}
                   placeholder="200"
@@ -346,14 +348,14 @@ export function PantryPage() {
                   value={quantity}
                 />
                 <Input
-                  label="Unit (optional)"
+                  label={t("Unit (optional)")}
                   maxLength={20}
                   onChange={(event) => setUnit(event.target.value)}
                   placeholder="g, ml, pack, units"
                   value={unit}
                 />
                 <Input
-                  label="Expiry date (optional)"
+                  label={t("Expiry date (optional)")}
                   onChange={(event) => setExpiresOn(event.target.value)}
                   type="date"
                   value={expiresOn}
@@ -366,7 +368,7 @@ export function PantryPage() {
                 ) : null}
 
                 <Button disabled={submitting} fullWidth icon={<Plus size={17} />} type="submit">
-                  {submitting ? "Adding…" : "Add Ingredient"}
+                  {submitting ? t("Adding…") : t("Add Ingredient")}
                 </Button>
               </div>
             </form>

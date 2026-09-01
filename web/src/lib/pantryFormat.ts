@@ -43,6 +43,17 @@ export function formatExpiry(isoDate: string | null): string {
   return `Expires in ${days} days`;
 }
 
+export function formatExpiryForLocale(isoDate: string | null, locale: 'en' | 'zh'): string {
+  if (locale === 'en') return formatExpiry(isoDate);
+  if (!isoDate) return '未设置到期日期';
+  const days = daysUntil(isoDate);
+  if (Number.isNaN(days)) return '未设置到期日期';
+  if (days < 0) return `已过期 ${Math.abs(days)} 天`;
+  if (days === 0) return '今天到期';
+  if (days === 1) return '明天到期';
+  return `${days} 天后到期`;
+}
+
 export function expiryTone(isoDate: string | null): 'red' | 'gold' | 'green' {
   if (!isoDate) return 'green';
   const days = daysUntil(isoDate);

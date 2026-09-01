@@ -25,10 +25,12 @@ import {
   totalMeals,
   uniqueCuisines,
 } from "../lib/mealPlanFormat";
+import { useLocale } from "../context/LocaleContext";
 
 export function MealPlanPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { locale, t } = useLocale();
   const { plan, quota, status, error, refresh, generate, generating, generationError } =
     useMealPlan();
 
@@ -52,10 +54,10 @@ export function MealPlanPage() {
         <TopNav backTo="/dashboard" title="Your Meal Plan" />
 
         <section className="page-heading">
-          <h1>Your Weekly Meal Plan</h1>
+          <h1>{t("Your Weekly Meal Plan")}</h1>
           {quota ? (
             <p>
-              {quota.remaining} of {quota.limit} plans left this month.
+              {quota.remaining} / {quota.limit} {t("plans left this month.")}
             </p>
           ) : null}
         </section>
@@ -64,17 +66,17 @@ export function MealPlanPage() {
           <Card>
             <div className="brand-row">
               <Loader2 size={18} />
-              <span className="small muted">Loading your plan…</span>
+              <span className="small muted">{t("Loading your plan…")}</span>
             </div>
           </Card>
         ) : null}
 
         {status === "error" ? (
           <Card>
-            <strong>Could not load your meal plan</strong>
+            <strong>{t("Could not load your meal plan")}</strong>
             <p className="small muted">{error}</p>
             <Button icon={<RefreshCw size={16} />} onClick={() => void refresh()} variant="secondary">
-              Try again
+              {t("Try again")}
             </Button>
           </Card>
         ) : null}
@@ -85,32 +87,31 @@ export function MealPlanPage() {
           <Card variant="dark">
             <div className="brand-row">
               <Loader2 size={18} />
-              <strong>Building your plan…</strong>
+              <strong>{t("Building your plan…")}</strong>
             </div>
             <p className="small">
-              Checking your pantry, working around what you avoid, and staying in budget. This
-              usually takes under a minute.
+              {t("Checking your pantry, working around what you avoid, and staying in budget. This usually takes under a minute.")}
             </p>
           </Card>
         ) : null}
 
         {generationError ? (
           <Card>
-            <strong>Could not generate a plan</strong>
+            <strong>{t("Could not generate a plan")}</strong>
             <p className="small muted">{generationError.message}</p>
             {/* Each failure has a different useful next step, chosen by code
                 rather than by reading the message. */}
             {generationError.code === "PROFILE_REQUIRED" ? (
               <Button fullWidth onClick={() => navigate("/onboarding/user-info")}>
-                Set up preferences
+                {t("Set up preferences")}
               </Button>
             ) : generationError.code === "QUOTA_EXCEEDED" ? (
               <Button fullWidth onClick={() => navigate("/pricing")} variant="premium">
-                See Premium plans
+                {t("See Premium plans")}
               </Button>
             ) : (
               <Button fullWidth onClick={() => void handleGenerate()} variant="secondary">
-                Try again
+                {t("Try again")}
               </Button>
             )}
           </Card>
@@ -120,10 +121,10 @@ export function MealPlanPage() {
           <Card>
             <div className="brand-row">
               <Sparkles size={18} />
-              <strong>No plan yet</strong>
+              <strong>{t("No plan yet")}</strong>
             </div>
             <p className="small muted">
-              Generate one and we will build it around what is already in your kitchen.
+              {t("Generate one and we will build it around what is already in your kitchen.")}
             </p>
             <Button
               disabled={quota?.remaining === 0}
@@ -132,7 +133,7 @@ export function MealPlanPage() {
               onClick={() => void handleGenerate()}
               style={{ marginTop: 12 }}
             >
-              {quota?.remaining === 0 ? "No plans left this month" : "Generate my plan"}
+              {quota?.remaining === 0 ? t("No plans left this month") : t("Generate my plan")}
             </Button>
           </Card>
         ) : null}
@@ -142,20 +143,20 @@ export function MealPlanPage() {
             <section className="section plan-summary">
               <Card variant="dark">
                 <Badge variant="dark">
-                  <Sparkles size={14} /> AI Summary
+                  <Sparkles size={14} /> {t("AI Summary")}
                 </Badge>
                 <h2 style={{ marginTop: 8 }}>{generated.summary}</h2>
                 <div className="choice-grid" style={{ marginTop: 12 }}>
-                  <Badge variant="cream">{totalMeals(generated)} meals</Badge>
-                  <Badge variant="cream">{uniqueCuisines(generated).length} cuisines</Badge>
-                  <Badge variant="cream">{pantryUsageRatio(generated)}% from pantry</Badge>
+                  <Badge variant="cream">{totalMeals(generated)} {t("meals")}</Badge>
+                  <Badge variant="cream">{uniqueCuisines(generated).length} {t("cuisines")}</Badge>
+                  <Badge variant="cream">{pantryUsageRatio(generated)}% {t("from pantry")}</Badge>
                 </div>
               </Card>
 
               <div className="metric-grid">
                 <Card className="stat-card">
                   <strong>£{generated.estimated_total_gbp.toFixed(2)}</strong>
-                  <span className="tiny muted">Estimated cost</span>
+                  <span className="tiny muted">{t("Estimated cost")}</span>
                 </Card>
                 <Card className="stat-card">
                   <strong>
@@ -163,17 +164,17 @@ export function MealPlanPage() {
                       ? `£${Number(record.profile_snapshot.weekly_budget).toFixed(2)}`
                       : "—"}
                   </strong>
-                  <span className="tiny muted">Your budget</span>
+                  <span className="tiny muted">{t("Your budget")}</span>
                 </Card>
                 <Card className="stat-card">
                   <strong>{pantryUsageRatio(generated)}%</strong>
-                  <span className="tiny muted">Already owned</span>
+                  <span className="tiny muted">{t("Already owned")}</span>
                 </Card>
               </div>
 
               {generated.waste_reduction_tip ? (
                 <Card variant="soft">
-                  <span className="eyebrow">Tip</span>
+                  <span className="eyebrow">{t("Tip")}</span>
                   <p className="small" style={{ margin: 0 }}>
                     {generated.waste_reduction_tip}
                   </p>
@@ -182,20 +183,20 @@ export function MealPlanPage() {
             </section>
 
             <div className="section-title">
-              <h2>Daily Meals</h2>
+              <h2>{t("Daily Meals")}</h2>
               <button
                 className="top-nav__right"
                 disabled={generating || quota?.remaining === 0}
                 onClick={() => void handleGenerate()}
                 type="button"
               >
-                Regenerate
+                {t("Regenerate")}
               </button>
             </div>
 
             <section className="form-grid">
               {generated.days.map((day) => {
-                const labels = dayLabels(record.starts_on, day.day_index);
+                const labels = dayLabels(record.starts_on, day.day_index, locale);
                 const isOpen = openDay === day.day_index;
 
                 return (
@@ -211,7 +212,7 @@ export function MealPlanPage() {
                           <strong>{labels.full}</strong>
                           <br />
                           <span className="small muted">
-                            {day.meals.length} {day.meals.length === 1 ? "meal" : "meals"} · £
+                            {day.meals.length} {t(day.meals.length === 1 ? "meal" : "meals")} · £
                             {dayCost(generated, day.day_index).toFixed(2)}
                           </span>
                         </span>
@@ -227,7 +228,7 @@ export function MealPlanPage() {
 
                           return (
                             <div className="daily-meal" key={mealKey}>
-                              <Badge variant={SLOT_TONES[meal.slot]}>{SLOT_LABELS[meal.slot]}</Badge>{" "}
+                              <Badge variant={SLOT_TONES[meal.slot]}>{t(SLOT_LABELS[meal.slot])}</Badge>{" "}
                               <span className="tiny muted">{meal.cuisine}</span>
 
                               <strong style={{ display: "block", marginTop: 6 }}>{meal.name}</strong>
@@ -236,8 +237,8 @@ export function MealPlanPage() {
                               ) : null}
 
                               <span className="small muted">
-                                <Clock size={13} /> {meal.minutes} min · <Users size={13} />{" "}
-                                {meal.servings} servings ·{" "}
+                                <Clock size={13} /> {meal.minutes} {t("minutes")} · <Users size={13} />{" "}
+                                {meal.servings} {t("servings")} ·{" "}
                                 <strong style={{ color: "var(--color-primary-deep)" }}>
                                   £{meal.estimated_cost_gbp.toFixed(2)}
                                 </strong>
@@ -249,12 +250,12 @@ export function MealPlanPage() {
                                 style={{ display: "block", marginTop: 6 }}
                                 type="button"
                               >
-                                {showRecipe ? "Hide recipe" : "Show recipe"}
+                                {showRecipe ? t("Hide recipe") : t("Show recipe")}
                               </button>
 
                               {showRecipe ? (
                                 <div style={{ marginTop: 10 }}>
-                                  <span className="eyebrow">Ingredients</span>
+                                  <span className="eyebrow">{t("Ingredients")}</span>
                                   <ul className="check-list" style={{ marginTop: 6 }}>
                                     {meal.ingredients.map((ingredient) => (
                                       <li key={ingredient.name}>
@@ -266,14 +267,14 @@ export function MealPlanPage() {
                                             point of sending the pantry to the
                                             model. */}
                                         {ingredient.from_pantry ? (
-                                          <Badge variant="green">Have it</Badge>
+                                          <Badge variant="green">{t("Have it")}</Badge>
                                         ) : null}
                                       </li>
                                     ))}
                                   </ul>
 
                                   <span className="eyebrow" style={{ display: "block", marginTop: 12 }}>
-                                    Method
+                                    {t("Method")}
                                   </span>
                                   <ol className="small" style={{ marginTop: 6, paddingLeft: 18 }}>
                                     {meal.steps.map((step, index) => (
@@ -300,7 +301,7 @@ export function MealPlanPage() {
                 icon={<ShoppingCart size={18} />}
                 onClick={() => navigate("/shopping-list")}
               >
-                Generate Shopping List
+                {t("Generate Shopping List")}
               </Button>
             </div>
           </>

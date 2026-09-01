@@ -21,6 +21,7 @@ import {
 import { findViolations } from './ingredientSafety.ts';
 import type { SafetyViolation } from './ingredientSafety.ts';
 import { generateMealPlan as callModel } from './openai.ts';
+import type { SupportedLocale } from '../utils/locale.ts';
 
 // Free-tier allowance. Monthly rather than lifetime: a hard lifetime cap stops
 // a user forming any habit at all, and at roughly half a penny per generation
@@ -46,12 +47,20 @@ export interface GenerateResult {
   attempts: number;
 }
 
+export function localizedSystemPrompt(locale: SupportedLocale): string {
+  const languageRule = locale === 'zh'
+    ? 'LANGUAGE: Write summary, dish names, ingredient names, cooking steps and the waste-reduction tip in Simplified Chinese. Keep native_name in the dish\'s authentic original script. JSON keys and enum values must remain exactly as defined by the schema.'
+    : 'LANGUAGE: Write all user-facing content in British English. Keep native_name in the dish\'s authentic original script.';
+  return `${MEAL_PLAN_SYSTEM_PROMPT}\n\n${languageRule}`;
+}
+
 export function buildRetryPrompt(
   profile: Parameters<typeof buildMealPlanPrompt>[0],
   pantry: Parameters<typeof buildMealPlanPrompt>[1],
   safetyViolations: SafetyViolation[],
   cuisineIssues: CuisineViolation[],
-  mealCountIssue: MealCountViolation | null
+  mealCountIssue: MealCountViolation | null,
+  locale: SupportedLocale = 'en'
 ): string {
   const corrections: string[] = [];
 
@@ -85,7 +94,7 @@ export function buildRetryPrompt(
     );
   }
 
-  return `${buildMealPlanPrompt(profile, pantry)}
+  return `${buildMealPlanPrompt(profile, pantry, locale)}
 
 YOUR PREVIOUS ATTEMPT WAS REJECTED.
 ${corrections.join('\n')}
@@ -94,7 +103,8 @@ Rebuild the whole plan and correct every issue above.`;
 
 export async function generate(
   userId: string,
-  modelCall: typeof callModel = callModel
+  modelCall: typeof callModel = callModel,
+  locale: SupportedLocale = 'en'
 ): Promise<GenerateResult> {
   const profile =
     await profileRepository.findByUserId(userId);
@@ -128,9 +138,9 @@ export async function generate(
   const schema =
     buildMealPlanSchema(profile.cuisines);
 
-  const systemPrompt = MEAL_PLAN_SYSTEM_PROMPT;
+  const systemPrompt = localizedSystemPrompt(locale);
   let userPrompt =
-    buildMealPlanPrompt(profile, pantry);
+    buildMealPlanPrompt(profile, pantry, locale);
 
   let plan: GeneratedMealPlan | null = null;
   let attempts = 0;
@@ -218,7 +228,8 @@ export async function generate(
       pantry,
       violations,
       cuisineIssues,
-      mealCountIssue
+      mealCountIssue,
+      locale
     );
   }
 

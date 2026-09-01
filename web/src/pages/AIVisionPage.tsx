@@ -9,10 +9,12 @@ import { Card } from "../components/ui/Card";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
 import { iconMap } from "../data/mockData";
+import { useLocale } from "../context/LocaleContext";
 
 export function AIVisionPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { t } = useLocale();
   const [mockFileState, setMockFileState] = useState<string | null>(null);
 
   const chooseMockFile = (source: string) => {
@@ -35,16 +37,16 @@ export function AIVisionPage() {
             <div className="brand-row">
               <MascotAvatar size="md" src={aiScanMascot} />
               <span>
-                <Badge variant="cream">Powered by Computer Vision</Badge>
-                <h2 style={{ margin: "8px 0 4px" }}>AI Food Vision</h2>
+                <Badge variant="cream">{t("Powered by Computer Vision")}</Badge>
+                <h2 style={{ margin: "8px 0 4px" }}>{t("AI Food Vision")}</h2>
                 <p className="small">
                   Detect ingredients in seconds with computer vision and machine learning.
                 </p>
               </span>
             </div>
             <div className="choice-grid" style={{ marginTop: 16 }}>
-              <Badge variant="dark">Ingredient recognition</Badge>
-              <Badge variant="dark">Real-time detection</Badge>
+              <Badge variant="dark">{t("Ingredient recognition")}</Badge>
+              <Badge variant="dark">{t("Real-time detection")}</Badge>
               <Badge variant="dark">94% accuracy</Badge>
             </div>
           </Card>
@@ -55,8 +57,8 @@ export function AIVisionPage() {
               src={aiScanMascot}
               alt="Mosaic Kitchen mascot scanning food in a fridge"
             />
-            <h1>Scan Your Fridge</h1>
-            <p>Take a photo of your fridge, pantry or groceries. AI will identify ingredients automatically.</p>
+            <h1>{t("Scan Your Fridge")}</h1>
+            <p>{t("Take a photo of your fridge, pantry or groceries. AI will identify ingredients automatically.")}</p>
           </section>
 
           <div className="vision-dropzone">
@@ -64,39 +66,39 @@ export function AIVisionPage() {
               <span className="feature-icon" style={{ margin: "0 auto 12px" }}>
                 <Camera size={22} />
               </span>
-              <strong>Take Photo</strong>
+              <strong>{t("Take Photo")}</strong>
               <br />
-              <span className="small muted">or upload an image</span>
+              <span className="small muted">{t("or upload an image")}</span>
               <div className="two-col" style={{ marginTop: 14 }}>
                 <Button icon={<Camera size={16} />} onClick={() => chooseMockFile("Photo")} variant="secondary">
-                  Take Photo
+                  {t("Take Photo")}
                 </Button>
                 <Button icon={<ImagePlus size={16} />} onClick={() => chooseMockFile("Image upload")} variant="secondary">
-                  Upload Image
+                  {t("Upload Image")}
                 </Button>
               </div>
               {mockFileState ? (
                 <Card className="section" variant="soft">
                   <strong>{mockFileState} ready</strong>
-                  <span className="small muted">This is a local mock file state.</span>
+                  <span className="small muted">{t("This is a local mock file state.")}</span>
                 </Card>
               ) : null}
               <div className="choice-grid" style={{ justifyContent: "center", marginTop: 14 }}>
-                <Badge variant="green">Fridge</Badge>
-                <Badge variant="green">Pantry</Badge>
-                <Badge variant="green">Groceries</Badge>
+                <Badge variant="green">{t("Fridge")}</Badge>
+                <Badge variant="green">{t("Pantry")}</Badge>
+                <Badge variant="green">{t("Groceries")}</Badge>
               </div>
             </span>
           </div>
 
-          <h2>Example Detection</h2>
+          <h2>{t("Example Detection")}</h2>
           <Card className="example-detection">
             <div className="food-icon-strip">
               {["spinach", "egg", "chicken", "tomato", "milk", "rice"].map((icon) => (
                 <span key={icon}>{iconMap[icon]}</span>
               ))}
             </div>
-            <p className="eyebrow">Demo - Detected Ingredients</p>
+            <p className="eyebrow">{t("Demo - Detected Ingredients")}</p>
             <div className="choice-grid">
               {["Spinach 98%", "Eggs 97%", "Chicken Breast 94%", "Tomatoes 92%"].map((item) => (
                 <Badge key={item} variant="cream">
@@ -111,7 +113,7 @@ export function AIVisionPage() {
             icon={<ScanLine size={18} />}
             onClick={() => navigate("/detection-results")}
           >
-            Scan My Food
+            {t("Scan My Food")}
           </Button>
           <p className="tiny muted" style={{ textAlign: "center" }}>
             Photos are processed locally in this mock interface.

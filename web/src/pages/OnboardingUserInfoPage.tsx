@@ -6,6 +6,7 @@ import { Card } from "../components/ui/Card";
 import { useOnboarding } from "../context/OnboardingContext";
 import { CUISINE_LABELS } from "../lib/profileOptions";
 import { CUISINES, type Cuisine, type UserProfileInput } from "../types";
+import { useLocale } from "../context/LocaleContext";
 
 // Each band feeds the plan differently, so the copy has to make the age
 // boundaries unambiguous — nobody guesses where "child" ends.
@@ -23,6 +24,7 @@ const HOUSEHOLD_BANDS: Array<{
 export function OnboardingUserInfoPage() {
   const navigate = useNavigate();
   const { draft, update } = useOnboarding();
+  const { t } = useLocale();
 
   const householdTotal =
     draft.adults + draft.teenagers + draft.children + draft.toddlers;
@@ -49,23 +51,23 @@ export function OnboardingUserInfoPage() {
         <TopNav backTo="/signup" title="Step 1 of 3" />
 
         <section className="page-heading">
-          <h1>Who are you cooking for?</h1>
-          <p>This sets portion sizes and keeps meals suitable for everyone at the table.</p>
+          <h1>{t("Who are you cooking for?")}</h1>
+          <p>{t("This sets portion sizes and keeps meals suitable for everyone at the table.")}</p>
         </section>
 
         <Card>
           <div className="brand-row">
             <Users size={18} />
-            <strong>Household</strong>
+            <strong>{t("Household")}</strong>
           </div>
 
           <div className="form-grid" style={{ marginTop: 16 }}>
             {HOUSEHOLD_BANDS.map((band) => (
               <div className="check-item" key={band.key}>
                 <span>
-                  <strong>{band.label}</strong>
+                  <strong>{t(band.label)}</strong>
                   <br />
-                  <span className="small muted">{band.hint}</span>
+                  <span className="small muted">{t(band.hint)}</span>
                 </span>
                 <div className="stepper">
                   <button
@@ -96,16 +98,16 @@ export function OnboardingUserInfoPage() {
 
           <p className="small muted" style={{ marginTop: 12 }}>
             {householdTotal === 0
-              ? "Add at least one person."
-              : `Planning for ${householdTotal} ${householdTotal === 1 ? "person" : "people"}.`}
+              ? t("Add at least one person.")
+              : `${householdTotal} ${t(householdTotal === 1 ? "person" : "people")}`}
           </p>
         </Card>
 
         <div className="section-title">
-          <h2>Which cuisines do you cook?</h2>
+          <h2>{t("Which cuisines do you cook?")}</h2>
         </div>
         <p className="small muted">
-          Pick as many as you like. We use these to choose recipes, not to guess anything about you.
+          {t("Pick as many as you like. We use these to choose recipes, not to guess anything about you.")}
         </p>
 
         <Card className="section">
@@ -117,7 +119,7 @@ export function OnboardingUserInfoPage() {
                 onClick={() => toggleCuisine(cuisine)}
                 type="button"
               >
-                {CUISINE_LABELS[cuisine]}
+                {t(CUISINE_LABELS[cuisine])}
               </button>
             ))}
           </div>
@@ -130,7 +132,7 @@ export function OnboardingUserInfoPage() {
             icon={<ArrowRight size={17} />}
             onClick={() => navigate("/onboarding/eating-habits")}
           >
-            Continue
+            {t("Continue")}
           </Button>
         </div>
       </div>

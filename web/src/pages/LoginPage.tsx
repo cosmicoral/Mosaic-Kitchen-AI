@@ -10,12 +10,14 @@ import { Input } from "../components/ui/Input";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
 import { useAuth } from "../context/AuthContext";
+import { useLocale } from "../context/LocaleContext";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { showToast } = useToast();
   const { login } = useAuth();
+  const { t } = useLocale();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,15 +51,15 @@ export function LoginPage() {
         <div className="auth-desktop-grid">
           <AuthMascotPanel
             src={loginMascot}
-            subtitle="Your AI kitchen assistant for multicultural households."
+            subtitle={t("Your AI kitchen assistant for multicultural households.")}
             title="Mosaic Kitchen AI"
           />
 
           <section className="auth-form-panel">
             <section className="auth-head">
               <MascotAvatar size="lg" src={loginMascot} />
-              <h1>Welcome Back</h1>
-              <p>Continue planning healthier meals, reducing food waste, and saving money.</p>
+              <h1>{t("Welcome Back")}</h1>
+              <p>{t("Continue planning healthier meals, reducing food waste, and saving money.")}</p>
             </section>
 
             <form onSubmit={handleSubmit}>
@@ -66,7 +68,7 @@ export function LoginPage() {
                   <Input
                     autoComplete="email"
                     icon={<Mail size={17} />}
-                    label="Email Address"
+                    label={t("Email Address")}
                     onChange={(event) => setEmail(event.target.value)}
                     placeholder="you@example.com"
                     required
@@ -76,35 +78,35 @@ export function LoginPage() {
                   <Input
                     autoComplete="current-password"
                     icon={<Lock size={17} />}
-                    label="Password"
+                    label={t("Password")}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="Your password"
+                    placeholder={t("Your password")}
                     required
                     type="password"
                     value={password}
                   />
                   <Link className="text-link small" style={{ justifySelf: "end" }} to="/forgot-password">
-                    Forgot password?
+                    {t("Forgot password?")}
                   </Link>
                 </div>
               </Card>
 
               {error ? (
                 <p className="small" role="alert" style={{ color: "var(--danger, #c0392b)", marginTop: 10 }}>
-                  {error}
+                  {t(error)}
                 </p>
               ) : null}
 
               <Button disabled={submitting} fullWidth style={{ marginTop: 14 }} type="submit">
-                {submitting ? "Logging in…" : "Log In"}
+                {submitting ? t("Logging in…") : t("Log In")}
               </Button>
             </form>
 
-            <div className="auth-divider">OR</div>
+            <div className="auth-divider">{t("OR")}</div>
 
             <div className="form-grid">
               <Button fullWidth onClick={() => showToast("Google login is not wired up yet")} variant="secondary">
-                Continue with Google
+                {t("Continue with Google")}
               </Button>
               <Button
                 fullWidth
@@ -112,22 +114,22 @@ export function LoginPage() {
                 onClick={() => showToast("Apple login is not wired up yet")}
                 variant="secondary"
               >
-                Continue with Apple
+                {t("Continue with Apple")}
               </Button>
             </div>
 
             <Card className="section" variant="premium">
-              <strong>Upgrade to Premium after logging in</strong>
-              <p className="small muted">Unlock unlimited meal plans, AI Vision, and smarter pantry insights.</p>
+              <strong>{t("Upgrade to Premium after logging in")}</strong>
+              <p className="small muted">{t("Unlock unlimited meal plans, AI Vision, and smarter pantry insights.")}</p>
               <Button fullWidth onClick={() => navigate("/pricing")} variant="premium">
-                View Premium Plans
+                {t("View Premium Plans")}
               </Button>
             </Card>
 
             <p className="small muted" style={{ textAlign: "center" }}>
-              New to Mosaic Kitchen AI?{" "}
+              {t("New to Mosaic Kitchen AI?")}{" "}
               <Link className="text-link" to="/signup">
-                Create Free Account
+                {t("Create Free Account")}
               </Link>
             </p>
           </section>

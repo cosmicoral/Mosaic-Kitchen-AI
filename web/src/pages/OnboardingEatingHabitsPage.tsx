@@ -13,10 +13,12 @@ import {
   DIET_PRESETS,
 } from "../lib/profileOptions";
 import { COOKING_STYLES, type CookingStyle } from "../types";
+import { useLocale } from "../context/LocaleContext";
 
 export function OnboardingEatingHabitsPage() {
   const navigate = useNavigate();
   const { draft, update } = useOnboarding();
+  const { t } = useLocale();
   const [customAvoidance, setCustomAvoidance] = useState("");
 
   function toggleAvoidance(ingredient: string) {
@@ -52,14 +54,14 @@ export function OnboardingEatingHabitsPage() {
         <TopNav backTo="/onboarding/user-info" title="Step 2 of 3" />
 
         <section className="page-heading">
-          <h1>How do you like to cook?</h1>
-          <p>We will match recipes to the time you actually have.</p>
+          <h1>{t("How do you like to cook?")}</h1>
+          <p>{t("We will match recipes to the time you actually have.")}</p>
         </section>
 
         <Card>
           <div className="brand-row">
             <Clock size={18} />
-            <strong>Usual cooking time</strong>
+            <strong>{t("Usual cooking time")}</strong>
           </div>
           <div className="form-grid" style={{ marginTop: 16 }}>
             {COOKING_STYLES.map((style) => (
@@ -70,23 +72,23 @@ export function OnboardingEatingHabitsPage() {
                 style={{ textAlign: "left" }}
                 type="button"
               >
-                <strong>{COOKING_STYLE_LABELS[style]}</strong>
+                <strong>{t(COOKING_STYLE_LABELS[style])}</strong>
                 <br />
-                <span className="small muted">{COOKING_STYLE_HINTS[style]}</span>
+                <span className="small muted">{t(COOKING_STYLE_HINTS[style])}</span>
               </button>
             ))}
           </div>
         </Card>
 
         <div className="section-title">
-          <h2>Anything to leave out?</h2>
+          <h2>{t("Anything to leave out?")}</h2>
         </div>
         <p className="small muted">
-          Allergies, dislikes, or anything you do not eat. We only store the ingredients.
+          {t("Allergies, dislikes, or anything you do not eat. We only store the ingredients.")}
         </p>
 
         <Card className="section">
-          <span className="eyebrow">Quick presets</span>
+          <span className="eyebrow">{t("Quick presets")}</span>
           <div className="choice-grid" style={{ marginTop: 10 }}>
             {DIET_PRESETS.map((preset) => (
               <button
@@ -95,13 +97,13 @@ export function OnboardingEatingHabitsPage() {
                 onClick={() => applyPreset(preset.excludes)}
                 type="button"
               >
-                {preset.label}
+                {t(preset.label)}
               </button>
             ))}
           </div>
 
           <span className="eyebrow" style={{ display: "block", marginTop: 20 }}>
-            Common
+            {t("Common")}
           </span>
           <div className="choice-grid" style={{ marginTop: 10 }}>
             {COMMON_AVOIDANCES.map((ingredient) => (
@@ -111,7 +113,7 @@ export function OnboardingEatingHabitsPage() {
                 onClick={() => toggleAvoidance(ingredient)}
                 type="button"
               >
-                {ingredient}
+                {t(ingredient)}
               </button>
             ))}
           </div>
@@ -119,7 +121,7 @@ export function OnboardingEatingHabitsPage() {
           <form onSubmit={addCustomAvoidance} style={{ marginTop: 20 }}>
             <Input
               icon={<Ban size={16} />}
-              label="Something else"
+              label={t("Something else")}
               maxLength={50}
               onChange={(event) => setCustomAvoidance(event.target.value)}
               placeholder="coriander, celery, offal..."
@@ -133,14 +135,14 @@ export function OnboardingEatingHabitsPage() {
               type="submit"
               variant="secondary"
             >
-              Add
+              {t("Add")}
             </Button>
           </form>
 
           {draft.avoid_ingredients.length > 0 ? (
             <>
               <span className="eyebrow" style={{ display: "block", marginTop: 20 }}>
-                Avoiding {draft.avoid_ingredients.length}
+                {t("Avoiding")} {draft.avoid_ingredients.length}
               </span>
               <div className="choice-grid" style={{ marginTop: 10 }}>
                 {draft.avoid_ingredients.map((ingredient) => (
@@ -165,7 +167,7 @@ export function OnboardingEatingHabitsPage() {
             icon={<ArrowRight size={17} />}
             onClick={() => navigate("/onboarding/goals")}
           >
-            Continue
+            {t("Continue")}
           </Button>
         </div>
       </div>
