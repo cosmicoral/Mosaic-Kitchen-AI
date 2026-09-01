@@ -1,13 +1,15 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export class ApiError extends Error {
-    status: number;
+  status: number;
+  code: string | null;
 
-    constructor(message: string, status: number) {
-            super(message);
-            this.status = status;
-        }
-    }
+  constructor(message: string, status: number, code: string | null = null) {
+    super(message);
+    this.status = status;
+    this.code = code;
+  }
+}
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
     const response = await fetch(`${API_URL}${path}`, {
@@ -22,11 +24,13 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
         },
     });
     if (!response.ok) {
-    // A 500 can return HTML, in which case json() throws and the real status
-    // code would be lost. Swallow that and fall back to a generic message.
-    const body = (await response.json().catch(() => ({}))) as { error?: string };
-    throw new ApiError(body.error ?? `Request failed (${response.status})`, response.status);
-    }
+  const body = (await response.json().catch(() => ({}))) as { error?: string; code?: string };
+  throw new ApiError(
+    body.error ?? `Request failed (${response.status})`,
+    response.status,
+    body.code ?? null
+  );
+}
 
     // 204 No Content has no body at all; json() would throw on an empty stream.
     if (response.status === 204) return null as T;
