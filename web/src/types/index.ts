@@ -100,6 +100,9 @@ export interface GeneratedIngredient {
 export interface GeneratedMeal {
   slot: MealSlot;
   name: string;
+  // Optional while plans created before the cuisine-accuracy release remain
+  // in JSONB without this field.
+  native_name?: string;
   cuisine: string;
   minutes: number;
   servings: number;

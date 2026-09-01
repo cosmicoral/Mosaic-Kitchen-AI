@@ -3,15 +3,13 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { saveProfile } from '../lib/profile';
 import type { UserProfileInput } from '../types';
 
-// Onboarding spans three screens but only writes once at the end, so the draft
-// has to outlive each page. It also survives a refresh via sessionStorage —
-// losing three screens of answers to a stray reload is a bad first impression.
 const STORAGE_KEY = 'mk_onboarding_draft';
 
 const EMPTY_DRAFT: UserProfileInput = {
@@ -32,12 +30,8 @@ function readStoredDraft(): UserProfileInput {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return EMPTY_DRAFT;
-    // Spread over the defaults so a draft saved by an older version of the app
-    // cannot leave a field undefined.
     return { ...EMPTY_DRAFT, ...(JSON.parse(raw) as Partial<UserProfileInput>) };
   } catch {
-    // Storage can be unavailable (private mode, blocked cookies) and stored
-    // JSON can be corrupt. Neither is worth breaking onboarding over.
     return EMPTY_DRAFT;
   }
 }
@@ -60,19 +54,27 @@ interface OnboardingContextValue {
 const OnboardingContext = createContext<OnboardingContextValue | null>(null);
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
-  // Lazy initialiser: the function form runs once on mount instead of on every
-  // render, so sessionStorage is not read repeatedly.
   const [draft, setDraft] = useState<UserProfileInput>(readStoredDraft);
 
+  // A ref mirroring the state, so submit can read the latest draft without
+  // depending on it. The previous version read it by passing an updater to
+  // setDraft and capturing the argument — React does not promise to run that
+  // updater synchronously, and when it did not, submit sent the untouched
+  // defaults and saved a blank profile.
+  const draftRef = useRef<UserProfileInput>(draft);
+
   const update = useCallback((patch: Partial<UserProfileInput>) => {
-    setDraft((previous) => {
-      const next = { ...previous, ...patch };
-      writeStoredDraft(next);
-      return next;
-    });
+    // Update the ref before asking React to render. This makes two updates, or
+    // an update followed immediately by submit(), deterministic even when the
+    // state update itself is batched.
+    const next = { ...draftRef.current, ...patch };
+    draftRef.current = next;
+    writeStoredDraft(next);
+    setDraft(next);
   }, []);
 
   const reset = useCallback(() => {
+    draftRef.current = EMPTY_DRAFT;
     setDraft(EMPTY_DRAFT);
     try {
       sessionStorage.removeItem(STORAGE_KEY);
@@ -82,15 +84,13 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const submit = useCallback(async () => {
-    // draft is read through the setter so submit never closes over a stale
-    // value — otherwise a change made on the last screen could be missed.
-    let current = EMPTY_DRAFT;
-    setDraft((previous) => {
-      current = previous;
-      return previous;
-    });
-
-    await saveProfile(current);
+    // Fails loudly rather than writing a profile that makes the planner
+    // useless. This is the last line of defence in the client; the server
+    // enforces the same rule independently.
+    if (draftRef.current.cuisines.length === 0) {
+      throw new Error('Pick at least one cuisine before finishing setup');
+    }
+    await saveProfile(draftRef.current);
     reset();
   }, [reset]);
 

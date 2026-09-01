@@ -2,6 +2,7 @@ import OpenAI from 'openai';
 import { zodResponseFormat } from 'openai/helpers/zod';
 import { GeneratedMealPlanSchema } from '../schemas/mealPlan.ts';
 import type { GeneratedMealPlan } from '../schemas/mealPlan.ts';
+import type { z } from 'zod';
 
 const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'gpt-5.6-luna': { input: 0.2, output: 1.2 },
@@ -50,18 +51,16 @@ function calculateCost(promptTokens: number, completionTokens: number): number {
 
 export async function generateMealPlan(
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  schema: z.ZodType<GeneratedMealPlan> = GeneratedMealPlanSchema
 ): Promise<GenerationResult> {
-  // .parse() rather than .create(): with a response_format built from the zod
-  // schema the API constrains the model's output to that shape, and the SDK
-  // hands back an already-parsed, already-validated object.
   const completion = await client.chat.completions.parse({
     model: MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    response_format: zodResponseFormat(GeneratedMealPlanSchema, 'meal_plan'),
+    response_format: zodResponseFormat(schema, 'meal_plan'),
   });
 
   const choice = completion.choices[0];
