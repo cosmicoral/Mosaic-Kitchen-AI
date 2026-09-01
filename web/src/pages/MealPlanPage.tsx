@@ -231,6 +231,9 @@ export function MealPlanPage() {
                               <span className="tiny muted">{meal.cuisine}</span>
 
                               <strong style={{ display: "block", marginTop: 6 }}>{meal.name}</strong>
+                              {meal.native_name && meal.native_name !== meal.name ? (
+                                <span className="small muted">{meal.native_name}</span>
+                              ) : null}
 
                               <span className="small muted">
                                 <Clock size={13} /> {meal.minutes} min · <Users size={13} />{" "}

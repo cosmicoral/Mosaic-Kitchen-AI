@@ -144,6 +144,14 @@ export async function saveProfile(userId: string, body: unknown): Promise<UserPr
   const teenagers = parseCount(record.teenagers, 'teenagers');
   const children = parseCount(record.children, 'children');
   const toddlers = parseCount(record.toddlers, 'toddlers');
+  const cuisines = parseFromList<Cuisine>(record.cuisines, CUISINES, 'cuisines');
+
+  // The planner has nothing to work with without this, and a profile that
+  // silently saves with none produces plausible-looking but useless plans —
+  // a failure that shows up days later in the output rather than here.
+  if (cuisines.length === 0) {
+    throw invalid('Choose at least one cuisine');
+  }
 
   // Mirrors the CHECK constraint, but produces a message a person can act on
   // instead of a raw Postgres constraint violation.
@@ -158,7 +166,7 @@ export async function saveProfile(userId: string, body: unknown): Promise<UserPr
     toddlers,
     meals_per_week: parseMealsPerWeek(record.meals_per_week),
     weekly_budget: parseBudget(record.weekly_budget),
-    cuisines: parseFromList<Cuisine>(record.cuisines, CUISINES, 'cuisines'),
+    cuisines,
     avoid_ingredients: parseAvoidIngredients(record.avoid_ingredients),
     priorities: parseFromList<Priority>(record.priorities, PRIORITIES, 'priorities'),
     cooking_style: parseCookingStyle(record.cooking_style),
