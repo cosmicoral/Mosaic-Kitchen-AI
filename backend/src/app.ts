@@ -10,6 +10,8 @@ import authRouter from './routes/auth.ts';
 import { globalLimiter } from './middleware/rateLimiters.ts';
 import profileRouter from './routes/profile.ts';
 import shoppingListRouter from './routes/shoppingList.ts';
+import billingRouter from './routes/billing.ts';
+import * as billingController from './controllers/billingController.ts';
 
 const app = express();
 
@@ -48,6 +50,18 @@ app.use(
   })
 );
 
+// Mounted before express.json() and outside every router on purpose. Stripe
+// signs the exact bytes it sent, so once a JSON parser has consumed and
+// re-serialised the body those bytes are gone and verification fails with an
+// error that reads like a wrong secret — sending you to look in the wrong
+// place. It also sits outside requireAuth: Stripe carries no session, and the
+// signature is the authentication.
+app.post(
+  '/api/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  billingController.webhook
+);
+
 // Cap the body size so a single large payload cannot exhaust memory.
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
@@ -62,6 +76,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/pantry', pantryRouter);
 app.use('/api/meal-plan', mealPlanRouter);
 app.use('/api/profile', profileRouter);
+app.use('/api/billing', billingRouter);
 app.use('/api/shopping-list', shoppingListRouter);
 
 export default app;

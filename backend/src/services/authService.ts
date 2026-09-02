@@ -73,7 +73,10 @@ function sessionExpiry(): Date {
   return new Date(Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000);
 }
 
-async function startSession(userId: string): Promise<Session> {
+// Exported so the OAuth flow can issue a session without duplicating the id
+// generation and expiry rules — there must be exactly one way a session is
+// minted, whichever door the user came in through.
+export async function startSession(userId: string): Promise<Session> {
   const id = generateSessionId();
   const expiresAt = sessionExpiry();
   return sessionRepository.create(id, userId, expiresAt);
@@ -103,14 +106,15 @@ export async function login(email: string, password: string): Promise<AuthResult
   const normalizedEmail = normalizeEmail(email);
   const user = await userRepository.findByEmail(normalizedEmail);
 
-  // Always run a comparison, even when the user does not exist, so both
-  // branches take the same amount of time.
+  // Always run a comparison, even when the user does not exist or signed up
+  // through a provider and has no hash, so every branch takes the same amount
+  // of time and response timing cannot be used to enumerate accounts.
   const passwordMatches = await bcrypt.compare(
     password,
-    user ? user.password_hash : DUMMY_HASH
+    user?.password_hash ?? DUMMY_HASH
   );
 
-  if (!user || !passwordMatches) {
+  if (!user || !user.password_hash || !passwordMatches) {
     throw new AppError('Invalid email or password', 'INVALID_CREDENTIALS');
   }
 

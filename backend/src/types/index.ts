@@ -4,8 +4,35 @@ export interface User {
     created_at: Date;
 }
 
+// Null for accounts created through an OAuth provider, which have no password
+// to compare against. Callers must handle that rather than assume a string.
 export interface UserWithPassword extends User {
-    password_hash: string;
+    password_hash: string | null;
+}
+
+export const OAUTH_PROVIDERS = ['google', 'apple'] as const;
+export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
+
+export interface UserIdentity {
+    id: string;
+    user_id: string;
+    provider: OAuthProvider;
+    provider_user_id: string;
+    email: string | null;
+    created_at: Date;
+    last_login_at: Date;
+}
+
+export interface Subscription {
+    id: string;
+    user_id: string;
+    stripe_subscription_id: string;
+    stripe_price_id: string;
+    status: string;
+    current_period_end: Date;
+    cancel_at_period_end: boolean;
+    created_at: Date;
+    updated_at: Date;
 }
 
 export interface Session {
@@ -29,7 +56,11 @@ export type AppErrorCode =
     | 'NOT_FOUND'
     | 'PROFILE_REQUIRED'
     | 'QUOTA_EXCEEDED'
-    | 'GENERATION_FAILED';
+    | 'GENERATION_FAILED'
+    | 'BILLING_ERROR'
+    | 'ALREADY_SUBSCRIBED'
+    | 'OAUTH_ERROR'
+    | 'PASSWORD_LOGIN_UNAVAILABLE';
 
 export class AppError extends Error {
     code: AppErrorCode;
