@@ -20,14 +20,15 @@ import {
 } from './cuisineCompliance.ts';
 import { findViolations } from './ingredientSafety.ts';
 import type { SafetyViolation } from './ingredientSafety.ts';
+import * as billingService from './billingService.ts';
+import { entitlementsFor } from './entitlements.ts';
 import { generateMealPlan as callModel } from './openai.ts';
 import type { SupportedLocale } from '../utils/locale.ts';
 
-// Free-tier allowance. Monthly rather than lifetime: a hard lifetime cap stops
-// a user forming any habit at all, and at roughly half a penny per generation
-// the cost of being generous here is negligible next to the conversion cost of
-// a dead end.
-const FREE_PLANS_PER_MONTH = 4;
+// Allowances are monthly rather than lifetime: a hard lifetime cap stops a
+// user forming any habit at all, and at roughly half a penny per generation
+// the cost of being generous is negligible next to the conversion cost of a
+// dead end. The numbers themselves live in entitlements.ts, keyed by tier.
 
 // One retry only. If naming the violation explicitly does not fix it, a third
 // attempt is unlikely to, and each one costs money and keeps the user waiting.
@@ -117,15 +118,23 @@ export async function generate(
   }
 
   // Check the quota before making a model call and spending money.
+  const tier = await billingService.getTier(userId);
+  const limits = entitlementsFor(tier);
+
   const used =
     await aiUsageRepository.countSuccessfulThisMonth(
       userId,
       'meal-plan'
     );
 
-  if (used >= FREE_PLANS_PER_MONTH) {
+  if (used >= limits.mealPlansPerMonth) {
+    // The free wording is deliberately different. This is the one moment a
+    // user is reaching for the product and cannot have it, which makes it the
+    // highest-intent place in the app to say that a paid tier exists.
     throw new AppError(
-      `You have used all ${FREE_PLANS_PER_MONTH} plans this month`,
+      tier === 'free'
+        ? `You have used your ${limits.mealPlansPerMonth} free plans this month`
+        : `You have used all ${limits.mealPlansPerMonth} plans this month`,
       'QUOTA_EXCEEDED'
     );
   }
@@ -285,18 +294,21 @@ export async function getById(
 export async function getQuota(
   userId: string
 ) {
+  const tier = await billingService.getTier(userId);
+  const limit = entitlementsFor(tier).mealPlansPerMonth;
+
   const used =
     await aiUsageRepository.countSuccessfulThisMonth(
       userId,
       'meal-plan'
     );
 
+  // The tier travels with the quota so the frontend can decide between "you
+  // are out until next month" and an upgrade prompt without a second request.
   return {
+    tier,
     used,
-    limit: FREE_PLANS_PER_MONTH,
-    remaining: Math.max(
-      0,
-      FREE_PLANS_PER_MONTH - used
-    ),
+    limit,
+    remaining: Math.max(0, limit - used),
   };
 }
