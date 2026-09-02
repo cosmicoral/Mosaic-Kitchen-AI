@@ -76,6 +76,9 @@ app.use('/api/auth', authRouter);
 app.use('/api/pantry', pantryRouter);
 app.use('/api/meal-plan', mealPlanRouter);
 app.use('/api/profile', profileRouter);
+// Registered ahead of the authenticated billing router so the specific path
+// wins: the pricing page has to render for logged-out visitors.
+app.get('/api/billing/plans', billingController.plans);
 app.use('/api/billing', billingRouter);
 app.use('/api/shopping-list', shoppingListRouter);
 

@@ -1,5 +1,6 @@
-import { Apple, Check, Lock, Mail } from "lucide-react";
+import { Check, Lock, Mail } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { SocialSignIn } from "../components/SocialSignIn";
 import { TopNav } from "../components/navigation/TopNav";
 import { signupMascot } from "../assets/mascots";
 import { AuthMascotPanel } from "../components/ui/AuthMascotPanel";
@@ -166,21 +167,7 @@ async function handleSubmit(event: FormEvent) {
               </Button>
             </form>
 
-            <div className="auth-divider">{t("OR")}</div>
-
-            <div className="form-grid">
-              <Button fullWidth onClick={() => showToast("Google signup is mocked in this prototype")} variant="secondary">
-                {t("Continue with Google")}
-              </Button>
-              <Button
-                fullWidth
-                icon={<Apple size={18} />}
-                onClick={() => showToast("Apple signup is mocked in this prototype")}
-                variant="secondary"
-              >
-                {t("Continue with Apple")}
-              </Button>
-            </div>
+            <SocialSignIn />
 
             <Card className="section auth-mobile-only" variant="dark">
               <div className="premium-strip">

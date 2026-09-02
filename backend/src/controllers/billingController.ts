@@ -1,6 +1,20 @@
 import type { Request, Response } from 'express';
 import * as billingService from '../services/billingService.ts';
+import { configuredPlans, entitlementsFor } from '../services/entitlements.ts';
 import { AppError } from '../types/index.ts';
+
+// Public: the pricing page is reachable without an account, and price ids are
+// not secret — they appear in the Checkout URL either way.
+export async function plans(_req: Request, res: Response) {
+  return res.status(200).json({
+    plans: configuredPlans(),
+    entitlements: {
+      free: entitlementsFor('free'),
+      plus: entitlementsFor('plus'),
+      pro: entitlementsFor('pro'),
+    },
+  });
+}
 
 export async function status(req: Request, res: Response) {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });

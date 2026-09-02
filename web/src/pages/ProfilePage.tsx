@@ -188,8 +188,8 @@ export function ProfilePage() {
                   </span>
                   <Crown color="var(--color-orange)" size={34} />
                 </div>
-                <Button fullWidth onClick={() => navigate("/pricing")} variant="premium">
-                  {t("Upgrade")}
+                <Button fullWidth onClick={() => navigate("/subscription")} variant="premium">
+                  {t("Your plan")}
                 </Button>
               </Card>
 

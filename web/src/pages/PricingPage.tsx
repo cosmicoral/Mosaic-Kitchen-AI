@@ -1,4 +1,5 @@
-import { Check, Crown, Sparkles } from "lucide-react";
+import { Check, Crown, Loader2, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { pricingMascot } from "../assets/mascots";
 import { TopNav } from "../components/navigation/TopNav";
@@ -6,34 +7,83 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { useToast } from "../components/ui/Toast";
-import { pricingPlans } from "../data/mockData";
+import { useAuth } from "../context/AuthContext";
 import { useLocale } from "../context/LocaleContext";
+import { ApiError } from "../lib/api";
+import { fetchPlans, startCheckout } from "../lib/billing";
+import { ANNUAL_SAVING_LABEL, PLAN_COPY, type Interval } from "../lib/plans";
+import type { PlanRef, Tier } from "../types";
 
 export function PricingPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { t } = useLocale();
+  const { user } = useAuth();
 
-  const handlePlanClick = (planName: string) => {
-    if (planName === "Free") {
-      navigate("/dashboard");
+  const [interval, setInterval] = useState<Interval>("month");
+  const [plans, setPlans] = useState<PlanRef[]>([]);
+  const [pending, setPending] = useState<Tier | null>(null);
+
+  // Only the price ids are fetched. The copy and the amounts render straight
+  // away, so a slow API shows a working page rather than an empty one.
+  useEffect(() => {
+    fetchPlans()
+      .then((data) => setPlans(data.plans))
+      .catch(() => setPlans([]));
+  }, []);
+
+  function priceIdFor(tier: Tier): string | null {
+    if (tier === "free") return null;
+    return plans.find((plan) => plan.tier === tier && plan.interval === interval)?.price_id ?? null;
+  }
+
+  async function handleChoose(tier: Tier) {
+    if (tier === "free") {
+      navigate(user ? "/dashboard" : "/signup");
       return;
     }
 
-    showToast("This is a mock payment flow");
-    navigate("/payment-placeholder");
-  };
+    // Checkout needs a user to attach the subscription to, so an anonymous
+    // visitor signs up first and is brought straight back here.
+    if (!user) {
+      navigate("/signup", { state: { from: "/pricing" } });
+      return;
+    }
+
+    const priceId = priceIdFor(tier);
+    if (!priceId) {
+      showToast(t("That plan is not available right now"));
+      return;
+    }
+
+    setPending(tier);
+    try {
+      const url = await startCheckout(priceId);
+      // A full-page assignment, not react-router: Stripe Checkout is a
+      // different origin and cannot be rendered inside the app.
+      window.location.href = url;
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === "ALREADY_SUBSCRIBED") {
+        showToast(t("You already have a subscription"));
+        navigate("/subscription");
+        return;
+      }
+      showToast(caught instanceof Error ? caught.message : t("Could not start checkout"));
+    } finally {
+      setPending(null);
+    }
+  }
 
   return (
     <main className="app-shell app-shell--wide public-shell">
       <div className="page">
-        <TopNav fallbackBackTo="/dashboard" title="Pricing" />
+        <TopNav fallbackBackTo="/dashboard" title={t("Pricing")} />
 
         <section className="pricing-hero">
           <div className="page-heading">
             <p className="eyebrow">{t("Choose your plan")}</p>
-            <h1>{t("Unlock smarter food routines")}</h1>
-            <p>{t("Static pricing cards for now. Payments are not connected in this phase.")}</p>
+            <h1>{t("Cook your own food, without the planning")}</h1>
+            <p>{t("Cancel any time. Prices include VAT where it applies.")}</p>
           </div>
           <img
             className="pricing-hero__image"
@@ -42,46 +92,84 @@ export function PricingPage() {
           />
         </section>
 
+        <div className="choice-grid" style={{ justifyContent: "center", marginBottom: 20 }}>
+          <button
+            className={`choice-pill${interval === "month" ? " is-selected" : ""}`}
+            onClick={() => setInterval("month")}
+            type="button"
+          >
+            {t("Monthly")}
+          </button>
+          <button
+            className={`choice-pill${interval === "year" ? " is-selected" : ""}`}
+            onClick={() => setInterval("year")}
+            type="button"
+          >
+            {t("Yearly")} · {t(ANNUAL_SAVING_LABEL)}
+          </button>
+        </div>
+
         <section className="section pricing-grid">
-          {pricingPlans.map((plan) => (
-            <Card
-              className={`pricing-card${plan.featured || plan.plus ? " is-featured" : ""}`}
-              key={plan.name}
-              variant={plan.plus ? "premium" : plan.featured ? "dark" : "surface"}
-            >
-              <div className="premium-strip">
-                <div>
-                  <Badge variant={plan.plus ? "gold" : plan.featured ? "dark" : "cream"}>
-                    {t(plan.plus ? "Premium Plus" : plan.featured ? "Best Value" : "Starter")}
-                  </Badge>
-                  <h2>{t(plan.name)}</h2>
-                </div>
-                {plan.plus ? <Crown size={28} /> : <Sparkles size={26} />}
-              </div>
-              <p className={plan.featured ? "small" : "small muted"}>{t(plan.description)}</p>
-              <div className="price">
-                <strong>{plan.price}</strong>
-                <span className={plan.featured ? "small" : "small muted"}>{t(plan.cadence)}</span>
-              </div>
-              <ul className="check-list">
-                {plan.features.map((feature) => (
-                  <li key={feature}>
-                    <Check size={17} />
-                    <span>{t(feature)}</span>
-                  </li>
-                ))}
-              </ul>
-              <Button
-                fullWidth
-                onClick={() => handlePlanClick(plan.name)}
-                style={{ marginTop: 18 }}
-                variant={plan.plus ? "premium" : plan.featured ? "secondary" : "primary"}
+          {PLAN_COPY.map((plan) => {
+            const isPro = plan.tier === "pro";
+            const isPlus = plan.tier === "plus";
+            const isBusy = pending === plan.tier;
+
+            return (
+              <Card
+                className={`pricing-card${isPlus ? " is-featured" : ""}`}
+                key={plan.tier}
+                variant={isPro ? "premium" : isPlus ? "dark" : "surface"}
               >
-                {t(plan.cta)}
-              </Button>
-            </Card>
-          ))}
+                <div className="premium-strip">
+                  <div>
+                    <Badge variant={isPro ? "gold" : isPlus ? "dark" : "cream"}>
+                      {/* Plus is marked as the recommendation, not Pro. Pro
+                          exists mostly to make Plus read as the sensible
+                          middle choice. */}
+                      {t(isPro ? "Everything" : isPlus ? "Most popular" : "Starter")}
+                    </Badge>
+                    <h2>{t(plan.name)}</h2>
+                  </div>
+                  {isPro ? <Crown size={28} /> : <Sparkles size={26} />}
+                </div>
+
+                <p className={isPlus ? "small" : "small muted"}>{t(plan.tagline)}</p>
+
+                <div className="price">
+                  <strong>{plan.price[interval]}</strong>
+                  <span className={isPlus ? "small" : "small muted"}>
+                    {t(plan.cadence[interval])}
+                  </span>
+                </div>
+
+                <ul className="check-list">
+                  {plan.features.map((feature) => (
+                    <li key={feature}>
+                      <Check size={17} />
+                      <span>{t(feature)}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <Button
+                  disabled={isBusy}
+                  fullWidth
+                  icon={isBusy ? <Loader2 size={16} /> : undefined}
+                  onClick={() => void handleChoose(plan.tier)}
+                  style={{ marginTop: 18 }}
+                  variant={isPro ? "premium" : isPlus ? "secondary" : "primary"}
+                >
+                  {isBusy ? t("Opening checkout…") : t(plan.cta)}
+                </Button>
+              </Card>
+            );
+          })}
         </section>
+
+        <p className="small muted" style={{ textAlign: "center", marginTop: 8 }}>
+          {t("Pantry, shopping lists and expiry alerts are unlimited on every plan, including Free.")}
+        </p>
       </div>
     </main>
   );

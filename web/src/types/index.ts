@@ -138,6 +138,39 @@ export interface MealPlanQuota {
   remaining: number;
 }
 
+export const TIERS = ['free', 'plus', 'pro'] as const;
+export type Tier = (typeof TIERS)[number];
+export type PaidTier = Exclude<Tier, 'free'>;
+
+export interface Entitlements {
+  householdMembers: number;
+  mealPlansPerMonth: number;
+  maxMealsPerPlan: number;
+  scansPerMonth: number;
+}
+
+// Price ids come from the API rather than from a VITE_ variable, so there is
+// only ever one list of them and the pricing page cannot drift out of step
+// with what the server will accept at checkout.
+export interface PlanRef {
+  tier: PaidTier;
+  interval: 'month' | 'year';
+  price_id: string;
+}
+
+export interface PlansResponse {
+  plans: PlanRef[];
+  entitlements: Record<Tier, Entitlements>;
+}
+
+export interface BillingStatus {
+  tier: Tier;
+  entitlements: Entitlements;
+  status: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+}
+
 export interface ShoppingListItem {
   id: string;
   user_id: string;

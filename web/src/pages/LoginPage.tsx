@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { Apple, Lock, Mail } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { loginMascot } from "../assets/mascots";
+import { SocialSignIn } from "../components/SocialSignIn";
 import { TopNav } from "../components/navigation/TopNav";
 import { AuthMascotPanel } from "../components/ui/AuthMascotPanel";
 import { Button } from "../components/ui/Button";
@@ -102,27 +103,13 @@ export function LoginPage() {
               </Button>
             </form>
 
-            <div className="auth-divider">{t("OR")}</div>
-
-            <div className="form-grid">
-              <Button fullWidth onClick={() => showToast("Google login is not wired up yet")} variant="secondary">
-                {t("Continue with Google")}
-              </Button>
-              <Button
-                fullWidth
-                icon={<Apple size={18} />}
-                onClick={() => showToast("Apple login is not wired up yet")}
-                variant="secondary"
-              >
-                {t("Continue with Apple")}
-              </Button>
-            </div>
+            <SocialSignIn />
 
             <Card className="section" variant="premium">
-              <strong>{t("Upgrade to Premium after logging in")}</strong>
-              <p className="small muted">{t("Unlock unlimited meal plans, AI Vision, and smarter pantry insights.")}</p>
+              <strong>{t("Plans for households")}</strong>
+              <p className="small muted">{t("Up to six people, each with their own restrictions, from £6.99 a month.")}</p>
               <Button fullWidth onClick={() => navigate("/pricing")} variant="premium">
-                {t("View Premium Plans")}
+                {t("See plans")}
               </Button>
             </Card>
 

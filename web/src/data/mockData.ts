@@ -153,44 +153,9 @@ export const detectedIngredients = [
   { name: "Fresh Coriander", amount: "30g", confidence: 83, icon: "herb" },
 ];
 
-export const pricingPlans = [
-  {
-    name: "Free",
-    price: "£0",
-    cadence: "forever",
-    description: "Try Mosaic Kitchen with starter meal planning.",
-    cta: "Continue Free",
-    features: ["3 AI meal plans total", "Manual pantry tracking", "Shopping lists", "Expiry reminders"],
-  },
-  {
-    name: "Premium",
-    price: "£3.99",
-    cadence: "per month",
-    description: "Unlimited planning for busy multicultural households.",
-    cta: "Upgrade to Premium",
-    featured: true,
-    features: [
-      "Unlimited meal plans",
-      "Budget optimization",
-      "AI pantry suggestions",
-      "Expiry alert recipes",
-    ],
-  },
-  {
-    name: "Premium Plus",
-    price: "£7.99",
-    cadence: "per month",
-    description: "Advanced AI vision and household intelligence.",
-    cta: "Unlock Premium Plus",
-    plus: true,
-    features: [
-      "AI fridge scanning",
-      "Smart ingredient recognition",
-      "Household insights",
-      "Priority support",
-    ],
-  },
-];
+// The pricing table used to live here with invented figures (£3.99 / £7.99).
+// It now lives in lib/plans.ts, and the price ids come from the API, so there
+// is one place where a price can be wrong instead of three.
 
 export const iconMap: Record<string, string> = {
   money: "£",

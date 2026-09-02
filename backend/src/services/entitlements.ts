@@ -64,3 +64,31 @@ export function isKnownPriceId(priceId: string): boolean {
 export function allowedPriceIds(): string[] {
   return Object.keys(priceTiers());
 }
+
+export type PaidTier = Exclude<Tier, 'free'>;
+
+export interface PlanRef {
+  tier: PaidTier;
+  interval: 'month' | 'year';
+  price_id: string;
+}
+
+// Served to the browser so the pricing page never holds its own copy of the
+// price ids. Two .env files listing the same four values is a drift waiting to
+// happen, and the symptom — checkout against a price that no longer exists —
+// only appears at the moment someone tries to pay.
+//
+// Only the ids travel: the plan names, copy and feature lists stay in the
+// frontend, where they can be translated.
+export function configuredPlans(): PlanRef[] {
+  const candidates: Array<[string | undefined, PaidTier, 'month' | 'year']> = [
+    [process.env.STRIPE_PRICE_PLUS_MONTHLY, 'plus', 'month'],
+    [process.env.STRIPE_PRICE_PLUS_YEARLY, 'plus', 'year'],
+    [process.env.STRIPE_PRICE_PRO_MONTHLY, 'pro', 'month'],
+    [process.env.STRIPE_PRICE_PRO_YEARLY, 'pro', 'year'],
+  ];
+
+  return candidates
+    .filter((entry): entry is [string, PaidTier, 'month' | 'year'] => Boolean(entry[0]))
+    .map(([price_id, tier, interval]) => ({ tier, interval, price_id }));
+}

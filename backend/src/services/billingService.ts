@@ -77,8 +77,10 @@ export async function createCheckoutSession(
     billing_address_collection: 'required',
     allow_promotion_codes: true,
 
-    success_url: `${appUrl()}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appUrl()}/subscription`,
+    // Both land on the same page. The query flag only tells it to wait for the
+    // webhook rather than trusting the redirect, which anyone can visit.
+    success_url: `${appUrl()}/subscription?checkout=success`,
+    cancel_url: `${appUrl()}/subscription?checkout=cancelled`,
   });
 
   if (!session.url) throw new AppError('Could not start checkout', 'BILLING_ERROR');

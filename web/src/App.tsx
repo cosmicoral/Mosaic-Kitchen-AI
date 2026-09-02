@@ -19,11 +19,11 @@ import { OnboardingEatingHabitsPage } from "./pages/OnboardingEatingHabitsPage";
 import { OnboardingGoalsPage } from "./pages/OnboardingGoalsPage";
 import { OnboardingUserInfoPage } from "./pages/OnboardingUserInfoPage";
 import { PantryPage } from "./pages/PantryPage";
-import { PaymentPlaceholderPage } from "./pages/PaymentPlaceholderPage";
 import { PricingPage } from "./pages/PricingPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { ShoppingListPage } from "./pages/ShoppingListPage";
 import { SignupPage } from "./pages/SignupPage";
+import { SubscriptionPage } from "./pages/SubscriptionPage";
 import { ToastProvider } from "./components/ui/Toast";
 import { AuthProvider } from "./context/AuthContext";
 import { OnboardingProvider } from "./context/OnboardingContext";
@@ -56,7 +56,6 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/pricing" element={<PricingPage />} />
-            <Route path="/payment-placeholder" element={<PaymentPlaceholderPage />} />
 
             {/* Onboarding: a pathless layout route, so all three screens share
                 one OnboardingProvider and the draft survives navigation. */}
@@ -83,6 +82,9 @@ export default function App() {
             <Route path="/ai-vision" element={<RequireAuth><AIVisionPage /></RequireAuth>} />
             <Route path="/detection-results" element={<RequireAuth><DetectionResultsPage /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+            {/* Where Stripe returns the browser after checkout, and where the
+                customer portal returns it afterwards. */}
+            <Route path="/subscription" element={<RequireAuth><SubscriptionPage /></RequireAuth>} />
 
             <Route path="*" element={<Navigate replace to="/" />} />
           </Routes>
