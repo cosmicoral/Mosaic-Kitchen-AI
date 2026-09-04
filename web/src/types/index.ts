@@ -152,6 +152,9 @@ export interface GeneratedMeal {
   // in JSONB without this field.
   native_name?: string;
   cuisine: string;
+  // Optional for the same reason: plans stored before regions existed do not
+  // carry it, and a stored plan is never migrated.
+  region?: string;
   minutes: number;
   servings: number;
   estimated_cost_gbp: number;

@@ -139,6 +139,18 @@ const zh: Record<string, string> = {
     '我们会控制额外添加的盐和糖,并在需要时注明使用低盐版本的酱料。',
   // Regions
   'Flavour and extras': '口味与加餐',
+  'Scan a shelf or a receipt into your pantry.': '扫描货架或小票,直接存入食材库。',
+  'Coming soon': '即将推出',
+  'Point your camera at a shelf or a receipt and have everything land in your pantry.':
+    '对着货架或小票拍一张,所有食材自动进入你的食材库。',
+  'Not available yet': '尚未上线',
+  'We are building this now. Until it ships, add pantry items by hand — everything else works from there.':
+    '我们正在开发中。在此之前请手动添加食材,其余功能都能正常使用。',
+  'What it will do': '它将能做到',
+  'Read a supermarket receipt and add every item at once': '识别超市小票,一次性添加所有商品',
+  'Recognise what is on a fridge shelf': '识别冰箱里有什么',
+  'Guess sensible expiry dates you can correct': '给出合理的保质期估算,你可以修改',
+  'Add pantry items by hand': '手动添加食材',
   // Generation progress
   'Reading your preferences': '正在读取你的偏好',
   'Checking what is already in your kitchen': '正在核对食材库',
