@@ -33,8 +33,10 @@ export function MealPlanPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { locale, t } = useLocale();
-  const { plan, quota, status, error, refresh, generate, generating, generationError, stages } =
-    useMealPlan();
+  const {
+    plan, quota, status, error, refresh,
+    generate, generating, generationError, stages, insights, finishing,
+  } = useMealPlan();
 
   const [openDay, setOpenDay] = useState<number | null>(0);
   const [openMeal, setOpenMeal] = useState<string | null>(null);
@@ -94,7 +96,9 @@ export function MealPlanPage() {
 
         {/* Generation takes 20 to 60 seconds, which is long enough that silence
             reads as a broken page. */}
-        {generating ? <GenerationProgress stages={stages} /> : null}
+        {generating ? (
+          <GenerationProgress finished={finishing} insights={insights} stages={stages} />
+        ) : null}
 
         {generationError ? (
           <Card>

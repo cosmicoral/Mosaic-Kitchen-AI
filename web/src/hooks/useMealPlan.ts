@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '../lib/api';
 import { fetchLatestMealPlan, fetchQuota } from '../lib/mealPlan';
-import { streamMealPlan, type StageEvent } from '../lib/mealPlanStream';
+import {
+  streamMealPlan,
+  type InsightEvent,
+  type StageEvent,
+} from '../lib/mealPlanStream';
 import type { MealPlanQuota, MealPlanRecord } from '../types';
 
 type MealPlanStatus = 'loading' | 'ready' | 'error';
@@ -25,6 +29,11 @@ export function useMealPlan() {
   // progress; a single line that changes looks like a stuck spinner that
   // occasionally flickers.
   const [stages, setStages] = useState<StageEvent[]>([]);
+  const [insights, setInsights] = useState<InsightEvent[]>([]);
+  // Held true for a beat after the stream closes so the card can say "ready"
+  // on the plating pose before the results replace it. An abrupt swap loses
+  // the one moment the wait pays off.
+  const [finishing, setFinishing] = useState(false);
 
   const refresh = useCallback(async () => {
     setStatus('loading');
@@ -50,17 +59,31 @@ export function useMealPlan() {
     setGenerating(true);
     setGenerationError(null);
     setStages([]);
+    setInsights([]);
+    setFinishing(false);
 
     try {
-      const created = await streamMealPlan((event) =>
-        // Replaces any earlier event for the same stage rather than appending,
-        // so a second attempt reuses its row instead of printing the whole
-        // sequence twice.
-        setStages((previous) => [
-          ...previous.filter((entry) => entry.stage !== event.stage),
-          event,
-        ])
-      );
+      const created = await streamMealPlan({
+        onStage: (event) =>
+          // Replaces any earlier event for the same stage rather than
+          // appending, so a retry reuses its row instead of printing the whole
+          // sequence twice.
+          setStages((previous) => [
+            ...previous.filter((entry) => entry.stage !== event.stage),
+            event,
+          ]),
+        onInsight: (event) =>
+          setInsights((previous) =>
+            previous.some((entry) => entry.key === event.key)
+              ? previous
+              : [...previous, event]
+          ),
+      });
+
+      // Plating pose plus "ready", then hand over. 800ms is long enough to
+      // register and short enough not to be in the way.
+      setFinishing(true);
+      await new Promise((resolve) => setTimeout(resolve, 800));
       setPlan(created);
       // Refetched rather than decremented locally: the server decides what
       // counts, and a retry inside one request could consume differently.
@@ -74,8 +97,12 @@ export function useMealPlan() {
       return null;
     } finally {
       setGenerating(false);
+      setFinishing(false);
     }
   }, []);
 
-  return { plan, quota, status, error, refresh, generate, generating, generationError, stages };
+  return {
+    plan, quota, status, error, refresh,
+    generate, generating, generationError, stages, insights, finishing,
+  };
 }

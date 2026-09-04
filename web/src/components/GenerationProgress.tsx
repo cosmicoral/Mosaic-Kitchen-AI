@@ -1,80 +1,149 @@
-import { Check, Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
 import { Card } from "./ui/Card";
+import { ChefStage } from "./ChefStage";
 import { useLocale } from "../context/LocaleContext";
-import { GENERATION_STAGES, type StageEvent } from "../lib/mealPlanStream";
+import { GENERATION_STAGES, type InsightEvent, type StageEvent } from "../lib/mealPlanStream";
 
-// Wording lives here, not in the API. The server sends stage identifiers so
-// these lines can be translated like every other string in the app.
+// Wording lives here, not in the API. The server sends stage identifiers and
+// insight values so every user-facing string stays translatable.
 const STAGE_LABELS: Record<string, string> = {
-  profile: "Reading your preferences",
-  pantry: "Checking what is already in your kitchen",
-  generating: "Choosing dishes",
-  checking: "Checking nothing conflicts with what you avoid",
-  retrying: "Reworking the plan",
-  saving: "Working out the shopping",
+  analysing_profile: "Reading your preferences",
+  checking_pantry: "Checking what you already have",
+  building_meals: "Building your week",
+  reviewing: "Checking allergens, cuisines and budget",
+  finalising: "Finishing your plan",
 };
+
+// Each takes the values the server measured and puts them in a sentence. No
+// insight is rendered unless its event arrived, so nothing here can appear
+// for a household it is not true of.
+function insightText(
+  insight: InsightEvent,
+  t: (key: string) => string
+): string | null {
+  const { key, data } = insight;
+
+  switch (key) {
+    case "profile_signals":
+      return `${t("Planning around")} ${data.count} ${t("things you told us")}`;
+    case "pantry_reusable":
+      return `${data.count} ${t("ingredients already in your kitchen")}`;
+    case "pantry_empty":
+      return t("Your pantry is empty, so everything is on the shopping list");
+    case "expiry_soonest":
+      return Number(data.days) <= 0
+        ? `${data.name} — ${t("using it first")}`
+        : `${data.name} ${t("expires in")} ${data.days} ${t("days — using it first")}`;
+    case "budget_target":
+      return `${t("Keeping within")} £${Number(data.amount).toFixed(0)}`;
+    case "culture_regions":
+      return Array.isArray(data.list)
+        ? `${t("Cooking this week")} ${data.list.map((entry) => t(regionOrCuisine(entry))).join(", ")}`
+        : null;
+    case "selection_items":
+      return Array.isArray(data.list)
+        ? `${t("Building around")} ${data.list.length} ${t("ingredients you chose")}`
+        : null;
+    default:
+      return null;
+  }
+}
+
+// Region values arrive namespaced as "chinese:hunan"; the label table is keyed
+// on the bare slug.
+function regionOrCuisine(value: string): string {
+  return value.includes(":") ? (value.split(":")[1] ?? value) : value;
+}
 
 interface Props {
   stages: StageEvent[];
+  insights: InsightEvent[];
+  finished?: boolean;
 }
 
-export function GenerationProgress({ stages }: Props) {
+export function GenerationProgress({ stages, insights, finished = false }: Props) {
   const { t } = useLocale();
 
-  // Ordered by the canonical sequence rather than by arrival, so a retry does
-  // not shuffle finished rows around under the user's eyes.
-  const seen = GENERATION_STAGES.map((stage) =>
-    stages.find((entry) => entry.stage === stage)
-  ).filter((entry): entry is StageEvent => entry !== undefined);
-
   const current = stages[stages.length - 1];
+  const currentIndex = current
+    ? GENERATION_STAGES.indexOf(current.stage)
+    : -1;
+
+  // A second attempt is worth naming: without it, a rejected first plan is
+  // thirty unexplained extra seconds. With it, the user watches the allergen
+  // check do the thing they are paying for.
+  const retry = stages.find((entry) => entry.retryReason);
 
   return (
-    // The shimmer runs only while this card is on screen, which is only while
-    // a model call is genuinely in flight. It marks real uncertainty rather
-    // than decorating a wait.
-    <Card className="is-generating mk-rise" variant="dark">
-      <div className="brand-row">
-        <Loader2 size={18} />
-        <strong>{t("Building your plan…")}</strong>
+    <Card className="generation-card mk-rise" variant="dark">
+      <div className="generation-card__head">
+        <ChefStage finished={finished} stage={current?.stage ?? "analysing_profile"} />
+        <div>
+          <span className="generation-card__name">Mosaic Chef</span>
+          <span className="generation-card__status">
+            <span className={`generation-dot${finished ? "" : " generation-dot--live"}`} />
+            {finished ? t("Agent done") : t("Working")}
+          </span>
+        </div>
       </div>
 
-      {seen.length === 0 ? (
-        <p className="small" style={{ marginTop: 10 }}>
-          {t("Checking your pantry, working around what you avoid, and staying in budget. This usually takes under a minute.")}
-        </p>
-      ) : (
-        <ul className="check-list" style={{ marginTop: 14 }}>
-          {seen.map((entry) => {
-            const isCurrent = entry.stage === current?.stage;
+      <h2 className="generation-card__headline">
+        {finished
+          ? t("Your meal plan is ready!")
+          : t(STAGE_LABELS[current?.stage ?? "analysing_profile"] ?? "")}
+      </h2>
+
+      {/* Stage-based, never a percentage. We know which step we are on; we do
+          not know how far through the model call we are, and inventing a
+          number for it would be the most ordinary kind of lie an AI product
+          tells. */}
+      <ol className="stage-list">
+        {GENERATION_STAGES.map((stage, index) => {
+          const state =
+            finished || index < currentIndex
+              ? "done"
+              : index === currentIndex
+                ? "active"
+                : "todo";
+
+          return (
+            <li className={`stage-row stage-row--${state}`} key={stage}>
+              <span className="stage-row__icon">
+                {state === "done" ? (
+                  <Check size={14} />
+                ) : (
+                  <span className={`stage-bullet${state === "active" ? " stage-bullet--live" : ""}`} />
+                )}
+              </span>
+              <span className="small">
+                {t(STAGE_LABELS[stage] ?? stage)}
+                {stage === "building_meals" && retry ? (
+                  <>
+                    {" — "}
+                    <span className="tiny">
+                      {t("a dish contained")} {retry.retryReason}, {t("trying again")}
+                    </span>
+                  </>
+                ) : null}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+
+      {insights.length > 0 ? (
+        <div className="insight-chips mk-stagger">
+          {insights.map((insight, index) => {
+            const text = insightText(insight, t);
+            if (!text) return null;
             return (
-              <li
-                className={`stage-row ${isCurrent ? "stage-row--active" : "stage-row--done"}`}
-                key={entry.stage}
-              >
-                <span className="stage-row__icon">
-                  {isCurrent ? <Loader2 size={16} /> : <Check size={16} />}
-                </span>
-                <span className="small">
-                  {t(STAGE_LABELS[entry.stage] ?? entry.stage)}
-                  {/* The retry reason is the whole reason this exists. Without
-                      it a rejected first attempt is thirty unexplained extra
-                      seconds; with it the user watches the safety check work. */}
-                  {entry.stage === "retrying" && entry.detail ? (
-                    <>
-                      {" — "}
-                      {t("a dish contained")} {entry.detail}
-                    </>
-                  ) : null}
-                  {entry.attempt > 1 && entry.stage !== "retrying" ? (
-                    <> {t("(second attempt)")}</>
-                  ) : null}
-                </span>
-              </li>
+              <span className="insight-chip" key={`${insight.key}-${index}`}>
+                {text}
+              </span>
             );
           })}
-        </ul>
-      )}
+        </div>
+      ) : null}
     </Card>
   );
 }

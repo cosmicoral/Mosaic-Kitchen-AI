@@ -4,13 +4,15 @@ import type { MealPlanRecord } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+// Mirrors the server's list exactly. Five, because five things happen — see
+// the comment on GENERATION_STAGES in mealPlanService.ts for why it is not
+// the eight-step workflow it would be easy to draw.
 export const GENERATION_STAGES = [
-  'profile',
-  'pantry',
-  'generating',
-  'checking',
-  'retrying',
-  'saving',
+  'analysing_profile',
+  'checking_pantry',
+  'building_meals',
+  'reviewing',
+  'finalising',
 ] as const;
 
 export type GenerationStage = (typeof GENERATION_STAGES)[number];
@@ -18,7 +20,12 @@ export type GenerationStage = (typeof GENERATION_STAGES)[number];
 export interface StageEvent {
   stage: GenerationStage;
   attempt: number;
-  detail?: string;
+  retryReason?: string;
+}
+
+export interface InsightEvent {
+  key: string;
+  data: Record<string, string | number | string[]>;
 }
 
 // EventSource is not usable here: it only issues GET requests, and this call
@@ -41,16 +48,35 @@ function parseEvents(chunk: string): Array<{ event: string; data: string }> {
     });
 }
 
+export interface StreamHandlers {
+  onStage: (event: StageEvent) => void;
+  onInsight?: (event: InsightEvent) => void;
+}
+
+export interface StreamOptions {
+  // When set, the request cooks from these pantry items instead of planning a
+  // week. Same stages, same events — a different endpoint and a shorter answer.
+  pantryItemIds?: string[];
+}
+
 export async function streamMealPlan(
-  onStage: (event: StageEvent) => void
+  handlers: StreamHandlers,
+  options: StreamOptions = {}
 ): Promise<MealPlanRecord> {
-  const response = await fetch(`${API_URL}/api/meal-plan/stream`, {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Accept-Language': getStoredLocale() === 'zh' ? 'zh-CN' : 'en-GB',
-    },
-  });
+  const isPantryCook = Boolean(options.pantryItemIds?.length);
+
+  const response = await fetch(
+    `${API_URL}${isPantryCook ? '/api/meal-plan/pantry-cook/stream' : '/api/meal-plan/stream'}`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept-Language': getStoredLocale() === 'zh' ? 'zh-CN' : 'en-GB',
+      },
+      body: isPantryCook ? JSON.stringify({ item_ids: options.pantryItemIds }) : undefined,
+    }
+  );
 
   // Anything that fails before the stream opens — auth, rate limit — still
   // arrives as an ordinary status code, so it is handled the ordinary way.
@@ -88,7 +114,9 @@ export async function streamMealPlan(
 
     for (const { event, data } of parseEvents(complete)) {
       if (event === 'stage') {
-        onStage(JSON.parse(data) as StageEvent);
+        handlers.onStage(JSON.parse(data) as StageEvent);
+      } else if (event === 'insight') {
+        handlers.onInsight?.(JSON.parse(data) as InsightEvent);
       } else if (event === 'done') {
         result = (JSON.parse(data) as { mealPlan: MealPlanRecord }).mealPlan;
       } else if (event === 'failed') {
@@ -104,7 +132,11 @@ export async function streamMealPlan(
     // The stream ended without a verdict, which usually means the connection
     // dropped mid-generation. The plan may well have been saved — refetching
     // the latest plan is the honest recovery, not a second paid attempt.
-    throw new ApiError('The connection dropped while your plan was being built', 500, 'STREAM_INCOMPLETE');
+    throw new ApiError(
+      'The connection dropped while your plan was being built',
+      500,
+      'STREAM_INCOMPLETE'
+    );
   }
 
   return result;

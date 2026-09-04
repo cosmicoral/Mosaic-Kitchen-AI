@@ -24,5 +24,6 @@ router.post('/stream', generationLimiter, mealPlanController.generateStream);
 // Cheaper than a weekly plan but still a paid model call, so it sits behind
 // the same burst limiter. Its monthly allowance is separate and far larger.
 router.post('/pantry-cook', generationLimiter, mealPlanController.cookFromPantry);
+router.post('/pantry-cook/stream', generationLimiter, mealPlanController.cookFromPantryStream);
 
 export default router;

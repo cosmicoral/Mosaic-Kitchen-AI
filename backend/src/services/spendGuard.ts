@@ -41,9 +41,25 @@ export async function monthlySpendGbp(): Promise<number> {
 // by a wide margin at any plausible usage, so cutting them off to protect a
 // budget would cost more than it saved — and they are the people who would
 // ask for a refund.
+// Warn at four fifths, so the first you hear of this is a log line rather
+// than a user telling you they cannot generate anything. Logged on the way
+// past rather than on a schedule, because the only moment it matters is when
+// somebody is about to be turned away.
+const WARN_AT = 0.8;
+
 export async function assertFreeTierSpendAvailable(): Promise<void> {
   const spent = await monthlySpendGbp();
-  if (spent < capGbp()) return;
+  const cap = capGbp();
+  const ratio = spent / cap;
+
+  if (ratio >= WARN_AT && ratio < 1) {
+    console.warn(
+      `Free-tier AI spend at ${(ratio * 100).toFixed(0)}% of the monthly cap ` +
+        `(£${spent.toFixed(2)} of £${cap.toFixed(2)})`
+    );
+  }
+
+  if (spent < cap) return;
 
   console.error(
     `Free-tier AI spend cap reached: £${spent.toFixed(2)} of £${capGbp().toFixed(2)} this month`

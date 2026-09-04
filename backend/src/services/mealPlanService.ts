@@ -8,6 +8,7 @@ import {
   type GeneratedMealPlan,
 } from '../schemas/mealPlan.ts';
 import { AppError } from '../types/index.ts';
+import type { PantryItem, UserProfile } from '../types/index.ts';
 import {
   buildMealPlanPrompt,
 
@@ -161,36 +162,135 @@ export function stripUnwantedExtras(
 // Stage identifiers, not sentences. The wording belongs to the frontend,
 // where it can be translated; sending prose from here would put user-facing
 // English in the API and make it untranslatable.
+// Five stages, because there are five things the server actually does. An
+// earlier draft of this list had eight, including "prioritising expiry",
+// "selecting cuisines" and "balancing nutrition" — none of which are steps.
+// Expiry sorting and region sampling are single lines while the prompt is
+// being assembled, and nothing in this service balances nutrition at all.
+// Lighting up eight rows in sequence would be a fabricated workflow, which is
+// the same lie as fabricated reasoning, just drawn instead of written.
+//
+// 'building_meals' is the only long one — it is the model call, and it is
+// 90% of the wall clock. The other four are tens of milliseconds each.
 export const GENERATION_STAGES = [
-  'profile',
-  'pantry',
-  'generating',
-  'checking',
-  'retrying',
-  'saving',
+  'analysing_profile',
+  'checking_pantry',
+  'building_meals',
+  'reviewing',
+  'finalising',
 ] as const;
 export type GenerationStage = (typeof GENERATION_STAGES)[number];
 
 export interface StageEvent {
   stage: GenerationStage;
   attempt: number;
-  // Only set on 'retrying', and only ever the household's own words back at
-  // them — an avoided ingredient they typed, or a cuisine they chose. Nothing
-  // here comes from the model.
-  detail?: string;
+  // Set when a rejected attempt sends us round again, and only ever the
+  // household's own words back at them — an avoided ingredient they typed, or
+  // a cuisine they chose. Nothing here comes from the model.
+  retryReason?: string;
+}
+
+// Facts about the request, known before the model answers. That is what makes
+// them safe to show during the wait: they describe the inputs the plan is
+// being built from, not predictions about the output.
+export const INSIGHT_KEYS = [
+  'profile_signals',
+  'pantry_reusable',
+  'pantry_empty',
+  'expiry_soonest',
+  'budget_target',
+  'culture_regions',
+  'selection_items',
+] as const;
+export type InsightKey = (typeof INSIGHT_KEYS)[number];
+
+export interface InsightEvent {
+  key: InsightKey;
+  // Values, not sentences. The wording lives in the frontend so it can be
+  // translated; sending prose from here would strand English in the API.
+  data: Record<string, string | number | string[]>;
 }
 
 export type StageReporter = (event: StageEvent) => void;
+export type InsightReporter = (event: InsightEvent) => void;
+
+export interface Reporters {
+  onStage?: StageReporter;
+  onInsight?: InsightReporter;
+}
 
 const noopReporter: StageReporter = () => {};
+const noopInsight: InsightReporter = () => {};
+
+// Counts the preference fields the household actually filled in. Used for
+// "planning around N signals from your kitchen", which is only worth saying
+// because it is countable — it is the number of inputs, not a score.
+function countProfileSignals(profile: UserProfile): number {
+  const filled = [
+    profile.cuisines.length > 0,
+    profile.cuisine_regions.length > 0,
+    profile.avoid_ingredients.length > 0,
+    profile.priorities.length > 0,
+    profile.flavour_notes.length > 0,
+    profile.nutrition_focus.length > 0,
+    profile.seasoning_intensity !== null,
+    profile.cooking_style !== null,
+    profile.weekly_budget !== null,
+    profile.low_salt || profile.low_sugar,
+    profile.include_extras.length > 0,
+  ];
+  return filled.filter(Boolean).length;
+}
+
+// Everything reported here is read straight off the profile and the pantry.
+// Nothing is estimated, and nothing is about the plan that has not been
+// generated yet.
+function reportRequestInsights(
+  profile: UserProfile,
+  pantry: PantryItem[],
+  onInsight: InsightReporter
+): void {
+  onInsight({ key: 'profile_signals', data: { count: countProfileSignals(profile) } });
+
+  if (pantry.length > 0) {
+    onInsight({ key: 'pantry_reusable', data: { count: pantry.length } });
+
+    const dated = pantry
+      .filter((item): item is PantryItem & { expires_on: string } => Boolean(item.expires_on))
+      .sort((a, b) => a.expires_on.localeCompare(b.expires_on));
+
+    const soonest = dated[0];
+    if (soonest) {
+      const days = Math.ceil(
+        (Date.parse(`${soonest.expires_on}T00:00:00Z`) - Date.now()) / 86_400_000
+      );
+      onInsight({ key: 'expiry_soonest', data: { name: soonest.name, days } });
+    }
+  } else {
+    onInsight({ key: 'pantry_empty', data: {} });
+  }
+
+  if (profile.weekly_budget !== null) {
+    onInsight({ key: 'budget_target', data: { amount: Number(profile.weekly_budget) } });
+  }
+
+  // The regions actually going into this prompt, chosen or rotated. Not a
+  // claim about what will come back — a statement of what was asked for.
+  const regions =
+    profile.cuisine_regions.length > 0 ? profile.cuisine_regions : profile.cuisines;
+  if (regions.length > 0) {
+    onInsight({ key: 'culture_regions', data: { list: regions.slice(0, 4) } });
+  }
+}
 
 export async function generate(
   userId: string,
   modelCall: typeof callModel = callModel,
   locale: SupportedLocale = 'en',
-  onStage: StageReporter = noopReporter
+  onStage: StageReporter = noopReporter,
+  onInsight: InsightReporter = noopInsight
 ): Promise<GenerateResult> {
-  onStage({ stage: 'profile', attempt: 1 });
+  onStage({ stage: 'analysing_profile', attempt: 1 });
   const profile =
     await profileRepository.findByUserId(userId);
 
@@ -227,9 +327,11 @@ export async function generate(
     );
   }
 
-  onStage({ stage: 'pantry', attempt: 1 });
+  onStage({ stage: 'checking_pantry', attempt: 1 });
   const pantry =
     await pantryRepository.findAllByUser(userId);
+
+  reportRequestInsights(profile, pantry, onInsight);
 
   // This schema is built for the current user. If the user selected cuisines,
   // the generated meal cuisine field can only contain those values.
@@ -253,7 +355,7 @@ export async function generate(
     plan === null
   ) {
     attempts += 1;
-    onStage({ stage: 'generating', attempt: attempts });
+    onStage({ stage: 'building_meals', attempt: attempts });
 
     let generation;
 
@@ -287,7 +389,7 @@ export async function generate(
       );
     }
 
-    onStage({ stage: 'checking', attempt: attempts });
+    onStage({ stage: 'reviewing', attempt: attempts });
 
     const violations = findViolations(
       generation.plan,
@@ -346,9 +448,9 @@ export async function generate(
     // attempt is thirty unexplained extra seconds; with it the user watches
     // the safety check do the thing they are paying for.
     onStage({
-      stage: 'retrying',
-      attempt: attempts,
-      detail:
+      stage: 'building_meals',
+      attempt: attempts + 1,
+      retryReason:
         violations.length > 0
           ? violations[0]!.avoided
           : cuisineIssues.length > 0
@@ -376,7 +478,7 @@ export async function generate(
     );
   }
 
-  onStage({ stage: 'saving', attempt: attempts });
+  onStage({ stage: 'finalising', attempt: attempts });
 
   const saved =
     await mealPlanRepository.create(
@@ -409,7 +511,8 @@ export async function generateFromPantry(
   itemIds: readonly string[],
   modelCall: typeof callModel = callModel,
   locale: SupportedLocale = 'en',
-  onStage: StageReporter = noopReporter
+  onStage: StageReporter = noopReporter,
+  onInsight: InsightReporter = noopInsight
 ): Promise<PantryCookResult> {
   if (itemIds.length === 0) {
     throw new AppError('Choose at least one ingredient', 'VALIDATION_ERROR');
@@ -421,7 +524,7 @@ export async function generateFromPantry(
     );
   }
 
-  onStage({ stage: 'profile', attempt: 1 });
+  onStage({ stage: 'analysing_profile', attempt: 1 });
 
   const profile = await profileRepository.findByUserId(userId);
   if (!profile || profile.cuisines.length === 0) {
@@ -448,7 +551,7 @@ export async function generateFromPantry(
     );
   }
 
-  onStage({ stage: 'pantry', attempt: 1 });
+  onStage({ stage: 'checking_pantry', attempt: 1 });
 
   const pantry = await pantryRepository.findAllByUser(userId);
   const wanted = new Set(itemIds);
@@ -459,6 +562,14 @@ export async function generateFromPantry(
   if (selected.length === 0) {
     throw new AppError('Those ingredients are not in your pantry', 'NOT_FOUND');
   }
+
+  // Named back to the user rather than counted: the whole promise of this flow
+  // is that the dishes are about these specific things.
+  onInsight({
+    key: 'selection_items',
+    data: { list: selected.map((item) => item.name) },
+  });
+  reportRequestInsights(profile, selected, onInsight);
 
   const schema = buildMealPlanSchema(profile.cuisines);
   const recentDishes = await mealPlanRepository.findRecentDishNames(
@@ -475,7 +586,7 @@ export async function generateFromPantry(
 
   while (attempts < MAX_ATTEMPTS && plan === null) {
     attempts += 1;
-    onStage({ stage: 'generating', attempt: attempts });
+    onStage({ stage: 'building_meals', attempt: attempts });
 
     let generation;
     try {
@@ -493,7 +604,7 @@ export async function generateFromPantry(
       throw new AppError('Could not suggest dishes right now', 'GENERATION_FAILED');
     }
 
-    onStage({ stage: 'checking', attempt: attempts });
+    onStage({ stage: 'reviewing', attempt: attempts });
 
     stripUnwantedExtras(generation.plan, []);
 
@@ -521,9 +632,9 @@ export async function generateFromPantry(
     }
 
     onStage({
-      stage: 'retrying',
-      attempt: attempts,
-      detail: violations[0]?.avoided,
+      stage: 'building_meals',
+      attempt: attempts + 1,
+      retryReason: violations[0]?.avoided,
     });
 
     userPrompt = buildRetryPrompt(
@@ -546,7 +657,7 @@ export async function generateFromPantry(
     );
   }
 
-  onStage({ stage: 'saving', attempt: attempts });
+  onStage({ stage: 'finalising', attempt: attempts });
 
   const saved = await mealPlanRepository.create(userId, today(), plan, profile, 'pantry');
   return { mealPlan: saved, attempts };

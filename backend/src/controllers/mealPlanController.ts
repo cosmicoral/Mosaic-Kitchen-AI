@@ -89,6 +89,9 @@ export async function generateStream(req: Request, res: Response) {
       readLocale(req.headers['accept-language']),
       (event) => {
         if (!clientGone) send('stage', event);
+      },
+      (event) => {
+        if (!clientGone) send('insight', event);
       }
     );
 
@@ -103,6 +106,62 @@ export async function generateStream(req: Request, res: Response) {
       const isAppError = error instanceof AppError;
       if (!isAppError) console.error('Meal plan stream error:', error);
 
+      send('failed', {
+        error: isAppError ? error.message : 'Internal server error',
+        code: isAppError ? error.code : null,
+      });
+    }
+  } finally {
+    res.end();
+  }
+}
+
+// The pantry-cook twin of generateStream. Same events, same shape, so the
+// frontend runs one stream reader for both flows.
+export async function cookFromPantryStream(req: Request, res: Response) {
+  if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+
+  const itemIds = (req.body as { item_ids?: unknown } | undefined)?.item_ids;
+  if (!Array.isArray(itemIds) || itemIds.some((id) => typeof id !== 'string')) {
+    return res.status(400).json({ error: 'item_ids must be an array of ids' });
+  }
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+
+  function send(event: string, data: unknown) {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  }
+  res.write(': open\n\n');
+
+  let clientGone = false;
+  req.on('close', () => {
+    clientGone = true;
+  });
+
+  try {
+    const { mealPlan, attempts } = await mealPlanService.generateFromPantry(
+      req.user.id,
+      itemIds as string[],
+      undefined,
+      readLocale(req.headers['accept-language']),
+      (event) => {
+        if (!clientGone) send('stage', event);
+      },
+      (event) => {
+        if (!clientGone) send('insight', event);
+      }
+    );
+
+    if (!clientGone) send('done', { mealPlan, attempts });
+  } catch (error) {
+    if (!clientGone) {
+      const isAppError = error instanceof AppError;
+      if (!isAppError) console.error('Pantry cook stream error:', error);
       send('failed', {
         error: isAppError ? error.message : 'Internal server error',
         code: isAppError ? error.code : null,
