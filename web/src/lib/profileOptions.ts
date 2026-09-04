@@ -5,6 +5,7 @@ import type {
   ExtraKind,
   ExtrasFrequency,
   FlavourNote,
+  NutritionFocus,
   Priority,
   SeasoningIntensity,
 } from '../types';
@@ -113,6 +114,16 @@ export const FLAVOUR_LABELS: Record<FlavourNote, string> = {
   numbing: 'Numbing 麻',
   aromatic: 'Aromatic 香',
   smoky: 'Smoky',
+};
+
+export const NUTRITION_LABELS: Record<NutritionFocus, string> = {
+  protein: 'More protein',
+  vegetables: 'More vegetables',
+  fibre: 'More fibre',
+  iron: 'Iron-rich ingredients',
+  calcium: 'Calcium-rich ingredients',
+  omega3: 'Oily fish and omega-3',
+  light: 'Light and easy to digest',
 };
 
 export const EXTRA_KIND_LABELS: Record<ExtraKind, string> = {

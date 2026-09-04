@@ -20,6 +20,7 @@ import {
   CUISINE_LABELS,
   EXTRA_KIND_LABELS,
   FLAVOUR_LABELS,
+  NUTRITION_LABELS,
   PRIORITY_LABELS,
   SEASONING_LABELS,
   regionLabel,
@@ -42,6 +43,7 @@ export function ProfilePage() {
   const [draft, setDraft] = useState<UserProfileInput | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [customAvoidance, setCustomAvoidance] = useState("");
 
   // The draft can only be seeded once the profile has arrived, and the profile
   // arrives after the first render.
@@ -374,6 +376,7 @@ export function ProfilePage() {
                     lowSalt={draft.low_salt}
                     lowSugar={draft.low_sugar}
                     notes={draft.flavour_notes}
+                    nutrition={draft.nutrition_focus}
                     onChange={updateDraft}
                   />
                   <ExtrasPicker
@@ -400,6 +403,16 @@ export function ProfilePage() {
                       <strong>
                         {profile.flavour_notes.length > 0
                           ? profile.flavour_notes.map((note) => t(FLAVOUR_LABELS[note])).join(", ")
+                          : t("Not set")}
+                      </strong>
+                    </div>
+                    <div className="summary-row">
+                      <span className="small muted">{t("What to favour")}</span>
+                      <strong>
+                        {profile.nutrition_focus.length > 0
+                          ? profile.nutrition_focus
+                              .map((focus) => t(NUTRITION_LABELS[focus]))
+                              .join(", ")
                           : t("Not set")}
                       </strong>
                     </div>
@@ -459,6 +472,45 @@ export function ProfilePage() {
                     <span className="small muted">{t("Nothing excluded")}</span>
                   ) : null}
                 </div>
+
+                {/* Onboarding has a free-text field for this and the profile
+                    page did not, so anything not on the shortcut list could be
+                    set once and never changed. A fixed list cannot cover every
+                    allergy, which is exactly why the column is free text. */}
+                {isEditing && draft ? (
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const value = customAvoidance.trim().toLowerCase();
+                      setCustomAvoidance("");
+                      if (!value || draft.avoid_ingredients.includes(value)) return;
+                      updateDraft({
+                        avoid_ingredients: [...draft.avoid_ingredients, value],
+                      });
+                    }}
+                    style={{ marginTop: 16 }}
+                  >
+                    <Input
+                      label={t("Something else")}
+                      maxLength={50}
+                      onChange={(event) => setCustomAvoidance(event.target.value)}
+                      placeholder="coriander, celery, offal..."
+                      value={customAvoidance}
+                    />
+                    <Button
+                      disabled={customAvoidance.trim() === ""}
+                      fullWidth
+                      style={{ marginTop: 10 }}
+                      type="submit"
+                      variant="secondary"
+                    >
+                      {t("Add")}
+                    </Button>
+                    <p className="tiny muted" style={{ marginTop: 10 }}>
+                      {t("Anything listed here is excluded from every plan, in any form — including as an oil, sauce or stock.")}
+                    </p>
+                  </form>
+                ) : null}
               </Card>
 
               {!isEditing && profile.priorities.length > 0 ? (

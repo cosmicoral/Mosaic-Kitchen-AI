@@ -87,6 +87,7 @@ export function OnboardingEatingHabitsPage() {
           lowSalt={draft.low_salt}
           lowSugar={draft.low_sugar}
           notes={draft.flavour_notes}
+          nutrition={draft.nutrition_focus}
           onChange={update}
         />
 

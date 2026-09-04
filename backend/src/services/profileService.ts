@@ -6,6 +6,7 @@ import {
   EXTRAS_FREQUENCIES,
   EXTRA_KINDS,
   FLAVOUR_NOTES,
+  NUTRITION_FOCUSES,
   PRIORITIES,
   SEASONING_INTENSITIES,
   isCuisineRegion,
@@ -16,6 +17,7 @@ import type {
   ExtraKind,
   ExtrasFrequency,
   FlavourNote,
+  NutritionFocus,
   Priority,
   SeasoningIntensity,
   UserProfile,
@@ -241,6 +243,11 @@ export async function saveProfile(userId: string, body: unknown): Promise<UserPr
     ),
     low_salt: parseBoolean(record.low_salt, 'low_salt'),
     low_sugar: parseBoolean(record.low_sugar, 'low_sugar'),
+    nutrition_focus: parseFromList<NutritionFocus>(
+      record.nutrition_focus,
+      NUTRITION_FOCUSES,
+      'nutrition_focus'
+    ),
     include_extras: parseFromList<ExtraKind>(
       record.include_extras,
       EXTRA_KINDS,

@@ -25,6 +25,7 @@ const EMPTY_DRAFT: UserProfileInput = {
   flavour_notes: [],
   low_salt: false,
   low_sugar: false,
+  nutrition_focus: [],
   include_extras: [],
   extras_frequency: 'some',
   avoid_ingredients: [],

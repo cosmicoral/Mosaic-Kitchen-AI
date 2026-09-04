@@ -72,6 +72,13 @@ export type ExtraKind = (typeof EXTRA_KINDS)[number];
 export const EXTRAS_FREQUENCIES = ['few', 'some', 'plenty'] as const;
 export type ExtrasFrequency = (typeof EXTRAS_FREQUENCIES)[number];
 
+// Named for the ingredients, not the outcome: "more protein" is something a
+// meal planner can act on, "build muscle" is a claim about a person's body.
+export const NUTRITION_FOCUSES = [
+  'protein', 'vegetables', 'fibre', 'iron', 'calcium', 'omega3', 'light',
+] as const;
+export type NutritionFocus = (typeof NUTRITION_FOCUSES)[number];
+
 export const SEASONING_INTENSITIES = ['light', 'balanced', 'bold'] as const;
 export type SeasoningIntensity = (typeof SEASONING_INTENSITIES)[number];
 
@@ -104,6 +111,7 @@ export interface UserProfile {
   flavour_notes: FlavourNote[];
   low_salt: boolean;
   low_sugar: boolean;
+  nutrition_focus: NutritionFocus[];
   include_extras: ExtraKind[];
   extras_frequency: ExtrasFrequency;
   avoid_ingredients: string[];
@@ -127,6 +135,7 @@ export interface UserProfileInput {
   flavour_notes: FlavourNote[];
   low_salt: boolean;
   low_sugar: boolean;
+  nutrition_focus: NutritionFocus[];
   include_extras: ExtraKind[];
   extras_frequency: ExtrasFrequency;
   avoid_ingredients: string[];

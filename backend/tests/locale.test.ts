@@ -31,7 +31,7 @@ describe('Chinese meal-plan prompts', () => {
       household_size: 2, meals_per_week: 3, weekly_budget: '50.00',
       cuisines: ['chinese'], cuisine_regions: [],
       seasoning_intensity: null, flavour_notes: [],
-      low_salt: false, low_sugar: false,
+      low_salt: false, low_sugar: false, nutrition_focus: [],
       include_extras: [], extras_frequency: 'some',
       avoid_ingredients: ['花生'], priorities: ['budget'],
       cooking_style: 'quick', postcode: null,

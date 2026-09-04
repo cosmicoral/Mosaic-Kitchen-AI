@@ -139,6 +139,13 @@ const zh: Record<string, string> = {
     '我们会控制额外添加的盐和糖,并在需要时注明使用低盐版本的酱料。',
   // Regions
   'Flavour and extras': '口味与加餐',
+  // Nutrition emphasis
+  'What to favour': '希望多一些',
+  'More protein': '蛋白质多一些', 'More vegetables': '蔬菜多一些', 'More fibre': '膳食纤维多一些',
+  'Iron-rich ingredients': '富含铁的食材', 'Calcium-rich ingredients': '富含钙的食材',
+  'Oily fish and omega-3': '深海鱼与 Omega-3', 'Light and easy to digest': '清爽好消化',
+  'Anything listed here is excluded from every plan, in any form — including as an oil, sauce or stock.':
+    '这里列出的食材会在所有餐单中被完全排除,包括以油、酱汁或高汤形式出现。',
   'Scan a shelf or a receipt into your pantry.': '扫描货架或小票,直接存入食材库。',
   'Coming soon': '即将推出',
   'Point your camera at a shelf or a receipt and have everything land in your pantry.':

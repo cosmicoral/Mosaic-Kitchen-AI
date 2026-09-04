@@ -4,7 +4,7 @@ import type { UserProfile, UserProfileInput } from '../types/index.ts';
 const COLUMNS = `user_id, adults, teenagers, children, toddlers, household_size,
                  meals_per_week, weekly_budget, cuisines, cuisine_regions,
                  seasoning_intensity, flavour_notes, low_salt, low_sugar,
-                 include_extras, extras_frequency, avoid_ingredients, priorities, cooking_style, postcode,
+                 nutrition_focus, include_extras, extras_frequency, avoid_ingredients, priorities, cooking_style, postcode,
                  created_at, updated_at`;
 
 export async function findByUserId(userId: string): Promise<UserProfile | null> {
@@ -27,10 +27,10 @@ export async function upsert(
        user_id, adults, teenagers, children, toddlers,
        meals_per_week, weekly_budget, cuisines, cuisine_regions,
        seasoning_intensity, flavour_notes, low_salt, low_sugar,
-       include_extras, extras_frequency,
+       nutrition_focus, include_extras, extras_frequency,
        avoid_ingredients, priorities, cooking_style, postcode
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
      ON CONFLICT (user_id) DO UPDATE SET
        adults              = EXCLUDED.adults,
        teenagers           = EXCLUDED.teenagers,
@@ -44,6 +44,9 @@ export async function upsert(
        flavour_notes       = EXCLUDED.flavour_notes,
        low_salt            = EXCLUDED.low_salt,
        low_sugar           = EXCLUDED.low_sugar,
+       nutrition_focus     = EXCLUDED.nutrition_focus,
+       include_extras      = EXCLUDED.include_extras,
+       extras_frequency    = EXCLUDED.extras_frequency,
        avoid_ingredients   = EXCLUDED.avoid_ingredients,
        priorities          = EXCLUDED.priorities,
        cooking_style       = EXCLUDED.cooking_style,
@@ -64,6 +67,7 @@ export async function upsert(
       input.flavour_notes,
       input.low_salt,
       input.low_sugar,
+      input.nutrition_focus,
       input.include_extras,
       input.extras_frequency,
       input.avoid_ingredients,

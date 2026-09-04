@@ -31,6 +31,7 @@ export function profileToInput(profile: UserProfile): UserProfileInput {
     flavour_notes: profile.flavour_notes,
     low_salt: profile.low_salt,
     low_sugar: profile.low_sugar,
+    nutrition_focus: profile.nutrition_focus,
     include_extras: profile.include_extras,
     extras_frequency: profile.extras_frequency,
     avoid_ingredients: profile.avoid_ingredients,

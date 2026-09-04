@@ -258,8 +258,47 @@ const INTENSITY_GUIDANCE: Record<string, string> = {
   bold: 'Season boldly. Fuller sauces, more aromatics, more chilli and pickles where the cuisine calls for them.',
 };
 
+// Phrased as ingredient choices throughout. "Favour good sources of iron" is
+// something a meal planner can act on and be judged on; "help with your iron
+// levels" is a claim about a person's body that this app has no nutrient data
+// behind and no business making.
+const NUTRITION_GUIDANCE: Record<string, string> = {
+  protein:
+    'Put a generous protein at the centre of most meals — meat, fish, eggs, tofu, ' +
+    'pulses — rather than treating it as a garnish.',
+  vegetables:
+    'Make vegetables at least half of what is on the plate, and vary them across the week.',
+  fibre:
+    'Favour wholegrains, pulses, and vegetables eaten with their skins.',
+  iron:
+    'Favour ingredients that are good sources of iron — red meat, liver, lentils, ' +
+    'tofu, dark leafy greens — and pair the plant ones with something sharp or ' +
+    'citrus in the same meal, which helps absorption.',
+  calcium:
+    'Favour good sources of calcium: dairy, calcium-set tofu, tinned fish with the ' +
+    'bones, sesame, leafy greens.',
+  omega3:
+    'Include oily fish twice in the week where the cuisines allow, and use walnuts, ' +
+    'flax or rapeseed oil elsewhere.',
+  light:
+    'Keep meals light and easy to digest: steamed, poached or simmered rather than ' +
+    'deep-fried, and go easy on very rich or heavy dishes.',
+};
+
 function describeFlavour(profile: UserProfile): string {
   const lines: string[] = [];
+
+  if (profile.nutrition_focus.length > 0) {
+    for (const focus of profile.nutrition_focus) {
+      const line = NUTRITION_GUIDANCE[focus];
+      if (line) lines.push(line);
+    }
+    lines.push(
+      'These are preferences about which ingredients to favour. Do not make ' +
+        'nutritional claims, state quantities of nutrients, or describe a dish as ' +
+        'treating or preventing anything.'
+    );
+  }
 
   if (profile.seasoning_intensity) {
     lines.push(INTENSITY_GUIDANCE[profile.seasoning_intensity] ?? '');

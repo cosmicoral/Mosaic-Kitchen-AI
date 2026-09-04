@@ -2,30 +2,35 @@ import { Card } from "./ui/Card";
 import { useLocale } from "../context/LocaleContext";
 import {
   FLAVOUR_LABELS,
+  NUTRITION_LABELS,
   SEASONING_HINTS,
   SEASONING_LABELS,
 } from "../lib/profileOptions";
 import {
   FLAVOUR_NOTES,
+  NUTRITION_FOCUSES,
   SEASONING_INTENSITIES,
   type FlavourNote,
+  type NutritionFocus,
   type SeasoningIntensity,
 } from "../types";
 
 interface Props {
   intensity: SeasoningIntensity | null;
   notes: FlavourNote[];
+  nutrition: NutritionFocus[];
   lowSalt: boolean;
   lowSugar: boolean;
   onChange: (patch: {
     seasoning_intensity?: SeasoningIntensity | null;
     flavour_notes?: FlavourNote[];
+    nutrition_focus?: NutritionFocus[];
     low_salt?: boolean;
     low_sugar?: boolean;
   }) => void;
 }
 
-export function FlavourPicker({ intensity, notes, lowSalt, lowSugar, onChange }: Props) {
+export function FlavourPicker({ intensity, notes, nutrition, lowSalt, lowSugar, onChange }: Props) {
   const { t } = useLocale();
 
   function toggleNote(note: FlavourNote) {
@@ -80,11 +85,37 @@ export function FlavourPicker({ intensity, notes, lowSalt, lowSugar, onChange }:
           ))}
         </div>
 
-        {/* Separate from the taste pills above, because these two are usually
-            blood pressure or blood sugar rather than preference. There is no
-            "more salt" or "more sugar" counterpart: the ordinary amount is
-            already the default, and a product should not offer turning it up
-            as a setting. */}
+        {/* Emphases, not restrictions — which is why they sit above the two
+            hard limits rather than mixed in with them. Every label names an
+            ingredient group, never an outcome: this app has no nutrient data
+            and cannot promise anything about anybody's health. */}
+        <span className="eyebrow" style={{ display: "block", marginTop: 20 }}>
+          {t("What to favour")}
+        </span>
+        <div className="choice-grid" style={{ marginTop: 10 }}>
+          {NUTRITION_FOCUSES.map((focus) => (
+            <button
+              className={`choice-pill${nutrition.includes(focus) ? " is-selected" : ""}`}
+              key={focus}
+              onClick={() =>
+                onChange({
+                  nutrition_focus: nutrition.includes(focus)
+                    ? nutrition.filter((entry) => entry !== focus)
+                    : [...nutrition, focus],
+                })
+              }
+              type="button"
+            >
+              {t(NUTRITION_LABELS[focus])}
+            </button>
+          ))}
+        </div>
+
+        {/* The two hard limits, kept apart from the emphases above because
+            they are usually blood pressure or blood sugar rather than taste.
+            There is no "more salt" or "more sugar" counterpart: the ordinary
+            amount is already the default, and a product should not offer
+            turning it up as a setting. */}
         <span className="eyebrow" style={{ display: "block", marginTop: 20 }}>
           {t("Health needs")}
         </span>
