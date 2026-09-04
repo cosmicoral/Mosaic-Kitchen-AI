@@ -35,13 +35,59 @@ const CONVERSIONS: Record<string, { base: string; factor: number }> = {
   l: { base: 'ml', factor: 1000 },
 };
 
+// Order matters: the first family that matches wins. Vegetables sit above
+// condiments because "red pepper" is a vegetable and "black pepper" is not,
+// and the shorter word would otherwise capture both.
+//
+// Chinese terms are listed alongside the English because the plan is generated
+// in whichever language the household reads, and a categoriser that only knows
+// English put every Chinese ingredient — chicken thigh, mackerel, broccoli —
+// into "other", which is the same as having no categories at all.
 const CATEGORY_KEYWORDS: Array<[PantryCategory, string[]]> = [
-  ['protein', ['chicken', 'beef', 'lamb', 'pork', 'fish', 'haddock', 'salmon', 'prawn', 'tofu', 'egg', 'mince', 'bacon', 'sausage', 'lentil', 'chickpea', 'bean']],
-  ['dairy', ['milk', 'cheese', 'butter', 'yoghurt', 'yogurt', 'cream', 'creme']],
-  ['grains', ['rice', 'pasta', 'noodle', 'bread', 'flour', 'oat', 'couscous', 'tortilla', 'wrap']],
-  ['frozen', ['frozen']],
-  ['condiments', ['sauce', 'oil', 'vinegar', 'soy', 'paste', 'spice', 'powder', 'salt', 'pepper', 'stock', 'honey', 'sugar', 'seasoning', 'curry']],
-  ['vegetables', ['spinach', 'onion', 'garlic', 'tomato', 'carrot', 'potato', 'pepper', 'broccoli', 'cabbage', 'lettuce', 'mushroom', 'courgette', 'aubergine', 'pea', 'ginger', 'coriander', 'lemon', 'lime']],
+  ['frozen', ['frozen', '冷冻', '速冻']],
+  [
+    'protein',
+    [
+      'chicken', 'beef', 'lamb', 'pork', 'fish', 'haddock', 'cod', 'salmon',
+      'mackerel', 'prawn', 'shrimp', 'squid', 'tofu', 'egg', 'mince', 'bacon',
+      'sausage', 'lentil', 'chickpea', 'bean',
+      '鸡', '牛', '羊', '猪', '鱼', '鳕', '鲭', '鲑', '三文', '虾', '蟹', '鱿',
+      '豆腐', '豆干', '腐竹', '蛋', '肉', '培根', '香肠', '扁豆', '鹰嘴豆',
+    ],
+  ],
+  [
+    'dairy',
+    ['milk', 'cheese', 'butter', 'yoghurt', 'yogurt', 'cream', 'creme', 'feta',
+     'halloumi', 'paneer', 'mozzarella', 'parmesan',
+     '牛奶', '奶酪', '芝士', '黄油', '酸奶', '奶油'],
+  ],
+  [
+    'grains',
+    ['rice', 'pasta', 'noodle', 'bread', 'flour', 'oat', 'couscous', 'tortilla',
+     'wrap', 'vermicelli',
+     '米', '面条', '面粉', '挂面', '粉丝', '馒头', '面包', '燕麦', '年糕'],
+  ],
+  [
+    'vegetables',
+    [
+      'spinach', 'onion', 'garlic', 'tomato', 'carrot', 'potato', 'broccoli',
+      'cabbage', 'lettuce', 'mushroom', 'courgette', 'aubergine', 'pea',
+      'ginger', 'coriander', 'lemon', 'lime', 'pak choi', 'leek', 'celery',
+      'cucumber', 'red pepper', 'green pepper', 'bell pepper', 'chilli',
+      '菜', '葱', '蒜', '姜', '椒', '菇', '耳', '笋', '瓜', '茄', '萝卜',
+      '土豆', '洋葱', '番茄', '西红柿', '豆芽', '芹', '韭', '莴', '柠檬',
+      // Written out because they share no single character with the list
+      // above: 西兰花 is 西 + 兰 + 花, none of which is a vegetable on its own.
+      '西兰花', '花椰', '芦笋', '南瓜', '玉米', '青豆', '豌豆', '秋葵', '茭白',
+    ],
+  ],
+  [
+    'condiments',
+    ['sauce', 'oil', 'vinegar', 'soy', 'paste', 'spice', 'powder', 'salt',
+     'pepper', 'stock', 'honey', 'sugar', 'seasoning', 'curry', 'mirin',
+     'miso', 'gochujang',
+     '酱', '油', '醋', '盐', '糖', '粉', '料酒', '味噌', '高汤', '蜂蜜', '香料'],
+  ],
 ];
 
 function normaliseName(name: string): string {
@@ -79,7 +125,12 @@ export function aggregateShoppingList(plan: GeneratedMealPlan): AggregatedItem[]
   const buckets = new Map<string, AggregatedItem>();
 
   for (const day of plan.days) {
-    for (const meal of day.meals) {
+    // Extras carry ingredients for exactly this reason: a plan that puts fruit
+    // on the table and not on the shopping list has sent someone to the shop
+    // without it.
+    const sources = [...day.meals, ...(day.extras ?? [])];
+
+    for (const meal of sources) {
       for (const ingredient of meal.ingredients) {
         // The whole point of asking the model to mark these: anything already
         // in the kitchen does not belong on a shopping list.

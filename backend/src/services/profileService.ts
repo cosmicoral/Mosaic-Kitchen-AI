@@ -1,9 +1,23 @@
 import * as profileRepository from '../repositories/profileRepository.ts';
-import { AppError, COOKING_STYLES, CUISINES, PRIORITIES } from '../types/index.ts';
+import {
+  AppError,
+  COOKING_STYLES,
+  CUISINES,
+  EXTRAS_FREQUENCIES,
+  EXTRA_KINDS,
+  FLAVOUR_NOTES,
+  PRIORITIES,
+  SEASONING_INTENSITIES,
+  isCuisineRegion,
+} from '../types/index.ts';
 import type {
   Cuisine,
   CookingStyle,
+  ExtraKind,
+  ExtrasFrequency,
+  FlavourNote,
   Priority,
+  SeasoningIntensity,
   UserProfile,
   UserProfileInput,
 } from '../types/index.ts';
@@ -107,6 +121,57 @@ function parseCookingStyle(value: unknown): CookingStyle | null {
   return style;
 }
 
+// Validated against the catalogue rather than accepted as free text, and
+// filtered against the cuisines actually chosen — a region for a cuisine the
+// household did not select is dead weight in the prompt, and usually means the
+// UI left a stale selection behind when they unticked the cuisine.
+function parseCuisineRegions(value: unknown, cuisines: readonly Cuisine[]): string[] {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value)) throw invalid('cuisine_regions must be an array');
+
+  const cleaned = value.map((entry) => {
+    if (typeof entry !== 'string') {
+      throw invalid('cuisine_regions must contain only strings');
+    }
+    const candidate = entry.trim().toLowerCase();
+    if (!isCuisineRegion(candidate)) {
+      throw invalid(`cuisine_regions contains an unknown value: ${entry}`);
+    }
+    return candidate;
+  });
+
+  const selected = new Set<string>(cuisines);
+  return [...new Set(cleaned)].filter((entry) => selected.has(entry.split(':')[0]!));
+}
+
+function parseSeasoningIntensity(value: unknown): SeasoningIntensity | null {
+  if (value === undefined || value === null || value === '') return null;
+  if (typeof value !== 'string') throw invalid('seasoning_intensity must be a string');
+
+  const candidate = value.trim().toLowerCase() as SeasoningIntensity;
+  if (!SEASONING_INTENSITIES.includes(candidate)) {
+    throw invalid(`seasoning_intensity must be one of: ${SEASONING_INTENSITIES.join(', ')}`);
+  }
+  return candidate;
+}
+
+function parseExtrasFrequency(value: unknown): ExtrasFrequency {
+  if (value === undefined || value === null || value === '') return 'some';
+  if (typeof value !== 'string') throw invalid('extras_frequency must be a string');
+
+  const candidate = value.trim().toLowerCase() as ExtrasFrequency;
+  if (!EXTRAS_FREQUENCIES.includes(candidate)) {
+    throw invalid(`extras_frequency must be one of: ${EXTRAS_FREQUENCIES.join(', ')}`);
+  }
+  return candidate;
+}
+
+function parseBoolean(value: unknown, field: string): boolean {
+  if (value === undefined || value === null) return false;
+  if (typeof value !== 'boolean') throw invalid(`${field} must be true or false`);
+  return value;
+}
+
 function parsePostcode(value: unknown): string | null {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value !== 'string') throw invalid('postcode must be a string');
@@ -167,6 +232,21 @@ export async function saveProfile(userId: string, body: unknown): Promise<UserPr
     meals_per_week: parseMealsPerWeek(record.meals_per_week),
     weekly_budget: parseBudget(record.weekly_budget),
     cuisines,
+    cuisine_regions: parseCuisineRegions(record.cuisine_regions, cuisines),
+    seasoning_intensity: parseSeasoningIntensity(record.seasoning_intensity),
+    flavour_notes: parseFromList<FlavourNote>(
+      record.flavour_notes,
+      FLAVOUR_NOTES,
+      'flavour_notes'
+    ),
+    low_salt: parseBoolean(record.low_salt, 'low_salt'),
+    low_sugar: parseBoolean(record.low_sugar, 'low_sugar'),
+    include_extras: parseFromList<ExtraKind>(
+      record.include_extras,
+      EXTRA_KINDS,
+      'include_extras'
+    ),
+    extras_frequency: parseExtrasFrequency(record.extras_frequency),
     avoid_ingredients: parseAvoidIngredients(record.avoid_ingredients),
     priorities: parseFromList<Priority>(record.priorities, PRIORITIES, 'priorities'),
     cooking_style: parseCookingStyle(record.cooking_style),

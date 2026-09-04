@@ -44,6 +44,33 @@ export async function findLatestForUser(userId: string): Promise<MealPlanRow | n
   return result.rows[0] ?? null;
 }
 
+// Flattens every dish this user has ever been given, most recently seen first.
+// Fed back into the prompt as a do-not-repeat list, which is the difference
+// between a planner and a lookup that returns the same famous dish every week.
+// Reads native_name where present because that is the stable identity of a
+// dish — the English description varies from plan to plan.
+export async function findRecentDishNames(
+  userId: string,
+  limit: number
+): Promise<string[]> {
+  const result = await pool.query<{ dish: string }>(
+    `SELECT dish FROM (
+       SELECT coalesce(nullif(meal->>'native_name', ''), meal->>'name') AS dish,
+              max(mp.created_at) AS last_seen
+         FROM meal_plans mp,
+              jsonb_array_elements(mp.plan->'days') AS day,
+              jsonb_array_elements(day->'meals') AS meal
+        WHERE mp.user_id = $1
+        GROUP BY dish
+     ) recent
+      WHERE dish IS NOT NULL
+      ORDER BY last_seen DESC
+      LIMIT $2`,
+    [userId, limit]
+  );
+  return result.rows.map((row) => row.dish);
+}
+
 export async function findByIdForUser(id: string, userId: string): Promise<MealPlanRow | null> {
   const result = await pool.query<MealPlanRow>(
     `SELECT ${COLUMNS} FROM meal_plans WHERE id = $1 AND user_id = $2`,

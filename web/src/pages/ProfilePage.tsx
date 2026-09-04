@@ -10,14 +10,23 @@ import { Input } from "../components/ui/Input";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
 import { useAuth } from "../context/AuthContext";
+import { useBilling } from "../hooks/useBilling";
 import { useProfile } from "../hooks/useProfile";
 import { profileToInput } from "../lib/profile";
+import { TIER_LABELS } from "../lib/plans";
 import {
   COMMON_AVOIDANCES,
   COOKING_STYLE_LABELS,
   CUISINE_LABELS,
+  EXTRA_KIND_LABELS,
+  FLAVOUR_LABELS,
   PRIORITY_LABELS,
+  SEASONING_LABELS,
+  regionLabel,
 } from "../lib/profileOptions";
+import { CuisineRegionPicker } from "../components/CuisineRegionPicker";
+import { ExtrasPicker } from "../components/ExtrasPicker";
+import { FlavourPicker } from "../components/FlavourPicker";
 import { CUISINES, type Cuisine, type UserProfileInput } from "../types";
 import { useLocale } from "../context/LocaleContext";
 
@@ -27,6 +36,7 @@ export function ProfilePage() {
   const { user, logout } = useAuth();
   const { t } = useLocale();
   const { profile, status, error, refresh, save } = useProfile();
+  const { billing } = useBilling();
 
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<UserProfileInput | null>(null);
@@ -60,10 +70,17 @@ export function ProfilePage() {
 
   function toggleCuisine(cuisine: Cuisine) {
     if (!draft) return;
+    const cuisines = draft.cuisines.includes(cuisine)
+      ? draft.cuisines.filter((entry) => entry !== cuisine)
+      : [...draft.cuisines, cuisine];
+
+    // Regions belonging to a cuisine that was just unticked go with it, or
+    // reticking the cuisine would silently restore choices the user cleared.
     updateDraft({
-      cuisines: draft.cuisines.includes(cuisine)
-        ? draft.cuisines.filter((entry) => entry !== cuisine)
-        : [...draft.cuisines, cuisine],
+      cuisines,
+      cuisine_regions: draft.cuisine_regions.filter((entry) =>
+        cuisines.includes(entry.split(":")[0] as Cuisine)
+      ),
     });
   }
 
@@ -107,7 +124,11 @@ export function ProfilePage() {
           {/* Email lives on the account, not the profile, so it comes from the
               auth context and is not editable here. */}
           <h1 style={{ marginBottom: 4 }}>{user?.email ?? t("Your account")}</h1>
-          <Badge variant="cream">{t("Free Account")}</Badge>
+          {/* Was hardcoded to "Free Account", which told a paying subscriber
+              their plan was free on the page where they manage their account. */}
+          <Badge variant="cream">
+            {billing ? t(TIER_LABELS[billing.tier]) : t("Loading…")}
+          </Badge>
 
           <div className="profile-actions" style={{ marginTop: 18 }}>
             {isEditing ? (
@@ -325,7 +346,87 @@ export function ProfilePage() {
                     <span className="small muted">{t("None selected")}</span>
                   ) : null}
                 </div>
+
+                {/* Read-only summary when not editing: the regions are as much
+                    a part of "what we cook" as the cuisines are, and hiding
+                    them outside edit mode makes the saved profile look
+                    incomplete. */}
+                {!isEditing && profile.cuisine_regions.length > 0 ? (
+                  <div className="choice-grid" style={{ marginTop: 12 }}>
+                    {profile.cuisine_regions.map((region) => (
+                      <Badge key={region} variant="cream">
+                        {t(regionLabel(region))}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
               </Card>
+
+              {isEditing && draft ? (
+                <>
+                  <CuisineRegionPicker
+                    cuisines={draft.cuisines}
+                    onChange={(cuisine_regions) => updateDraft({ cuisine_regions })}
+                    selected={draft.cuisine_regions}
+                  />
+                  <FlavourPicker
+                    intensity={draft.seasoning_intensity}
+                    lowSalt={draft.low_salt}
+                    lowSugar={draft.low_sugar}
+                    notes={draft.flavour_notes}
+                    onChange={updateDraft}
+                  />
+                  <ExtrasPicker
+                    frequency={draft.extras_frequency}
+                    kinds={draft.include_extras}
+                    lowSugar={draft.low_sugar}
+                    onChange={updateDraft}
+                  />
+                </>
+              ) : (
+                <Card>
+                  <h2>{t("Flavour and extras")}</h2>
+                  <div className="form-grid" style={{ marginTop: 12 }}>
+                    <div className="summary-row">
+                      <span className="small muted">{t("Seasoning")}</span>
+                      <strong>
+                        {profile.seasoning_intensity
+                          ? t(SEASONING_LABELS[profile.seasoning_intensity])
+                          : t("Not set")}
+                      </strong>
+                    </div>
+                    <div className="summary-row">
+                      <span className="small muted">{t("Tastes you want more of")}</span>
+                      <strong>
+                        {profile.flavour_notes.length > 0
+                          ? profile.flavour_notes.map((note) => t(FLAVOUR_LABELS[note])).join(", ")
+                          : t("Not set")}
+                      </strong>
+                    </div>
+                    <div className="summary-row">
+                      <span className="small muted">{t("Health needs")}</span>
+                      <strong>
+                        {[
+                          profile.low_salt ? t("Low salt 少盐") : null,
+                          profile.low_sugar ? t("Low sugar 少糖") : null,
+                        ]
+                          .filter(Boolean)
+                          .join(", ") || t("None selected")}
+                      </strong>
+                    </div>
+                    <div className="summary-row">
+                      <span className="small muted">{t("Fruit, snacks and dessert")}</span>
+                      <strong>
+                        {profile.include_extras.length > 0
+                          ? profile.include_extras
+                              .map((kind) => t(EXTRA_KIND_LABELS[kind]))
+                              .join(", ")
+                          : t("None selected")}
+                      </strong>
+                    </div>
+                  </div>
+                </Card>
+              )}
 
               <Card>
                 <h2>{t("Avoiding")}</h2>

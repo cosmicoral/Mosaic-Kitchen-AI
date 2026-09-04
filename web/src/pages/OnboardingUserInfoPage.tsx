@@ -1,5 +1,6 @@
 import { ArrowRight, Minus, Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { CuisineRegionPicker } from "../components/CuisineRegionPicker";
 import { TopNav } from "../components/navigation/TopNav";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -40,7 +41,16 @@ export function OnboardingUserInfoPage() {
     const selected = draft.cuisines.includes(cuisine)
       ? draft.cuisines.filter((entry) => entry !== cuisine)
       : [...draft.cuisines, cuisine];
-    update({ cuisines: selected });
+
+    // Unticking a cuisine drops the regions that belonged to it. The server
+    // filters these out too, but leaving them in the draft means reticking the
+    // cuisine silently restores choices the user thought they had cleared.
+    update({
+      cuisines: selected,
+      cuisine_regions: draft.cuisine_regions.filter((entry) =>
+        selected.includes(entry.split(":")[0] as Cuisine)
+      ),
+    });
   }
 
   const canContinue = householdTotal >= 1 && draft.cuisines.length > 0;
@@ -124,6 +134,12 @@ export function OnboardingUserInfoPage() {
             ))}
           </div>
         </Card>
+
+        <CuisineRegionPicker
+          cuisines={draft.cuisines}
+          onChange={(cuisine_regions) => update({ cuisine_regions })}
+          selected={draft.cuisine_regions}
+        />
 
         <div className="footer-actions">
           <Button

@@ -19,7 +19,9 @@ import { useAuth } from "../context/AuthContext";
 import { useDashboard } from "../hooks/useDashboard";
 import { expiryTone, formatExpiryForLocale } from "../lib/pantryFormat";
 import { totalMeals } from "../lib/mealPlanFormat";
-import { PLAN_COPY } from "../lib/plans";
+import { PLAN_COPY, TIER_LABELS } from "../lib/plans";
+import { CUISINE_LABELS } from "../lib/profileOptions";
+import type { Cuisine } from "../types";
 import { useLocale } from "../context/LocaleContext";
 
 export function DashboardPage() {
@@ -53,7 +55,12 @@ export function DashboardPage() {
         <section className="card dashboard-hero">
           <img src={landingHero} alt="Mosaic Kitchen AI meal table" />
           <div className="dashboard-hero__overlay">
-            <Badge variant="dark">{t("Free Account")}</Badge>
+            {/* Read from the quota rather than hardcoded: this badge said
+                "Free Account" to a paying Plus subscriber, directly beside a
+                Plus-sized allowance. */}
+            <Badge variant="dark">
+              {data ? t(TIER_LABELS[data.quota.tier]) : t("Loading…")}
+            </Badge>
             <div className="premium-strip">
               <div>
                 <span className="tiny">{t("Current plan")}</span>
@@ -63,8 +70,13 @@ export function DashboardPage() {
                     : t("Loading…")}
                 </h2>
               </div>
-              <Button onClick={() => navigate("/pricing")} variant="premium">
-                {t("Upgrade")}
+              {/* A paying customer is sent to their own plan, not back to the
+                  shop. Only Pro has nothing left to upgrade to. */}
+              <Button
+                onClick={() => navigate(data?.quota.tier === "free" ? "/pricing" : "/subscription")}
+                variant="premium"
+              >
+                {data && data.quota.tier !== "free" ? t("Your plan") : t("Upgrade")}
               </Button>
             </div>
           </div>
@@ -156,63 +168,113 @@ export function DashboardPage() {
           <ChevronRight color="var(--color-gold)" size={19} />
         </button>
 
-        <Card className="section" variant="dark">
-          <div className="premium-strip">
-            <span>
-              <strong>{t("Cook for the whole household")}</strong>
-              <br />
-              {/* Sourced from PLAN_COPY rather than typed in, so the day this
-                  price changes in Stripe there is one place to change it here
-                  too. The hardcoded £3.99 that used to sit here was left over
-                  from the mock pricing and undercut the real plans by half. */}
-              <span className="small">
-                {t("Plus from")} {PLAN_COPY[1]?.price.month} {t("a month")}
+        {/* Hidden once they are paying. Showing someone an advert for the
+            thing they already bought reads as the app not knowing who they
+            are, and it is the fastest way to make a subscription feel like it
+            did nothing. */}
+        {data?.quota.tier === "free" ? (
+          <Card className="section" variant="dark">
+            <div className="premium-strip">
+              <span>
+                <strong>{t("Cook for the whole household")}</strong>
+                <br />
+                {/* Sourced from PLAN_COPY rather than typed in, so the day this
+                    price changes in Stripe there is one place to change it here
+                    too. The hardcoded £3.99 that used to sit here was left over
+                    from the mock pricing and undercut the real plans by half. */}
+                <span className="small">
+                  {t("Plus from")} {PLAN_COPY[1]?.price.month} {t("a month")}
+                </span>
               </span>
-            </span>
-            <Button onClick={() => navigate("/pricing")} variant="premium">
-              {t("Upgrade")}
-            </Button>
-          </div>
-        </Card>
+              <Button onClick={() => navigate("/pricing")} variant="premium">
+                {t("Upgrade")}
+              </Button>
+            </div>
+          </Card>
+        ) : null}
 
         <Card className="section">
           <div className="premium-strip">
             <h2 style={{ margin: 0 }}>{t("Kitchen Insights")}</h2>
             <MascotAvatar size="sm" src={genericAvatar} />
           </div>
+          {/* Every figure here answers a question the user then wants to act
+              on, so each one is the button to the page that acts on it.
+              A number you cannot follow is a dead end. */}
           <div className="stats-grid" style={{ marginTop: 14 }}>
-            <div className="stat-card" style={{ background: "#fff4de", borderRadius: 14 }}>
-              <strong>{data?.expiringItems.length ?? 0} items</strong>
-              <span className="tiny muted">{t("Expiring soon")}</span>
-            </div>
-            <div className="stat-card" style={{ background: "#f4fae8", borderRadius: 14 }}>
-              <strong>{data?.pantryItems.length ?? 0}</strong>
-              <span className="tiny muted">{t("Pantry items")}</span>
-            </div>
-            <div className="stat-card" style={{ background: "#edf4ed", borderRadius: 14 }}>
-              <strong>{itemsToBuy}</strong>
-              <span className="tiny muted">{t("Still to buy")}</span>
-            </div>
-            <div className="stat-card" style={{ background: "#eef3ff", borderRadius: 14 }}>
-              <strong>{data?.latestPlan ? totalMeals(data.latestPlan.plan) : 0}</strong>
-              <span className="tiny muted">{t("Meals planned")}</span>
-            </div>
+            {[
+              {
+                key: "expiring",
+                value: `${data?.expiringItems.length ?? 0}`,
+                label: t("Expiring soon"),
+                background: "#fff4de",
+                to: "/expiry-alert",
+              },
+              {
+                key: "pantry",
+                value: `${data?.pantryItems.length ?? 0}`,
+                label: t("Pantry items"),
+                background: "#f4fae8",
+                to: "/pantry",
+              },
+              {
+                key: "buy",
+                value: `${itemsToBuy}`,
+                label: t("Still to buy"),
+                background: "#edf4ed",
+                to: "/shopping-list",
+              },
+              {
+                key: "meals",
+                value: `${data?.latestPlan ? totalMeals(data.latestPlan.plan) : 0}`,
+                label: t("Meals planned"),
+                background: "#eef3ff",
+                to: "/meal-plan",
+              },
+            ].map((stat) => (
+              <button
+                className="stat-card"
+                key={stat.key}
+                onClick={() => navigate(stat.to)}
+                style={{
+                  background: stat.background,
+                  borderRadius: 14,
+                  border: "none",
+                  cursor: "pointer",
+                  textAlign: "center",
+                }}
+                type="button"
+              >
+                <strong>{stat.value}</strong>
+                <span className="tiny muted">{stat.label}</span>
+              </button>
+            ))}
           </div>
         </Card>
 
         <Card className="section">
           <h2 style={{ marginTop: 0 }}>{t("Recommended For You")}</h2>
           <div className="form-grid">
+            {/* Was a div with a chevron on it — an arrow that looks like a
+                link and does nothing is worse than no arrow. */}
             {recommendedMeals.map((meal) => (
-              <div className="meal-row" key={meal.name}>
-                <span className="meal-icon">{meal.name.slice(0, 2)}</span>
+              <button
+                className="meal-row"
+                key={meal.name}
+                onClick={() => navigate("/meal-plan")}
+                style={{ border: "none", background: "none", cursor: "pointer", textAlign: "left", width: "100%" }}
+                type="button"
+              >
+                <span className="meal-icon">{meal.region?.slice(0, 2) ?? meal.name.slice(0, 2)}</span>
                 <span>
                   <strong>{meal.name}</strong>
                   <br />
-                  <span className="small muted">{meal.minutes} min · {meal.cuisine}</span>
+                  <span className="small muted">
+                    {meal.minutes} {t("minutes")} · {t(CUISINE_LABELS[meal.cuisine as Cuisine] ?? meal.cuisine)}
+                  </span>
                 </span>
                 <ChevronRight color="var(--color-primary-strong)" size={18} />
-              </div>
+              </button>
             ))}
             {status === "ready" && recommendedMeals.length === 0 ? (
               <p className="small muted">{t("Generate a meal plan to see recommendations here.")}</p>

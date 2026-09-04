@@ -7,12 +7,13 @@ export function makeMealPlan(cuisines: string[]): GeneratedMealPlan {
 
   cuisines.forEach((cuisine, index) => {
     const dayIndex = Math.floor(index / 3);
-    const day = days[dayIndex] ?? { day_index: dayIndex, meals: [] };
+    const day = days[dayIndex] ?? { day_index: dayIndex, meals: [], extras: [] };
     day.meals.push({
       slot: SLOTS[index % SLOTS.length]!,
       name: `${cuisine} meal ${index + 1}`,
       native_name: `${cuisine} native ${index + 1}`,
       cuisine,
+      region: 'Test region',
       minutes: 30,
       servings: 2,
       estimated_cost_gbp: 5,

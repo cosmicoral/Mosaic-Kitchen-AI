@@ -8,7 +8,8 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { GenerationProgress } from "../components/GenerationProgress";
 import { useNavigate } from "react-router-dom";
 import { TopNav } from "../components/navigation/TopNav";
 import { Badge } from "../components/ui/Badge";
@@ -31,17 +32,29 @@ export function MealPlanPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { locale, t } = useLocale();
-  const { plan, quota, status, error, refresh, generate, generating, generationError } =
+  const { plan, quota, status, error, refresh, generate, generating, generationError, stages } =
     useMealPlan();
 
   const [openDay, setOpenDay] = useState<number | null>(0);
   const [openMeal, setOpenMeal] = useState<string | null>(null);
 
+  // The spinner and the error card both live at the top of the page, but
+  // Regenerate sits at the bottom next to the day list. Clicking it from down
+  // there produced no visible change at all — the feedback was rendering
+  // hundreds of pixels above the fold, which reads as a dead button.
+  const statusRef = useRef<HTMLDivElement | null>(null);
+
   async function handleGenerate() {
+    statusRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+
     const created = await generate();
     if (created) {
       setOpenDay(0);
-      showToast("Your new plan is ready");
+      showToast(t("Your new plan is ready"));
+    } else {
+      // A toast as well as the card, so the outcome is visible even if the
+      // scroll was interrupted by the user scrolling back down.
+      showToast(t("Could not generate a plan"));
     }
   }
 
@@ -81,19 +94,11 @@ export function MealPlanPage() {
           </Card>
         ) : null}
 
+        <div ref={statusRef} />
+
         {/* Generation takes 20 to 60 seconds, which is long enough that silence
             reads as a broken page. */}
-        {generating ? (
-          <Card variant="dark">
-            <div className="brand-row">
-              <Loader2 size={18} />
-              <strong>{t("Building your plan…")}</strong>
-            </div>
-            <p className="small">
-              {t("Checking your pantry, working around what you avoid, and staying in budget. This usually takes under a minute.")}
-            </p>
-          </Card>
-        ) : null}
+        {generating ? <GenerationProgress stages={stages} /> : null}
 
         {generationError ? (
           <Card>
@@ -184,14 +189,27 @@ export function MealPlanPage() {
 
             <div className="section-title">
               <h2>{t("Daily Meals")}</h2>
-              <button
-                className="top-nav__right"
-                disabled={generating || quota?.remaining === 0}
-                onClick={() => void handleGenerate()}
-                type="button"
-              >
-                {t("Regenerate")}
-              </button>
+              {/* A disabled button with no stated reason is the same as a
+                  broken one. When the month's allowance is gone this becomes a
+                  link to the plans instead of a dead control. */}
+              {quota?.remaining === 0 ? (
+                <button
+                  className="top-nav__right"
+                  onClick={() => navigate("/pricing")}
+                  type="button"
+                >
+                  {t("No plans left this month")}
+                </button>
+              ) : (
+                <button
+                  className="top-nav__right"
+                  disabled={generating}
+                  onClick={() => void handleGenerate()}
+                  type="button"
+                >
+                  {generating ? t("Generating…") : t("Regenerate")}
+                </button>
+              )}
             </div>
 
             <section className="form-grid">

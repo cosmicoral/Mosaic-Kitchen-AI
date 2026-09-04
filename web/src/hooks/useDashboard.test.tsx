@@ -14,7 +14,7 @@ beforeEach(() => {
   vi.mocked(fetchExpiringItems).mockResolvedValue([]);
   vi.mocked(fetchShoppingList).mockResolvedValue([]);
   vi.mocked(fetchLatestMealPlan).mockResolvedValue(null);
-  vi.mocked(fetchQuota).mockResolvedValue({ used: 1, limit: 3, remaining: 2 });
+  vi.mocked(fetchQuota).mockResolvedValue({ tier: 'free', used: 1, limit: 3, remaining: 2 });
 });
 
 describe('useDashboard', () => {

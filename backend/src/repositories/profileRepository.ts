@@ -2,8 +2,10 @@ import pool from '../db/pool.ts';
 import type { UserProfile, UserProfileInput } from '../types/index.ts';
 
 const COLUMNS = `user_id, adults, teenagers, children, toddlers, household_size,
-                 meals_per_week, weekly_budget, cuisines, avoid_ingredients,
-                 priorities, cooking_style, postcode, created_at, updated_at`;
+                 meals_per_week, weekly_budget, cuisines, cuisine_regions,
+                 seasoning_intensity, flavour_notes, low_salt, low_sugar,
+                 include_extras, extras_frequency, avoid_ingredients, priorities, cooking_style, postcode,
+                 created_at, updated_at`;
 
 export async function findByUserId(userId: string): Promise<UserProfile | null> {
   const result = await pool.query<UserProfile>(
@@ -23,23 +25,30 @@ export async function upsert(
   const result = await pool.query<UserProfile>(
     `INSERT INTO user_profiles (
        user_id, adults, teenagers, children, toddlers,
-       meals_per_week, weekly_budget, cuisines, avoid_ingredients,
-       priorities, cooking_style, postcode
+       meals_per_week, weekly_budget, cuisines, cuisine_regions,
+       seasoning_intensity, flavour_notes, low_salt, low_sugar,
+       include_extras, extras_frequency,
+       avoid_ingredients, priorities, cooking_style, postcode
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
      ON CONFLICT (user_id) DO UPDATE SET
-       adults            = EXCLUDED.adults,
-       teenagers         = EXCLUDED.teenagers,
-       children          = EXCLUDED.children,
-       toddlers          = EXCLUDED.toddlers,
-       meals_per_week    = EXCLUDED.meals_per_week,
-       weekly_budget     = EXCLUDED.weekly_budget,
-       cuisines          = EXCLUDED.cuisines,
-       avoid_ingredients = EXCLUDED.avoid_ingredients,
-       priorities        = EXCLUDED.priorities,
-       cooking_style     = EXCLUDED.cooking_style,
-       postcode          = EXCLUDED.postcode,
-       updated_at        = now()
+       adults              = EXCLUDED.adults,
+       teenagers           = EXCLUDED.teenagers,
+       children            = EXCLUDED.children,
+       toddlers            = EXCLUDED.toddlers,
+       meals_per_week      = EXCLUDED.meals_per_week,
+       weekly_budget       = EXCLUDED.weekly_budget,
+       cuisines            = EXCLUDED.cuisines,
+       cuisine_regions     = EXCLUDED.cuisine_regions,
+       seasoning_intensity = EXCLUDED.seasoning_intensity,
+       flavour_notes       = EXCLUDED.flavour_notes,
+       low_salt            = EXCLUDED.low_salt,
+       low_sugar           = EXCLUDED.low_sugar,
+       avoid_ingredients   = EXCLUDED.avoid_ingredients,
+       priorities          = EXCLUDED.priorities,
+       cooking_style       = EXCLUDED.cooking_style,
+       postcode            = EXCLUDED.postcode,
+       updated_at          = now()
      RETURNING ${COLUMNS}`,
     [
       userId,
@@ -50,6 +59,13 @@ export async function upsert(
       input.meals_per_week,
       input.weekly_budget,
       input.cuisines,
+      input.cuisine_regions,
+      input.seasoning_intensity,
+      input.flavour_notes,
+      input.low_salt,
+      input.low_sugar,
+      input.include_extras,
+      input.extras_frequency,
       input.avoid_ingredients,
       input.priorities,
       input.cooking_style,

@@ -1,6 +1,8 @@
 import { ArrowRight, Ban, Clock, Plus, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { ExtrasPicker } from "../components/ExtrasPicker";
+import { FlavourPicker } from "../components/FlavourPicker";
 import { TopNav } from "../components/navigation/TopNav";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -79,6 +81,21 @@ export function OnboardingEatingHabitsPage() {
             ))}
           </div>
         </Card>
+
+        <FlavourPicker
+          intensity={draft.seasoning_intensity}
+          lowSalt={draft.low_salt}
+          lowSugar={draft.low_sugar}
+          notes={draft.flavour_notes}
+          onChange={update}
+        />
+
+        <ExtrasPicker
+          frequency={draft.extras_frequency}
+          kinds={draft.include_extras}
+          lowSugar={draft.low_sugar}
+          onChange={update}
+        />
 
         <div className="section-title">
           <h2>{t("Anything to leave out?")}</h2>

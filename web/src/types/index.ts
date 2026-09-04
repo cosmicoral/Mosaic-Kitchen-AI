@@ -46,6 +46,40 @@ export const CUISINES = [
 
 export type Cuisine = (typeof CUISINES)[number];
 
+// Mirrors the backend catalogue. Values are stored namespaced as
+// 'chinese:sichuan', because "Northern" and "Central" name different places in
+// different cuisines and a bare slug could not tell them apart.
+export const CUISINE_REGIONS: Record<Cuisine, readonly string[]> = {
+  chinese: ['sichuan', 'cantonese', 'hunan', 'jiangnan', 'northern', 'dongbei', 'fujian', 'yunnan', 'xinjiang', 'hakka'],
+  japanese: ['kanto', 'kansai', 'kyushu', 'hokkaido', 'tohoku', 'okinawa'],
+  korean: ['seoul', 'jeolla', 'gyeongsang', 'gangwon', 'jeju'],
+  indian: ['punjabi', 'gujarati', 'bengali', 'tamil', 'kerala', 'maharashtrian', 'rajasthani', 'hyderabadi'],
+  pakistani: ['punjabi', 'sindhi', 'pashtun', 'kashmiri'],
+  'middle-eastern': ['levantine', 'iraqi', 'persian', 'egyptian', 'yemeni', 'palestinian'],
+  thai: ['central', 'isan', 'lanna', 'southern'],
+  vietnamese: ['northern', 'hue', 'mekong'],
+  british: ['english', 'scottish', 'welsh', 'northern-irish'],
+  italian: ['roman', 'neapolitan', 'sicilian', 'emilian', 'ligurian', 'tuscan', 'puglian'],
+  mexican: ['oaxacan', 'yucatecan', 'poblano', 'norteno', 'veracruz'],
+  caribbean: ['jamaican', 'trinidadian', 'bajan', 'guyanese', 'haitian'],
+  'west-african': ['nigerian', 'ghanaian', 'senegalese', 'ivorian', 'sierra-leonean'],
+  mediterranean: ['greek', 'turkish', 'levantine', 'spanish', 'cypriot', 'maltese'],
+};
+
+export const EXTRA_KINDS = ['fruit', 'snack', 'dessert'] as const;
+export type ExtraKind = (typeof EXTRA_KINDS)[number];
+
+export const EXTRAS_FREQUENCIES = ['few', 'some', 'plenty'] as const;
+export type ExtrasFrequency = (typeof EXTRAS_FREQUENCIES)[number];
+
+export const SEASONING_INTENSITIES = ['light', 'balanced', 'bold'] as const;
+export type SeasoningIntensity = (typeof SEASONING_INTENSITIES)[number];
+
+export const FLAVOUR_NOTES = [
+  'sour', 'sweet', 'bitter', 'spicy', 'umami', 'numbing', 'aromatic', 'smoky',
+] as const;
+export type FlavourNote = (typeof FLAVOUR_NOTES)[number];
+
 export const COOKING_STYLES = ['quick', 'balanced', 'batch', 'relaxed'] as const;
 export type CookingStyle = (typeof COOKING_STYLES)[number];
 
@@ -65,6 +99,13 @@ export interface UserProfile {
   meals_per_week: number;
   weekly_budget: string | null;
   cuisines: Cuisine[];
+  cuisine_regions: string[];
+  seasoning_intensity: SeasoningIntensity | null;
+  flavour_notes: FlavourNote[];
+  low_salt: boolean;
+  low_sugar: boolean;
+  include_extras: ExtraKind[];
+  extras_frequency: ExtrasFrequency;
   avoid_ingredients: string[];
   priorities: Priority[];
   cooking_style: CookingStyle | null;
@@ -81,6 +122,13 @@ export interface UserProfileInput {
   meals_per_week: number;
   weekly_budget: number | null;
   cuisines: Cuisine[];
+  cuisine_regions: string[];
+  seasoning_intensity: SeasoningIntensity | null;
+  flavour_notes: FlavourNote[];
+  low_salt: boolean;
+  low_sugar: boolean;
+  include_extras: ExtraKind[];
+  extras_frequency: ExtrasFrequency;
   avoid_ingredients: string[];
   priorities: Priority[];
   cooking_style: CookingStyle | null;
@@ -111,9 +159,21 @@ export interface GeneratedMeal {
   steps: string[];
 }
 
+export interface GeneratedExtra {
+  kind: ExtraKind;
+  name: string;
+  native_name: string;
+  note: string;
+  estimated_cost_gbp: number;
+  ingredients: GeneratedIngredient[];
+}
+
 export interface GeneratedDay {
   day_index: number;
   meals: GeneratedMeal[];
+  // Optional on the wire: plans generated before extras existed have no such
+  // field, and a stored plan is never migrated.
+  extras?: GeneratedExtra[];
 }
 
 export interface GeneratedMealPlan {
@@ -133,6 +193,9 @@ export interface MealPlanRecord {
 }
 
 export interface MealPlanQuota {
+  // Travels with the quota so a screen showing "3 plans left" can also say
+  // which plan that allowance belongs to, without a second request.
+  tier: Tier;
   used: number;
   limit: number;
   remaining: number;

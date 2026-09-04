@@ -114,6 +114,56 @@ export const CUISINES = [
 
 export type Cuisine = (typeof CUISINES)[number];
 
+// The regions a household can narrow each cuisine down to. Stored namespaced
+// ('chinese:sichuan') because "Northern" and "Central" name different places
+// depending on the cuisine they belong to, and a flat list of bare slugs could
+// not tell 'northern' Chinese from 'northern' Vietnamese apart.
+export const CUISINE_REGIONS = {
+  chinese: ['sichuan', 'cantonese', 'hunan', 'jiangnan', 'northern', 'dongbei', 'fujian', 'yunnan', 'xinjiang', 'hakka'],
+  japanese: ['kanto', 'kansai', 'kyushu', 'hokkaido', 'tohoku', 'okinawa'],
+  korean: ['seoul', 'jeolla', 'gyeongsang', 'gangwon', 'jeju'],
+  indian: ['punjabi', 'gujarati', 'bengali', 'tamil', 'kerala', 'maharashtrian', 'rajasthani', 'hyderabadi'],
+  pakistani: ['punjabi', 'sindhi', 'pashtun', 'kashmiri'],
+  'middle-eastern': ['levantine', 'iraqi', 'persian', 'egyptian', 'yemeni', 'palestinian'],
+  thai: ['central', 'isan', 'lanna', 'southern'],
+  vietnamese: ['northern', 'hue', 'mekong'],
+  british: ['english', 'scottish', 'welsh', 'northern-irish'],
+  italian: ['roman', 'neapolitan', 'sicilian', 'emilian', 'ligurian', 'tuscan', 'puglian'],
+  mexican: ['oaxacan', 'yucatecan', 'poblano', 'norteno', 'veracruz'],
+  caribbean: ['jamaican', 'trinidadian', 'bajan', 'guyanese', 'haitian'],
+  'west-african': ['nigerian', 'ghanaian', 'senegalese', 'ivorian', 'sierra-leonean'],
+  mediterranean: ['greek', 'turkish', 'levantine', 'spanish', 'cypriot', 'maltese'],
+  // `satisfies` rather than a plain annotation: it checks every key is a real
+  // cuisine and that none is missing, while keeping the literal string types
+  // so isCuisineRegion can narrow against them.
+} as const satisfies Record<Cuisine, readonly string[]>;
+
+export function isCuisineRegion(value: string): boolean {
+  const [cuisine, region] = value.split(':');
+  if (!cuisine || !region) return false;
+  const regions = (CUISINE_REGIONS as Record<string, readonly string[]>)[cuisine];
+  return Array.isArray(regions) && regions.includes(region);
+}
+
+// Planned alongside the meals rather than as extra meals, so they never
+// disturb the meals_per_week count the household set.
+export const EXTRA_KINDS = ['fruit', 'snack', 'dessert'] as const;
+export type ExtraKind = (typeof EXTRA_KINDS)[number];
+
+export const EXTRAS_FREQUENCIES = ['few', 'some', 'plenty'] as const;
+export type ExtrasFrequency = (typeof EXTRAS_FREQUENCIES)[number];
+
+export const SEASONING_INTENSITIES = ['light', 'balanced', 'bold'] as const;
+export type SeasoningIntensity = (typeof SEASONING_INTENSITIES)[number];
+
+// 麻 (numbing) is on this list because no Western meal planner models it, and
+// for a Sichuan household it is the difference between the dish being right
+// and being a chilli stir-fry.
+export const FLAVOUR_NOTES = [
+  'sour', 'sweet', 'bitter', 'spicy', 'umami', 'numbing', 'aromatic', 'smoky',
+] as const;
+export type FlavourNote = (typeof FLAVOUR_NOTES)[number];
+
 export const COOKING_STYLES = [
   'quick',      // under 25 minutes
   'balanced',   // 30-45 minutes
@@ -140,6 +190,13 @@ export interface UserProfile {
   meals_per_week: number;
   weekly_budget: string | null;
   cuisines: Cuisine[];
+  cuisine_regions: string[];
+  seasoning_intensity: SeasoningIntensity | null;
+  flavour_notes: FlavourNote[];
+  low_salt: boolean;
+  low_sugar: boolean;
+  include_extras: ExtraKind[];
+  extras_frequency: ExtrasFrequency;
   // Free text on purpose: a closed list cannot cover every allergy or dislike,
   // and getting this wrong is a safety problem, not a taste one.
   avoid_ingredients: string[];
@@ -158,6 +215,13 @@ export interface UserProfileInput {
   meals_per_week: number;
   weekly_budget: number | null;
   cuisines: Cuisine[];
+  cuisine_regions: string[];
+  seasoning_intensity: SeasoningIntensity | null;
+  flavour_notes: FlavourNote[];
+  low_salt: boolean;
+  low_sugar: boolean;
+  include_extras: ExtraKind[];
+  extras_frequency: ExtrasFrequency;
   avoid_ingredients: string[];
   priorities: Priority[];
   cooking_style: CookingStyle | null;

@@ -10,6 +10,7 @@ import {
 import { AppError } from '../types/index.ts';
 import {
   buildMealPlanPrompt,
+
   MEAL_PLAN_SYSTEM_PROMPT,
 } from '../utils/promptBuilder.ts';
 import {
@@ -18,6 +19,13 @@ import {
   type CuisineViolation,
   type MealCountViolation,
 } from './cuisineCompliance.ts';
+import {
+  findArithmeticViolation,
+  findBudgetViolation,
+  sumMealCosts,
+  type ArithmeticViolation,
+  type BudgetViolation,
+} from './budgetCompliance.ts';
 import { findViolations } from './ingredientSafety.ts';
 import type { SafetyViolation } from './ingredientSafety.ts';
 import * as billingService from './billingService.ts';
@@ -33,6 +41,11 @@ import type { SupportedLocale } from '../utils/locale.ts';
 // One retry only. If naming the violation explicitly does not fix it, a third
 // attempt is unlikely to, and each one costs money and keeps the user waiting.
 const MAX_ATTEMPTS = 2;
+
+// How many previously-served dishes to name as off-limits. Enough to cover a
+// couple of months of plans, small enough that the list never crowds out the
+// rest of the prompt.
+const RECENT_DISH_MEMORY = 40;
 
 function today(): string {
   const now = new Date();
@@ -61,7 +74,10 @@ export function buildRetryPrompt(
   safetyViolations: SafetyViolation[],
   cuisineIssues: CuisineViolation[],
   mealCountIssue: MealCountViolation | null,
-  locale: SupportedLocale = 'en'
+  locale: SupportedLocale = 'en',
+  recentDishes: readonly string[] = [],
+  arithmeticIssue: ArithmeticViolation | null = null,
+  budgetIssue: BudgetViolation | null = null
 ): string {
   const corrections: string[] = [];
 
@@ -95,18 +111,84 @@ export function buildRetryPrompt(
     );
   }
 
-  return `${buildMealPlanPrompt(profile, pantry, locale)}
+  if (arithmeticIssue) {
+    corrections.push(
+      `estimated_total_gbp was £${arithmeticIssue.stated.toFixed(2)} but the meals ` +
+        `add up to £${arithmeticIssue.summed.toFixed(2)}. Make the total the exact ` +
+        `sum of every meal's estimated_cost_gbp.`
+    );
+  }
+
+  if (budgetIssue) {
+    const target = budgetIssue.budget.toFixed(2);
+    const band = budgetIssue.tolerance.toFixed(2);
+    corrections.push(
+      budgetIssue.direction === 'over'
+        ? `The plan costs £${budgetIssue.actual.toFixed(2)} against a £${target} budget. ` +
+          `Bring it within £${band} of £${target} by choosing cheaper cuts, more pulses ` +
+          `and vegetables, and dishes that share ingredients — not by shrinking portions.`
+        : `The plan costs only £${budgetIssue.actual.toFixed(2)} against a £${target} budget. ` +
+          `The household is willing to spend up to £${target}; use more of it on better ` +
+          `protein, fresh produce and variety rather than returning a thinner plan.`
+    );
+  }
+
+  return `${buildMealPlanPrompt(profile, pantry, locale, recentDishes)}
 
 YOUR PREVIOUS ATTEMPT WAS REJECTED.
 ${corrections.join('\n')}
 Rebuild the whole plan and correct every issue above.`;
 }
 
+// Mutates in place and recomputes the headline total, so the arithmetic check
+// that runs next compares against what is actually left rather than against
+// what the model was priced for.
+export function stripUnwantedExtras(
+  plan: GeneratedMealPlan,
+  allowed: readonly string[]
+): void {
+  const permitted = new Set(allowed);
+
+  for (const day of plan.days) {
+    day.extras = (day.extras ?? []).filter((extra) => permitted.has(extra.kind));
+  }
+
+  plan.estimated_total_gbp = sumMealCosts(plan);
+}
+
+// Stage identifiers, not sentences. The wording belongs to the frontend,
+// where it can be translated; sending prose from here would put user-facing
+// English in the API and make it untranslatable.
+export const GENERATION_STAGES = [
+  'profile',
+  'pantry',
+  'generating',
+  'checking',
+  'retrying',
+  'saving',
+] as const;
+export type GenerationStage = (typeof GENERATION_STAGES)[number];
+
+export interface StageEvent {
+  stage: GenerationStage;
+  attempt: number;
+  // Only set on 'retrying', and only ever the household's own words back at
+  // them — an avoided ingredient they typed, or a cuisine they chose. Nothing
+  // here comes from the model.
+  detail?: string;
+}
+
+export type StageReporter = (event: StageEvent) => void;
+
+const noopReporter: StageReporter = () => {};
+
 export async function generate(
   userId: string,
   modelCall: typeof callModel = callModel,
-  locale: SupportedLocale = 'en'
+  locale: SupportedLocale = 'en',
+  onStage: StageReporter = noopReporter
 ): Promise<GenerateResult> {
+  onStage({ stage: 'profile', attempt: 1 });
   const profile =
     await profileRepository.findByUserId(userId);
 
@@ -139,6 +221,7 @@ export async function generate(
     );
   }
 
+  onStage({ stage: 'pantry', attempt: 1 });
   const pantry =
     await pantryRepository.findAllByUser(userId);
 
@@ -147,9 +230,14 @@ export async function generate(
   const schema =
     buildMealPlanSchema(profile.cuisines);
 
+  // Capped at 40: enough to cover a couple of months of plans, small enough
+  // that the list never crowds out the rest of the prompt.
+  const recentDishes =
+    await mealPlanRepository.findRecentDishNames(userId, RECENT_DISH_MEMORY);
+
   const systemPrompt = localizedSystemPrompt(locale);
   let userPrompt =
-    buildMealPlanPrompt(profile, pantry, locale);
+    buildMealPlanPrompt(profile, pantry, locale, recentDishes);
 
   let plan: GeneratedMealPlan | null = null;
   let attempts = 0;
@@ -159,6 +247,7 @@ export async function generate(
     plan === null
   ) {
     attempts += 1;
+    onStage({ stage: 'generating', attempt: attempts });
 
     let generation;
 
@@ -192,6 +281,8 @@ export async function generate(
       );
     }
 
+    onStage({ stage: 'checking', attempt: attempts });
+
     const violations = findViolations(
       generation.plan,
       profile.avoid_ingredients
@@ -209,6 +300,26 @@ export async function generate(
       profile.meals_per_week
     );
 
+    // Strip extras the household did not ask for before anything else reads
+    // the plan. The schema cannot express "only these kinds" cheaply, so this
+    // is the deterministic gate: a low-sugar household that asked for fruit
+    // never sees a dessert, whatever the model returned.
+    stripUnwantedExtras(generation.plan, profile.include_extras);
+
+    const arithmeticIssue = findArithmeticViolation(generation.plan);
+
+    const budgetIssue = findBudgetViolation(
+      generation.plan,
+      profile.weekly_budget === null ? null : Number(profile.weekly_budget)
+    );
+
+    const isClean =
+      violations.length === 0 &&
+      cuisineIssues.length === 0 &&
+      mealCountIssue === null &&
+      arithmeticIssue === null &&
+      budgetIssue === null;
+
     await aiUsageRepository.record(userId, {
       feature: 'meal-plan',
       model: generation.model,
@@ -216,21 +327,28 @@ export async function generate(
       completionTokens:
         generation.completionTokens,
       costUsd: generation.costUsd,
-      succeeded:
-        violations.length === 0 &&
-        cuisineIssues.length === 0 &&
-        mealCountIssue === null,
+      succeeded: isClean,
     });
 
-    // Accept the plan only when both checks pass.
-    if (
-      violations.length === 0 &&
-      cuisineIssues.length === 0 &&
-      mealCountIssue === null
-    ) {
+    // Accept the plan only when every check passes.
+    if (isClean) {
       plan = generation.plan;
       break;
     }
+
+    // The one stage worth naming a reason for. Without it a rejected first
+    // attempt is thirty unexplained extra seconds; with it the user watches
+    // the safety check do the thing they are paying for.
+    onStage({
+      stage: 'retrying',
+      attempt: attempts,
+      detail:
+        violations.length > 0
+          ? violations[0]!.avoided
+          : cuisineIssues.length > 0
+            ? cuisineIssues[0]!.cuisine
+            : undefined,
+    });
 
     userPrompt = buildRetryPrompt(
       profile,
@@ -238,7 +356,10 @@ export async function generate(
       violations,
       cuisineIssues,
       mealCountIssue,
-      locale
+      locale,
+      recentDishes,
+      arithmeticIssue,
+      budgetIssue
     );
   }
 
@@ -248,6 +369,8 @@ export async function generate(
       'GENERATION_FAILED'
     );
   }
+
+  onStage({ stage: 'saving', attempt: attempts });
 
   const saved =
     await mealPlanRepository.create(

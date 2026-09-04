@@ -17,4 +17,7 @@ router.get('/:id', mealPlanController.getOne);
 // this stops a stuck button firing ten calls in ten seconds.
 router.post('/', generationLimiter, mealPlanController.generate);
 
+// Same limiter as the plain POST — it is the same spend, just narrated.
+router.post('/stream', generationLimiter, mealPlanController.generateStream);
+
 export default router;

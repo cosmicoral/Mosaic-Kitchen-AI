@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ApiError } from '../lib/api';
-import { fetchLatestMealPlan, fetchQuota, generateMealPlan } from '../lib/mealPlan';
+import { fetchLatestMealPlan, fetchQuota } from '../lib/mealPlan';
+import { streamMealPlan, type StageEvent } from '../lib/mealPlanStream';
 import type { MealPlanQuota, MealPlanRecord } from '../types';
 
 type MealPlanStatus = 'loading' | 'ready' | 'error';
@@ -20,6 +21,10 @@ export function useMealPlan() {
 
   const [generating, setGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<GenerationFailure | null>(null);
+  // Every stage seen so far, not just the current one. A list that grows shows
+  // progress; a single line that changes looks like a stuck spinner that
+  // occasionally flickers.
+  const [stages, setStages] = useState<StageEvent[]>([]);
 
   const refresh = useCallback(async () => {
     setStatus('loading');
@@ -44,9 +49,18 @@ export function useMealPlan() {
   const generate = useCallback(async () => {
     setGenerating(true);
     setGenerationError(null);
+    setStages([]);
 
     try {
-      const created = await generateMealPlan();
+      const created = await streamMealPlan((event) =>
+        // Replaces any earlier event for the same stage rather than appending,
+        // so a second attempt reuses its row instead of printing the whole
+        // sequence twice.
+        setStages((previous) => [
+          ...previous.filter((entry) => entry.stage !== event.stage),
+          event,
+        ])
+      );
       setPlan(created);
       // Refetched rather than decremented locally: the server decides what
       // counts, and a retry inside one request could consume differently.
@@ -63,5 +77,5 @@ export function useMealPlan() {
     }
   }, []);
 
-  return { plan, quota, status, error, refresh, generate, generating, generationError };
+  return { plan, quota, status, error, refresh, generate, generating, generationError, stages };
 }

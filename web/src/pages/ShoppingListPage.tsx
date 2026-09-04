@@ -1,5 +1,5 @@
-import { Check, Loader2, Plus, RefreshCw, ShoppingCart, Trash2, X } from "lucide-react";
-import { useMemo, useState, type FormEvent } from "react";
+import { Box, Check, Loader2, Plus, RefreshCw, ShoppingCart, Trash2, Undo2, X } from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { shoppingMascot } from "../assets/mascots";
 import { BottomNav } from "../components/navigation/BottomNav";
@@ -41,8 +41,21 @@ export function ShoppingListPage() {
   const {
     items, status, error, refresh,
     generate, generating, generateError,
-    toggle, addItem, removeItem, clearChecked,
+    toggle, addItem, removeItem, restoreItem, clearChecked, moveCheckedToPantry,
   } = useShoppingList();
+
+  // Held here rather than in a toast, because an undo the user cannot find is
+  // the same as no undo, and this bar sits still until it expires.
+  const [undoItem, setUndoItem] = useState<ShoppingListItem | null>(null);
+  const [movingToPantry, setMovingToPantry] = useState(false);
+
+  useEffect(() => {
+    if (!undoItem) return;
+    // Long enough to notice the mistake, short enough that the bar is not
+    // still there when they come back from the next aisle.
+    const timer = setTimeout(() => setUndoItem(null), 8000);
+    return () => clearTimeout(timer);
+  }, [undoItem]);
 
   const [isAdding, setIsAdding] = useState(false);
   const [name, setName] = useState("");
@@ -170,7 +183,7 @@ export function ShoppingListPage() {
               <span>
                 <span className="eyebrow">{t("Progress")}</span>
                 <strong>
-                  {checkedCount} of {items.length}
+                  {checkedCount} {t("of")} {items.length}
                 </strong>
                 <span className="small muted">
                   {items.length - checkedCount} {t("still to get")}
@@ -200,7 +213,7 @@ export function ShoppingListPage() {
                         <strong>{t(group.label)}</strong>
                         <br />
                         <span className="small muted">
-                          {group.items.filter((item) => item.is_checked).length} of{" "}
+                          {group.items.filter((item) => item.is_checked).length} {t("of")}{" "}
                           {group.items.length}
                         </span>
                       </span>
@@ -234,7 +247,9 @@ export function ShoppingListPage() {
                         aria-label={`Remove ${item.name}`}
                         className="icon-only"
                         onClick={() =>
-                          void removeItem(item.id).catch(() => showToast("Could not remove"))
+                          void removeItem(item.id)
+                            .then((removed) => setUndoItem(removed))
+                            .catch(() => showToast(t("Could not remove")))
                         }
                         type="button"
                       >
@@ -246,21 +261,67 @@ export function ShoppingListPage() {
               ))}
             </section>
 
+            {undoItem ? (
+              <Card className="section">
+                <div className="premium-strip">
+                  <span className="small">
+                    {t("Removed")} <strong>{undoItem.name}</strong>
+                  </span>
+                  <Button
+                    icon={<Undo2 size={16} />}
+                    onClick={() => {
+                      const target = undoItem;
+                      setUndoItem(null);
+                      void restoreItem(target).catch(() => showToast(t("Could not undo")));
+                    }}
+                    variant="secondary"
+                  >
+                    {t("Undo")}
+                  </Button>
+                </div>
+              </Card>
+            ) : null}
+
             <div className="footer-actions">
               <Button icon={<Plus size={17} />} onClick={() => setIsAdding(true)} variant="secondary">
                 {t("Add item")}
               </Button>
+              {/* Ticked means bought, which means it is in the kitchen now.
+                  Moving it into the pantry closes the loop back to the meal
+                  planner, which cooks from pantry stock before it buys. */}
               <Button
-                disabled={checkedCount === 0}
-                icon={<Check size={17} />}
+                disabled={checkedCount === 0 || movingToPantry}
+                icon={<Box size={17} />}
                 onClick={async () => {
-                  const removed = await clearChecked();
-                  showToast(`${removed} item${removed === 1 ? "" : "s"} cleared`);
+                  setMovingToPantry(true);
+                  try {
+                    const moved = await moveCheckedToPantry();
+                    showToast(`${moved} ${t("added to your pantry")}`);
+                  } catch {
+                    showToast(t("Could not add to pantry"));
+                  } finally {
+                    setMovingToPantry(false);
+                  }
                 }}
               >
-                {t("Clear checked")} ({checkedCount})
+                {movingToPantry ? t("Adding…") : `${t("Add to pantry")} (${checkedCount})`}
               </Button>
             </div>
+
+            {/* Kept as the quieter option. Clearing without stocking the pantry
+                throws away the one piece of information the shop produced. */}
+            <Button
+              disabled={checkedCount === 0}
+              fullWidth
+              icon={<Check size={17} />}
+              onClick={async () => {
+                const removed = await clearChecked();
+                showToast(`${removed} ${t("items cleared")}`);
+              }}
+              variant="ghost"
+            >
+              {t("Just clear checked")} ({checkedCount})
+            </Button>
           </>
         ) : null}
       </div>

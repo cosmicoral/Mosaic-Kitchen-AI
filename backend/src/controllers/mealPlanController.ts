@@ -46,6 +46,73 @@ export async function generate(req: Request, res: Response) {
   }
 }
 
+// Same work as generate(), reported as it happens. Deliberately a second
+// endpoint over the same service rather than a replacement: the plain POST
+// stays the contract for anything that cannot read a stream (curl, the iOS
+// client later, a retry from a background job), and two paths through one
+// service cannot drift in behaviour.
+export async function generateStream(req: Request, res: Response) {
+  if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    Connection: 'keep-alive',
+    // Nginx buffers proxied responses by default, which would hold every
+    // event until the request finished and defeat the entire point. This
+    // header turns it off for this response even when the server config has
+    // not been updated.
+    'X-Accel-Buffering': 'no',
+  });
+
+  function send(event: string, data: unknown) {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  }
+
+  // A comment line, which SSE ignores. It forces the headers and the first
+  // bytes out through any intermediary that is waiting for content before it
+  // commits to the response.
+  res.write(': open\n\n');
+
+  // If the user navigates away mid-generation the model call keeps running to
+  // completion on purpose — it has already been paid for, and the finished
+  // plan is saved and waiting when they come back.
+  let clientGone = false;
+  req.on('close', () => {
+    clientGone = true;
+  });
+
+  try {
+    const { mealPlan, attempts } = await mealPlanService.generate(
+      req.user.id,
+      undefined,
+      readLocale(req.headers['accept-language']),
+      (event) => {
+        if (!clientGone) send('stage', event);
+      }
+    );
+
+    if (!clientGone) {
+      send('done', { mealPlan, attempts });
+    }
+  } catch (error) {
+    if (!clientGone) {
+      // Errors travel as an event, not a status code: the 200 went out with
+      // the headers before any of this work started, so the code is already
+      // spent by the time anything can fail.
+      const isAppError = error instanceof AppError;
+      if (!isAppError) console.error('Meal plan stream error:', error);
+
+      send('failed', {
+        error: isAppError ? error.message : 'Internal server error',
+        code: isAppError ? error.code : null,
+      });
+    }
+  } finally {
+    res.end();
+  }
+}
+
 export async function latest(req: Request, res: Response) {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
 
