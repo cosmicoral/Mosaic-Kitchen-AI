@@ -1090,14 +1090,24 @@ img {
 
 .profile-cover {
   position: relative;
-  height: 110px;
+  height: 120px;
   margin: calc(var(--space-5) * -1) calc(var(--space-4) * -1) 0;
   background: linear-gradient(135deg, var(--color-forest), var(--color-primary-deep));
 }
 
+/* The card overlaps the cover and the avatar straddles the seam. Before, the
+   card only rose 34px and the avatar sat wholly inside it, which left ~76px
+   of bare green slab with nothing on it. The three numbers below are tied
+   together: card top lands at 74px, and the 92px avatar is pulled up so its
+   centre sits exactly on that line. */
 .profile-card {
-  margin-top: -34px;
+  margin-top: -46px;
   text-align: center;
+}
+
+.profile-card .mascot-avatar--lg {
+  margin-top: -66px;
+  margin-bottom: var(--space-2);
 }
 
 .profile-actions {
@@ -1421,4 +1431,192 @@ button.check-item {
 
 .language-switcher button[aria-pressed="true"] {
   color: var(--color-primary-strong);
+}
+
+/* ============================================================
+   Motion
+   ------------------------------------------------------------
+   An AI product spends most of its time waiting on a model, so
+   what the interface does during that wait is most of what it
+   feels like. Three rules here:
+
+   1. Motion signals real state. Things ease in when they arrive
+      and shimmer while they are genuinely unknown. Nothing here
+      animates to imply work that is not happening — no fake
+      typewriter on text that arrived complete, no progress bar
+      that is really a timer.
+   2. Everything is short. 200-400ms. Anything longer reads as
+      the app being slow rather than as polish.
+   3. All of it is off under prefers-reduced-motion. Vestibular
+      disorders are common, and a staggered list is exactly the
+      pattern that triggers them.
+   ============================================================ */
+
+@keyframes mk-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes mk-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Travels left to right across a placeholder. Sized well beyond
+   the element so the highlight sweeps through rather than
+   pulsing in place. */
+@keyframes mk-shimmer {
+  from { background-position: -220% 0; }
+  to { background-position: 220% 0; }
+}
+
+@keyframes mk-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.mk-rise {
+  animation: mk-rise 320ms cubic-bezier(0.22, 0.8, 0.28, 1) both;
+}
+
+.mk-fade {
+  animation: mk-fade 240ms ease-out both;
+}
+
+/* Staggering is capped at eight steps. Past that the last card
+   is waiting most of a second for no reason, and a long list
+   starts to feel like it is being dealt out to you. */
+.mk-stagger > * {
+  animation: mk-rise 320ms cubic-bezier(0.22, 0.8, 0.28, 1) both;
+}
+.mk-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.mk-stagger > *:nth-child(2) { animation-delay: 45ms; }
+.mk-stagger > *:nth-child(3) { animation-delay: 90ms; }
+.mk-stagger > *:nth-child(4) { animation-delay: 135ms; }
+.mk-stagger > *:nth-child(5) { animation-delay: 180ms; }
+.mk-stagger > *:nth-child(6) { animation-delay: 225ms; }
+.mk-stagger > *:nth-child(7) { animation-delay: 270ms; }
+.mk-stagger > *:nth-child(n + 8) { animation-delay: 315ms; }
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(
+      90deg,
+      var(--color-cream-strong) 0%,
+      var(--color-surface) 45%,
+      var(--color-cream-strong) 90%
+    );
+  background-size: 220% 100%;
+  animation: mk-shimmer 1.6s linear infinite;
+}
+
+.skeleton--text {
+  height: 12px;
+  margin: 6px 0;
+}
+
+.skeleton--title {
+  height: 20px;
+  width: 55%;
+  margin: 10px 0;
+}
+
+.skeleton--block {
+  height: 84px;
+  border-radius: var(--radius-md);
+}
+
+/* Applied to a card that is being filled in by a live stream, so
+   the edge glows while the content is still arriving. */
+.is-generating {
+  position: relative;
+}
+
+.is-generating::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    120deg,
+    transparent 30%,
+    rgba(154, 205, 34, 0.22) 50%,
+    transparent 70%
+  );
+  background-size: 220% 100%;
+  animation: mk-shimmer 2.2s linear infinite;
+}
+
+.stage-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  animation: mk-rise 280ms cubic-bezier(0.22, 0.8, 0.28, 1) both;
+}
+
+.stage-row--active {
+  animation: mk-rise 280ms cubic-bezier(0.22, 0.8, 0.28, 1) both;
+}
+
+.stage-row--active .stage-row__icon {
+  animation: mk-breathe 1.6s ease-in-out infinite;
+}
+
+.stage-row--done {
+  opacity: 0.55;
+}
+
+/* Buttons and cards already have transitions; this adds the
+   press feedback that makes a tap feel connected to what
+   follows it. */
+.card,
+button {
+  transition:
+    transform 160ms cubic-bezier(0.22, 0.8, 0.28, 1),
+    box-shadow 200ms ease,
+    opacity 160ms ease;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-rise,
+  .mk-fade,
+  .mk-stagger > *,
+  .stage-row,
+  .stage-row--active,
+  .stage-row--active .stage-row__icon {
+    animation: none !important;
+  }
+
+  .skeleton {
+    animation: none;
+    background: var(--color-cream-strong);
+  }
+
+  .is-generating::after {
+    animation: none;
+    background: none;
+  }
+
+  .card,
+  button {
+    transition: none;
+  }
+
+  button:active:not(:disabled) {
+    transform: none;
+  }
 }

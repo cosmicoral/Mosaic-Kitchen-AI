@@ -30,7 +30,10 @@ export function GenerationProgress({ stages }: Props) {
   const current = stages[stages.length - 1];
 
   return (
-    <Card variant="dark">
+    // The shimmer runs only while this card is on screen, which is only while
+    // a model call is genuinely in flight. It marks real uncertainty rather
+    // than decorating a wait.
+    <Card className="is-generating mk-rise" variant="dark">
       <div className="brand-row">
         <Loader2 size={18} />
         <strong>{t("Building your plan…")}</strong>
@@ -45,8 +48,13 @@ export function GenerationProgress({ stages }: Props) {
           {seen.map((entry) => {
             const isCurrent = entry.stage === current?.stage;
             return (
-              <li key={entry.stage} style={{ opacity: isCurrent ? 1 : 0.6 }}>
-                {isCurrent ? <Loader2 size={16} /> : <Check size={16} />}
+              <li
+                className={`stage-row ${isCurrent ? "stage-row--active" : "stage-row--done"}`}
+                key={entry.stage}
+              >
+                <span className="stage-row__icon">
+                  {isCurrent ? <Loader2 size={16} /> : <Check size={16} />}
+                </span>
                 <span className="small">
                   {t(STAGE_LABELS[entry.stage] ?? entry.stage)}
                   {/* The retry reason is the whole reason this exists. Without

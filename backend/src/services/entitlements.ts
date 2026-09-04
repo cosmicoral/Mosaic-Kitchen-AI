@@ -5,6 +5,11 @@ export interface Entitlements {
   householdMembers: number;
   mealPlansPerMonth: number;
   maxMealsPerPlan: number;
+  // Cooking from what is already in the kitchen gets its own, far more
+  // generous allowance. It costs about a third of a weekly plan, and it is the
+  // one action that directly stops food being thrown away — charging a weekly
+  // plan's credit for it would be taxing the thing the product is for.
+  pantryCooksPerMonth: number;
   scansPerMonth: number;
 }
 
@@ -14,12 +19,32 @@ export interface Entitlements {
 // them would cost a user something and save us nothing, while removing the
 // two features most likely to make someone open the app daily.
 const ENTITLEMENTS: Record<Tier, Entitlements> = {
-  free: { householdMembers: 1, mealPlansPerMonth: 2, maxMealsPerPlan: 7, scansPerMonth: 3 },
-  plus: { householdMembers: 2, mealPlansPerMonth: 10, maxMealsPerPlan: 14, scansPerMonth: 30 },
+  // Roughly two weekly plans a week. Counted monthly because that is the
+  // period the billing runs on, and a weekly counter would reset mid-cycle.
+  free: {
+    householdMembers: 1,
+    mealPlansPerMonth: 8,
+    maxMealsPerPlan: 7,
+    pantryCooksPerMonth: 5,
+    scansPerMonth: 3,
+  },
+  plus: {
+    householdMembers: 2,
+    mealPlansPerMonth: 10,
+    maxMealsPerPlan: 14,
+    pantryCooksPerMonth: 30,
+    scansPerMonth: 30,
+  },
   // Caps bound a runaway loop or an abusive account; they are not a ration.
   // Both numbers sit far above realistic use, and a paying customer who
   // reaches one should get a conversation, not a wall.
-  pro: { householdMembers: 6, mealPlansPerMonth: 30, maxMealsPerPlan: 21, scansPerMonth: 150 },
+  pro: {
+    householdMembers: 6,
+    mealPlansPerMonth: 30,
+    maxMealsPerPlan: 21,
+    pantryCooksPerMonth: 100,
+    scansPerMonth: 150,
+  },
 };
 
 // Read from the environment at call time rather than captured at import time,

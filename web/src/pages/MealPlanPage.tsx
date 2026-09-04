@@ -26,6 +26,7 @@ import {
   totalMeals,
   uniqueCuisines,
 } from "../lib/mealPlanFormat";
+import { SkeletonList } from "../components/ui/Skeleton";
 import { useLocale } from "../context/LocaleContext";
 
 export function MealPlanPage() {
@@ -76,12 +77,7 @@ export function MealPlanPage() {
         </section>
 
         {status === "loading" ? (
-          <Card>
-            <div className="brand-row">
-              <Loader2 size={18} />
-              <span className="small muted">{t("Loading your plan…")}</span>
-            </div>
-          </Card>
+          <SkeletonList count={3} label={t("Loading your plan…")} lines={3} />
         ) : null}
 
         {status === "error" ? (
@@ -212,7 +208,7 @@ export function MealPlanPage() {
               )}
             </div>
 
-            <section className="form-grid">
+            <section className="form-grid mk-stagger">
               {generated.days.map((day) => {
                 const labels = dayLabels(record.starts_on, day.day_index, locale);
                 const isOpen = openDay === day.day_index;

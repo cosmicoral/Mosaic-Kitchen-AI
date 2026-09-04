@@ -139,6 +139,25 @@ const zh: Record<string, string> = {
     '我们会控制额外添加的盐和糖,并在需要时注明使用低盐版本的酱料。',
   // Regions
   'Flavour and extras': '口味与加餐',
+  // Cook from pantry
+  'Cook with these': '用这些做菜', 'Pick what needs using': '选出需要用掉的食材',
+  'We will suggest a few dishes built around them, in your cuisines and avoiding what you avoid.':
+    '我们会围绕它们给出几道菜,符合你的菜系并避开你的忌口。',
+  'Cook with': '用', 'Working it out…': '正在想菜…',
+  'Select': '选择', 'Select all': '全选', 'Select none': '取消全选',
+  'Your plan': '我的方案', 'Your plan and allowances': '你的方案与额度',
+  'See what is left this month, change plan or cancel.': '查看本月剩余额度、更换方案或取消订阅。',
+  'More meal plans, more people, and cook from what is already in your kitchen.':
+    '更多餐单、更多家庭成员,并能用家里现有的食材做菜。',
+  'Cook with them, or clear them out of your pantry.': '用它们做菜,或者从食材库里清掉。',
+  'Cooking works with up to': '做菜最多支持',
+  'ingredients — deleting has no limit.': '样食材,删除没有上限。',
+  'Deleting…': '正在删除…',
+  'Delete these ingredients from your pantry?': '确定从食材库删除这些食材吗?',
+  'removed': '项已删除', 'could not be removed': '项删除失败',
+  'Cook these': '就做这些', 'Could not suggest dishes': '无法给出菜品建议',
+  'See plans': '查看方案', 'Clear': '清除',
+  'Scan Ingredients': '扫描食材',
   // Nutrition emphasis
   'What to favour': '希望多一些',
   'More protein': '蛋白质多一些', 'More vegetables': '蔬菜多一些', 'More fibre': '膳食纤维多一些',

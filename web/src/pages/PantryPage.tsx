@@ -1,4 +1,4 @@
-import { Camera, Loader2, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { Camera, Loader2, Plus, RefreshCw, Trash2, X, Check, ChefHat } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { pantryMascot } from "../assets/mascots";
@@ -11,8 +11,10 @@ import { Input } from "../components/ui/Input";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
 import { usePantry } from "../hooks/usePantry";
+import { MAX_SELECTION, usePantryCook } from "../hooks/usePantryCook";
 import { daysUntil, expiryTone, formatAmount, formatExpiryForLocale } from "../lib/pantryFormat";
 import { PANTRY_CATEGORIES, type PantryCategory, type PantryItem } from "../types";
+import { SkeletonList } from "../components/ui/Skeleton";
 import { useLocale } from "../context/LocaleContext";
 
 const CATEGORY_LABELS: Record<PantryCategory, string> = {
@@ -31,7 +33,10 @@ export function PantryPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { locale, t } = useLocale();
-  const { items, status, error, refresh, addItem, removeItem } = usePantry();
+  const { items, status, error, refresh, addItem, removeItem, removeItems } = usePantry();
+  const cook = usePantryCook();
+  const [picking, setPicking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showAllExpiring, setShowAllExpiring] = useState(false);
@@ -108,6 +113,29 @@ export function PantryPage() {
     }
   }
 
+  // Confirmed, unlike the single-row delete. One row is a small mistake with
+  // an obvious cause; twenty rows disappearing at once is not something a
+  // person can reconstruct from memory, and there is no undo here.
+  async function handleBulkDelete() {
+    const count = cook.selected.length;
+    if (count === 0) return;
+    if (!window.confirm(t("Delete these ingredients from your pantry?"))) return;
+
+    setDeleting(true);
+    try {
+      const { removed, failed } = await removeItems(cook.selected);
+      cook.clear();
+      setPicking(false);
+      showToast(
+        failed > 0
+          ? `${removed} ${t("removed")}, ${failed} ${t("could not be removed")}`
+          : `${removed} ${t("removed")}`
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   async function handleRemove(item: PantryItem) {
     try {
       await removeItem(item.id);
@@ -150,12 +178,7 @@ export function PantryPage() {
         </Card>
 
         {status === "loading" ? (
-          <Card className="section">
-            <div className="brand-row">
-              <Loader2 size={18} />
-              <span className="small muted">{t("Loading your pantry…")}</span>
-            </div>
-          </Card>
+          <SkeletonList count={3} label={t("Loading your pantry…")} />
         ) : null}
 
         {status === "error" ? (
@@ -231,14 +254,53 @@ export function PantryPage() {
               <h2>{t("Pantry Categories")}</h2>
               <button
                 className="top-nav__right"
-                onClick={() => setIsAddModalOpen(true)}
+                onClick={() => {
+                  if (picking) cook.clear();
+                  setPicking((current) => !current);
+                }}
                 type="button"
               >
-                {t("Add Item")}
+                {picking ? t("Cancel") : t("Select")}
               </button>
             </div>
 
-            <section className="form-grid">
+            {/* Only rendered in picking mode. A tick box on every row all the
+                time would make the ordinary job — seeing what you have —
+                busier for the sake of a thing done occasionally. */}
+            {picking ? (
+              <Card variant="soft">
+                <div className="premium-strip">
+                  <strong>
+                    {cook.selected.length} {t("selected")}
+                  </strong>
+                  <button
+                    className="top-nav__right"
+                    onClick={() =>
+                      cook.selectMany(
+                        cook.selected.length === items.length
+                          ? []
+                          : items.map((item) => item.id)
+                      )
+                    }
+                    type="button"
+                  >
+                    {cook.selected.length === items.length
+                      ? t("Select none")
+                      : t("Select all")}
+                  </button>
+                </div>
+                <p className="small muted" style={{ marginTop: 4 }}>
+                  {t("Cook with them, or clear them out of your pantry.")}
+                </p>
+                {cook.selected.length > MAX_SELECTION ? (
+                  <p className="tiny muted">
+                    {t("Cooking works with up to")} {MAX_SELECTION} {t("ingredients — deleting has no limit.")}
+                  </p>
+                ) : null}
+              </Card>
+            ) : null}
+
+            <section className="form-grid mk-stagger">
               {grouped.map((group) => (
                 <Card className="category-card" key={group.key}>
                   <div className="category-head">
@@ -255,6 +317,16 @@ export function PantryPage() {
 
                   {group.items.map((item) => (
                     <div className="check-item" key={item.id}>
+                      {picking ? (
+                        <button
+                          aria-label={`Select ${item.name}`}
+                          className={`check-circle${cook.selected.includes(item.id) ? " is-on" : ""}`}
+                          onClick={() => cook.toggle(item.id)}
+                          type="button"
+                        >
+                          {cook.selected.includes(item.id) ? <Check size={14} /> : null}
+                        </button>
+                      ) : null}
                       <span>
                         <strong>{item.name}</strong>
                         <br />
@@ -265,6 +337,10 @@ export function PantryPage() {
                       <Badge variant={expiryTone(item.expires_on)}>
                         {formatExpiryForLocale(item.expires_on, locale)}
                       </Badge>
+                      {/* Delete is hidden while picking: the two buttons would
+                          sit next to each other doing opposite things, and one
+                          of them is not undoable. */}
+                      {picking ? null : (
                       <button
                         aria-label={`Remove ${item.name}`}
                         className="icon-only"
@@ -273,6 +349,7 @@ export function PantryPage() {
                       >
                         <Trash2 size={16} />
                       </button>
+                      )}
                     </div>
                   ))}
                 </Card>
@@ -281,13 +358,95 @@ export function PantryPage() {
           </>
         ) : null}
 
+        {cook.error ? (
+          <Card className="section">
+            <strong>{t("Could not suggest dishes")}</strong>
+            <p className="small muted">{cook.error.message}</p>
+            {cook.error.code === "QUOTA_EXCEEDED" ? (
+              <Button fullWidth onClick={() => navigate("/pricing")} variant="premium">
+                {t("See plans")}
+              </Button>
+            ) : null}
+          </Card>
+        ) : null}
+
+        {cook.result ? (
+          <Card className="section" variant="soft">
+            <div className="premium-strip">
+              <strong>{t("Cook these")}</strong>
+              <button className="top-nav__right" onClick={cook.clear} type="button">
+                {t("Clear")}
+              </button>
+            </div>
+            <div className="form-grid" style={{ marginTop: 12 }}>
+              {cook.result.plan.days
+                .flatMap((day) => day.meals)
+                .map((meal) => (
+                  <Card key={meal.name}>
+                    <strong>{meal.name}</strong>
+                    {meal.native_name ? (
+                      <>
+                        {" "}
+                        <span className="small muted">{meal.native_name}</span>
+                      </>
+                    ) : null}
+                    <br />
+                    <span className="small muted">
+                      {meal.minutes} {t("minutes")} · {meal.region ?? meal.cuisine}
+                    </span>
+                    <ul className="check-list" style={{ marginTop: 10 }}>
+                      {meal.steps.map((step, index) => (
+                        <li key={step}>
+                          <span className="small">
+                            {index + 1}. {step}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                ))}
+            </div>
+          </Card>
+        ) : null}
+
         <div className="footer-actions">
-          <Button icon={<Plus size={17} />} onClick={() => setIsAddModalOpen(true)} variant="secondary">
-            Add Item
-          </Button>
-          <Button icon={<Camera size={17} />} onClick={() => navigate("/ai-vision")}>
-            Scan Ingredients
-          </Button>
+          {picking ? (
+            <>
+              <Button
+                disabled={cook.selected.length === 0 || deleting}
+                icon={<Trash2 size={17} />}
+                onClick={() => void handleBulkDelete()}
+                variant="secondary"
+              >
+                {deleting ? t("Deleting…") : `${t("Delete")} ${cook.selected.length}`}
+              </Button>
+              <Button
+                disabled={
+                  cook.selected.length === 0 ||
+                  cook.selected.length > MAX_SELECTION ||
+                  cook.cooking
+                }
+                icon={<ChefHat size={17} />}
+                onClick={async () => {
+                  const plan = await cook.cook();
+                  if (plan) setPicking(false);
+                }}
+              >
+                {cook.cooking
+                  ? t("Working it out…")
+                  : `${t("Cook with")} ${cook.selected.length}`}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button icon={<Plus size={17} />} onClick={() => setIsAddModalOpen(true)} variant="secondary">
+                {t("Add Item")}
+              </Button>
+              <Button icon={<Camera size={17} />} onClick={() => navigate("/ai-vision")}>
+                {t("Scan Ingredients")}
+              </Button>
+            </>
+          )}
         </div>
       </div>
       <BottomNav />

@@ -12,6 +12,7 @@ import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
 import { useShoppingList } from "../hooks/useShoppingList";
 import { PANTRY_CATEGORIES, type PantryCategory, type ShoppingListItem } from "../types";
+import { SkeletonList } from "../components/ui/Skeleton";
 import { useLocale } from "../context/LocaleContext";
 
 const CATEGORY_LABELS: Record<PantryCategory, string> = {
@@ -119,12 +120,7 @@ export function ShoppingListPage() {
         </section>
 
         {status === "loading" ? (
-          <Card>
-            <div className="brand-row">
-              <Loader2 size={18} />
-              <span className="small muted">{t("Loading your list…")}</span>
-            </div>
-          </Card>
+          <SkeletonList count={3} label={t("Loading your list…")} />
         ) : null}
 
         {status === "error" ? (
@@ -204,7 +200,7 @@ export function ShoppingListPage() {
               </button>
             </div>
 
-            <section className="form-grid">
+            <section className="form-grid mk-stagger">
               {grouped.map((group) => (
                 <Card className="category-card" key={group.key}>
                   <div className="category-head">

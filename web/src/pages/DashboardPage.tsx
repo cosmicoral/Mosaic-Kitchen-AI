@@ -22,6 +22,7 @@ import { totalMeals } from "../lib/mealPlanFormat";
 import { PLAN_COPY, TIER_LABELS } from "../lib/plans";
 import { CUISINE_LABELS } from "../lib/profileOptions";
 import type { Cuisine } from "../types";
+import { SkeletonList } from "../components/ui/Skeleton";
 import { useLocale } from "../context/LocaleContext";
 
 export function DashboardPage() {
@@ -83,9 +84,7 @@ export function DashboardPage() {
         </section>
 
         {status === "loading" ? (
-          <Card className="section">
-            <div className="brand-row"><Loader2 size={18} /><span className="small muted">{t("Loading your kitchen…")}</span></div>
-          </Card>
+          <SkeletonList count={2} label={t("Loading your kitchen…")} />
         ) : null}
 
         {status === "error" ? (
@@ -201,7 +200,7 @@ export function DashboardPage() {
           {/* Every figure here answers a question the user then wants to act
               on, so each one is the button to the page that acts on it.
               A number you cannot follow is a dead end. */}
-          <div className="stats-grid" style={{ marginTop: 14 }}>
+          <div className="stats-grid mk-stagger" style={{ marginTop: 14 }}>
             {[
               {
                 key: "expiring",

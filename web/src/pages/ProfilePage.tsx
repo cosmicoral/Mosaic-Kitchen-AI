@@ -200,19 +200,38 @@ export function ProfilePage() {
 
           {profile ? (
             <>
+              {/* Two different cards, because a subscriber and a free user
+                  need opposite things here. The old one sold "unlimited plans
+                  and AI Vision scanning" to someone already paying, and
+                  neither of those is true: the plans are capped and the
+                  scanning does not exist yet. */}
               <Card variant="premium">
                 <div className="premium-strip">
                   <span>
-                    <Badge variant="gold">{t("Premium")}</Badge>
-                    <h2>{t("Upgrade your kitchen intelligence")}</h2>
+                    <Badge variant="gold">
+                      {billing ? t(TIER_LABELS[billing.tier]) : t("Loading…")}
+                    </Badge>
+                    <h2>
+                      {billing && billing.tier !== "free"
+                        ? t("Your plan and allowances")
+                        : t("Cook for the whole household")}
+                    </h2>
                     <p className="small muted">
-                      {t("Unlimited plans, AI Vision scanning and deeper pantry insights.")}
+                      {billing && billing.tier !== "free"
+                        ? t("See what is left this month, change plan or cancel.")
+                        : t("More meal plans, more people, and cook from what is already in your kitchen.")}
                     </p>
                   </span>
                   <Crown color="var(--color-orange)" size={34} />
                 </div>
-                <Button fullWidth onClick={() => navigate("/subscription")} variant="premium">
-                  {t("Your plan")}
+                <Button
+                  fullWidth
+                  onClick={() =>
+                    navigate(billing && billing.tier !== "free" ? "/subscription" : "/pricing")
+                  }
+                  variant="premium"
+                >
+                  {billing && billing.tier !== "free" ? t("Your plan") : t("See plans")}
                 </Button>
               </Card>
 

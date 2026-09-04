@@ -1,6 +1,6 @@
 import pool from '../db/pool.ts';
 
-export type AiFeature = 'meal-plan' | 'vision-scan';
+export type AiFeature = 'meal-plan' | 'pantry-cook' | 'vision-scan';
 
 export interface UsageRecord {
   feature: AiFeature;
@@ -26,6 +26,18 @@ export async function record(userId: string, usage: UsageRecord): Promise<void> 
       usage.succeeded,
     ]
   );
+}
+
+// Every call this month, failed ones included. A failed call still cost money
+// even though it earned the user nothing, and a spend ceiling that ignored
+// failures would let a broken retry loop spend past it.
+export async function totalCostUsdThisMonth(): Promise<number> {
+  const result = await pool.query<{ total: string | null }>(
+    `SELECT COALESCE(SUM(cost_usd), 0) AS total
+       FROM ai_usage
+      WHERE created_at >= date_trunc('month', now())`
+  );
+  return Number(result.rows[0]?.total ?? 0);
 }
 
 // Counts successful calls only: a failed generation should not eat a free-tier

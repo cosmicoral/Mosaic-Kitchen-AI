@@ -113,6 +113,38 @@ export async function generateStream(req: Request, res: Response) {
   }
 }
 
+export async function cookFromPantry(req: Request, res: Response) {
+  if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+
+  const itemIds = (req.body as { item_ids?: unknown } | undefined)?.item_ids;
+  if (!Array.isArray(itemIds) || itemIds.some((id) => typeof id !== 'string')) {
+    return res.status(400).json({ error: 'item_ids must be an array of ids' });
+  }
+
+  try {
+    const { mealPlan, attempts } = await mealPlanService.generateFromPantry(
+      req.user.id,
+      itemIds as string[],
+      undefined,
+      readLocale(req.headers['accept-language'])
+    );
+    return res.status(201).json({ mealPlan, attempts });
+  } catch (error) {
+    return handleError(error, res, 'Pantry cook error');
+  }
+}
+
+export async function latestPantryCook(req: Request, res: Response) {
+  if (!req.user) return res.status(401).json({ error: 'Authentication required' });
+
+  try {
+    const mealPlan = await mealPlanService.getLatestPantryCook(req.user.id);
+    return res.status(200).json({ mealPlan });
+  } catch (error) {
+    return handleError(error, res, 'Pantry cook fetch error');
+  }
+}
+
 export async function latest(req: Request, res: Response) {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
 

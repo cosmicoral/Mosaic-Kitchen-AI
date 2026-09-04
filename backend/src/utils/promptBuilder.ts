@@ -433,6 +433,80 @@ give a supermarket substitute only if the dish survives one.
 
 Steps should be concise and practical, written for someone cooking after work.`;
 
+// A different question from the weekly plan, so a different prompt rather
+// than the weekly one with a note bolted on. The household's cuisines,
+// regions, flavour, allergens and budget still apply — what changes is that
+// the starting point is a specific handful of ingredients that need using,
+// and the answer is two or three dishes rather than a week.
+export function buildPantryCookPrompt(
+  profile: UserProfile,
+  selected: PantryItem[],
+  dishes: number,
+  locale: SupportedLocale = 'en',
+  recentDishes: readonly string[] = []
+): string {
+  const servings = calculateServings(profile);
+
+  const avoid =
+    profile.avoid_ingredients.length > 0
+      ? `MUST NOT APPEAR ANYWHERE: ${profile.avoid_ingredients.join(', ')}`
+      : 'No ingredient restrictions.';
+
+  const languageInstruction =
+    locale === 'zh'
+      ? 'OUTPUT LANGUAGE\nUse natural Simplified Chinese for every user-facing value. Preserve authentic dish names in native_name. Keep JSON keys and schema enum values in English.'
+      : 'OUTPUT LANGUAGE\nUse British English for user-facing values. Preserve authentic dish names in native_name.';
+
+  const mustUse = selected
+    .map((item) => {
+      const amount =
+        item.quantity && item.unit
+          ? ` (${Number(item.quantity)}${item.unit})`
+          : item.quantity
+            ? ` (${Number(item.quantity)})`
+            : '';
+      const expiry = item.expires_on ? `, use by ${item.expires_on}` : '';
+      return `- ${item.name}${amount}${expiry}`;
+    })
+    .join('\n');
+
+  const repeats =
+    recentDishes.length > 0
+      ? `\n\nALREADY COOKED — DO NOT REPEAT\n${recentDishes.join(', ')}`
+      : '';
+
+  return `${languageInstruction}
+
+The household has these ingredients in the kitchen and wants to use them up.
+Suggest ${dishes} dishes, all on day_index 0.
+
+MUST USE — build the dishes around these
+${mustUse}
+
+Between them the dishes should use as much of the above as possible. Adding a
+few cheap, common extras is fine and expected; say so by leaving from_pantry
+false on anything that has to be bought. Mark everything from the list above
+with from_pantry: true.
+
+HOUSEHOLD
+${describeHousehold(profile)}
+Cook each dish for ${servings} servings.
+
+${avoid}
+
+CUISINES
+${describeCuisines(profile.cuisines, dishes, recentDishes, profile.cuisine_regions)}
+
+FLAVOUR
+${describeFlavour(profile)}
+
+TIME
+${profile.cooking_style ? 'Keep to the household\'s usual cooking time.' : 'No strong preference.'}
+
+Return an empty extras array for every day: this is about using up what is
+already here, not adding a pudding to the shop.${repeats}`;
+}
+
 export function buildMealPlanPrompt(
   profile: UserProfile,
   pantry: PantryItem[],

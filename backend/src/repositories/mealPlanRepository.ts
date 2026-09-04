@@ -2,30 +2,34 @@ import pool from '../db/pool.ts';
 import type { GeneratedMealPlan } from '../schemas/mealPlan.ts';
 import type { UserProfile } from '../types/index.ts';
 
+export type MealPlanKind = 'weekly' | 'pantry';
+
 export interface MealPlanRow {
   id: string;
   user_id: string;
+  kind: MealPlanKind;
   starts_on: string;
   plan: GeneratedMealPlan;
   profile_snapshot: UserProfile;
   created_at: Date;
 }
 
-const COLUMNS = 'id, user_id, starts_on, plan, profile_snapshot, created_at';
+const COLUMNS = 'id, user_id, kind, starts_on, plan, profile_snapshot, created_at';
 
 export async function create(
   userId: string,
   startsOn: string,
   plan: GeneratedMealPlan,
-  profileSnapshot: UserProfile
+  profileSnapshot: UserProfile,
+  kind: MealPlanKind = 'weekly'
 ): Promise<MealPlanRow> {
   const result = await pool.query<MealPlanRow>(
-    `INSERT INTO meal_plans (user_id, starts_on, plan, profile_snapshot)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO meal_plans (user_id, starts_on, plan, profile_snapshot, kind)
+     VALUES ($1, $2, $3, $4, $5)
      RETURNING ${COLUMNS}`,
     // pg serialises objects to JSONB automatically; JSON.stringify here would
     // store a quoted string instead of a JSON document.
-    [userId, startsOn, plan, profileSnapshot]
+    [userId, startsOn, plan, profileSnapshot, kind]
   );
 
   const row = result.rows[0];
@@ -33,13 +37,18 @@ export async function create(
   return row;
 }
 
-export async function findLatestForUser(userId: string): Promise<MealPlanRow | null> {
+// Filtered by kind, or a two-dish "what can I make with this cabbage" answer
+// would surface on the meal plan page as this week's plan.
+export async function findLatestForUser(
+  userId: string,
+  kind: MealPlanKind = 'weekly'
+): Promise<MealPlanRow | null> {
   const result = await pool.query<MealPlanRow>(
     `SELECT ${COLUMNS} FROM meal_plans
-      WHERE user_id = $1
+      WHERE user_id = $1 AND kind = $2
       ORDER BY created_at DESC
       LIMIT 1`,
-    [userId]
+    [userId, kind]
   );
   return result.rows[0] ?? null;
 }

@@ -10,6 +10,7 @@ router.use(requireAuth);
 // Literal paths before the parameterised one, or ':id' swallows them.
 router.get('/quota', mealPlanController.quota);
 router.get('/latest', mealPlanController.latest);
+router.get('/pantry-cook/latest', mealPlanController.latestPantryCook);
 router.get('/:id', mealPlanController.getOne);
 
 // The only route here that spends money, so it gets its own limiter on top of
@@ -19,5 +20,9 @@ router.post('/', generationLimiter, mealPlanController.generate);
 
 // Same limiter as the plain POST — it is the same spend, just narrated.
 router.post('/stream', generationLimiter, mealPlanController.generateStream);
+
+// Cheaper than a weekly plan but still a paid model call, so it sits behind
+// the same burst limiter. Its monthly allowance is separate and far larger.
+router.post('/pantry-cook', generationLimiter, mealPlanController.cookFromPantry);
 
 export default router;

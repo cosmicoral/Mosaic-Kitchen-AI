@@ -102,7 +102,13 @@ describe('entitlementsFor', () => {
     const plus = entitlementsFor('plus');
     const pro = entitlementsFor('pro');
 
-    for (const key of ['householdMembers', 'mealPlansPerMonth', 'maxMealsPerPlan', 'scansPerMonth'] as const) {
+    for (const key of [
+      'householdMembers',
+      'mealPlansPerMonth',
+      'maxMealsPerPlan',
+      'pantryCooksPerMonth',
+      'scansPerMonth',
+    ] as const) {
       assert.ok(plus[key] > free[key], `plus.${key} should exceed free.${key}`);
       assert.ok(pro[key] > plus[key], `pro.${key} should exceed plus.${key}`);
     }
@@ -114,6 +120,24 @@ describe('entitlementsFor', () => {
     // floors the pricing model was built on.
     assert.ok(free.mealPlansPerMonth >= 2);
     assert.ok(free.scansPerMonth >= 3);
+    assert.ok(free.pantryCooksPerMonth >= 5);
+  });
+
+  test('the free tier stays inside the spend the business can absorb', () => {
+    // The numbers the pricing was built on: roughly half a penny for a weekly
+    // plan, a fifth of that for a pantry cook, and under a penny for a scan.
+    // Deliberately rounded up. A thousand free accounts all at their ceiling
+    // must not cost more than £100 in a month.
+    const free = entitlementsFor('free');
+    const worstCaseGbp =
+      free.mealPlansPerMonth * 0.005 +
+      free.pantryCooksPerMonth * 0.002 +
+      free.scansPerMonth * 0.005;
+
+    assert.ok(
+      worstCaseGbp * 1000 <= 100,
+      `1000 free users at their limits would cost £${(worstCaseGbp * 1000).toFixed(2)}`
+    );
   });
 
   test('free is limited to a single household member', () => {

@@ -11,6 +11,7 @@ import { AppError } from '../types/index.ts';
 import {
   buildMealPlanPrompt,
 
+  buildPantryCookPrompt,
   MEAL_PLAN_SYSTEM_PROMPT,
 } from '../utils/promptBuilder.ts';
 import {
@@ -30,6 +31,7 @@ import { findViolations } from './ingredientSafety.ts';
 import type { SafetyViolation } from './ingredientSafety.ts';
 import * as billingService from './billingService.ts';
 import { entitlementsFor } from './entitlements.ts';
+import { assertFreeTierSpendAvailable } from './spendGuard.ts';
 import { generateMealPlan as callModel } from './openai.ts';
 import type { SupportedLocale } from '../utils/locale.ts';
 
@@ -202,6 +204,10 @@ export async function generate(
   // Check the quota before making a model call and spending money.
   const tier = await billingService.getTier(userId);
   const limits = entitlementsFor(tier);
+
+  // Checked before the per-user quota so the whole-product ceiling wins: a
+  // user inside their own allowance still cannot push total spend past it.
+  if (tier === 'free') await assertFreeTierSpendAvailable();
 
   const used =
     await aiUsageRepository.countSuccessfulThisMonth(
@@ -386,6 +392,170 @@ export async function generate(
   };
 }
 
+const PANTRY_COOK_DISHES = 3;
+const MAX_PANTRY_SELECTION = 12;
+
+export interface PantryCookResult {
+  mealPlan: MealPlanRow;
+  attempts: number;
+}
+
+// Deliberately does not reuse generate(): the quota it spends, the prompt it
+// builds and the row it writes are all different. Sharing the loop would mean
+// a growing pile of "if this is a pantry cook" branches through the middle of
+// the most safety-critical function in the app.
+export async function generateFromPantry(
+  userId: string,
+  itemIds: readonly string[],
+  modelCall: typeof callModel = callModel,
+  locale: SupportedLocale = 'en',
+  onStage: StageReporter = noopReporter
+): Promise<PantryCookResult> {
+  if (itemIds.length === 0) {
+    throw new AppError('Choose at least one ingredient', 'VALIDATION_ERROR');
+  }
+  if (itemIds.length > MAX_PANTRY_SELECTION) {
+    throw new AppError(
+      `Choose at most ${MAX_PANTRY_SELECTION} ingredients — more than that and the dishes stop being about any of them`,
+      'VALIDATION_ERROR'
+    );
+  }
+
+  onStage({ stage: 'profile', attempt: 1 });
+
+  const profile = await profileRepository.findByUserId(userId);
+  if (!profile || profile.cuisines.length === 0) {
+    throw new AppError(
+      'Choose at least one cuisine before generating a plan',
+      'PROFILE_REQUIRED'
+    );
+  }
+
+  const tier = await billingService.getTier(userId);
+  const limits = entitlementsFor(tier);
+
+  // Counted under its own feature key, so cooking from the pantry never eats
+  // into the weekly plan allowance and vice versa.
+  if (tier === 'free') await assertFreeTierSpendAvailable();
+
+  const used = await aiUsageRepository.countSuccessfulThisMonth(userId, 'pantry-cook');
+  if (used >= limits.pantryCooksPerMonth) {
+    throw new AppError(
+      tier === 'free'
+        ? `You have used your ${limits.pantryCooksPerMonth} free pantry cooks this month`
+        : `You have used all ${limits.pantryCooksPerMonth} pantry cooks this month`,
+      'QUOTA_EXCEEDED'
+    );
+  }
+
+  onStage({ stage: 'pantry', attempt: 1 });
+
+  const pantry = await pantryRepository.findAllByUser(userId);
+  const wanted = new Set(itemIds);
+  const selected = pantry.filter((item) => wanted.has(item.id));
+
+  // Checked against what the user actually owns rather than trusting the ids:
+  // otherwise a stale tab could ask for someone else's pantry item.
+  if (selected.length === 0) {
+    throw new AppError('Those ingredients are not in your pantry', 'NOT_FOUND');
+  }
+
+  const schema = buildMealPlanSchema(profile.cuisines);
+  const recentDishes = await mealPlanRepository.findRecentDishNames(
+    userId,
+    RECENT_DISH_MEMORY
+  );
+
+  const dishes = Math.min(PANTRY_COOK_DISHES, Math.max(1, selected.length));
+  const systemPrompt = localizedSystemPrompt(locale);
+  let userPrompt = buildPantryCookPrompt(profile, selected, dishes, locale, recentDishes);
+
+  let plan: GeneratedMealPlan | null = null;
+  let attempts = 0;
+
+  while (attempts < MAX_ATTEMPTS && plan === null) {
+    attempts += 1;
+    onStage({ stage: 'generating', attempt: attempts });
+
+    let generation;
+    try {
+      generation = await modelCall(systemPrompt, userPrompt, schema);
+    } catch (error) {
+      await aiUsageRepository.record(userId, {
+        feature: 'pantry-cook',
+        model: process.env.OPENAI_MODEL ?? 'unknown',
+        promptTokens: 0,
+        completionTokens: 0,
+        costUsd: 0,
+        succeeded: false,
+      });
+      console.error('Pantry cook generation failed:', error);
+      throw new AppError('Could not suggest dishes right now', 'GENERATION_FAILED');
+    }
+
+    onStage({ stage: 'checking', attempt: attempts });
+
+    stripUnwantedExtras(generation.plan, []);
+
+    // The allergen scan runs here exactly as it does for a weekly plan. A
+    // shorter answer is not a less dangerous one.
+    const violations = findViolations(generation.plan, profile.avoid_ingredients);
+    const mealCountIssue = findMealCountViolation(generation.plan, dishes);
+    const arithmeticIssue = findArithmeticViolation(generation.plan);
+
+    const isClean =
+      violations.length === 0 && mealCountIssue === null && arithmeticIssue === null;
+
+    await aiUsageRepository.record(userId, {
+      feature: 'pantry-cook',
+      model: generation.model,
+      promptTokens: generation.promptTokens,
+      completionTokens: generation.completionTokens,
+      costUsd: generation.costUsd,
+      succeeded: isClean,
+    });
+
+    if (isClean) {
+      plan = generation.plan;
+      break;
+    }
+
+    onStage({
+      stage: 'retrying',
+      attempt: attempts,
+      detail: violations[0]?.avoided,
+    });
+
+    userPrompt = buildRetryPrompt(
+      profile,
+      selected,
+      violations,
+      [],
+      mealCountIssue,
+      locale,
+      recentDishes,
+      arithmeticIssue,
+      null
+    );
+  }
+
+  if (plan === null) {
+    throw new AppError(
+      'Could not suggest dishes that respect your restrictions',
+      'GENERATION_FAILED'
+    );
+  }
+
+  onStage({ stage: 'saving', attempt: attempts });
+
+  const saved = await mealPlanRepository.create(userId, today(), plan, profile, 'pantry');
+  return { mealPlan: saved, attempts };
+}
+
+export async function getLatestPantryCook(userId: string): Promise<MealPlanRow | null> {
+  return mealPlanRepository.findLatestForUser(userId, 'pantry');
+}
+
 export async function getLatest(
   userId: string
 ): Promise<MealPlanRow | null> {
@@ -420,6 +590,9 @@ export async function getQuota(
   const tier = await billingService.getTier(userId);
   const limit = entitlementsFor(tier).mealPlansPerMonth;
 
+  // No spend guard here. This is a read the dashboard makes on every load, and
+  // throwing would take the whole page down rather than blocking the one
+  // action that costs money.
   const used =
     await aiUsageRepository.countSuccessfulThisMonth(
       userId,

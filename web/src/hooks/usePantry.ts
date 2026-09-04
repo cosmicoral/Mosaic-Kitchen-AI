@@ -54,7 +54,37 @@ export function usePantry() {
     }
   }, []);
 
-  return { items, status, error, refresh, addItem, removeItem };
+  // Reports how many actually went, rather than throwing on the first
+  // failure: with twenty deletes in flight, "three of these did not delete" is
+  // a more useful outcome than rolling all twenty back because one 404'd.
+  const removeItems = useCallback(
+    async (ids: string[]): Promise<{ removed: number; failed: number }> => {
+      const wanted = new Set(ids);
+      let snapshot: PantryItem[] = [];
+
+      setItems((previous) => {
+        snapshot = previous;
+        return previous.filter((item) => !wanted.has(item.id));
+      });
+
+      const outcomes = await Promise.allSettled(ids.map((id) => deletePantryItem(id)));
+      const failedIds = ids.filter((_, index) => outcomes[index]?.status === 'rejected');
+
+      // Put back only the ones that failed, so the successful deletes stay
+      // gone and the list still matches the server.
+      if (failedIds.length > 0) {
+        const restore = new Set(failedIds);
+        setItems((previous) =>
+          sortItems([...previous, ...snapshot.filter((item) => restore.has(item.id))])
+        );
+      }
+
+      return { removed: ids.length - failedIds.length, failed: failedIds.length };
+    },
+    []
+  );
+
+  return { items, status, error, refresh, addItem, removeItem, removeItems };
 }
 
 // Mirrors the server's ORDER BY so the list does not reshuffle between a local
