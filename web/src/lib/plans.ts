@@ -2,6 +2,15 @@ import type { PaidTier, Tier } from '../types';
 
 export type Interval = 'month' | 'year';
 
+export interface PlanFeature {
+  text: string;
+  // Marked, not omitted. Someone deciding whether to pay is entitled to know
+  // which lines they can use today and which they are waiting for — an
+  // unmarked promise of a feature that does not exist is what refunds and
+  // chargebacks are made of.
+  soon?: boolean;
+}
+
 export interface PlanCopy {
   tier: Tier;
   name: string;
@@ -12,7 +21,7 @@ export interface PlanCopy {
   // Stripe must be changed together.
   price: Record<Interval, string>;
   cadence: Record<Interval, string>;
-  features: string[];
+  features: PlanFeature[];
   cta: string;
 }
 
@@ -24,10 +33,10 @@ export const PLAN_COPY: PlanCopy[] = [
     price: { month: '£0', year: '£0' },
     cadence: { month: 'forever', year: 'forever' },
     features: [
-      '1 household member',
-      '2 AI meal plans a month',
-      '3 camera scans a month',
-      'Unlimited pantry, shopping lists and expiry alerts',
+      { text: '1 household member' },
+      { text: '2 AI meal plans a month' },
+      { text: 'Unlimited pantry, shopping lists and expiry alerts' },
+      { text: '3 camera scans a month', soon: true },
     ],
     cta: 'Start free',
   },
@@ -38,10 +47,10 @@ export const PLAN_COPY: PlanCopy[] = [
     price: { month: '£6.99', year: '£69.99' },
     cadence: { month: 'per month', year: 'per year' },
     features: [
-      '2 household members, each with their own restrictions',
-      '10 AI meal plans a month',
-      'Up to 14 meals per plan',
-      '30 camera scans a month',
+      { text: '2 household members, each with their own restrictions' },
+      { text: '10 AI meal plans a month' },
+      { text: 'Up to 14 meals per plan' },
+      { text: '30 camera scans a month', soon: true },
     ],
     cta: 'Choose Plus',
   },
@@ -52,10 +61,10 @@ export const PLAN_COPY: PlanCopy[] = [
     price: { month: '£11.99', year: '£119.99' },
     cadence: { month: 'per month', year: 'per year' },
     features: [
-      '6 household members',
-      '30 AI meal plans a month',
-      'Up to 21 meals per plan — breakfast, lunch and dinner',
-      '150 camera scans a month',
+      { text: '6 household members' },
+      { text: '30 AI meal plans a month' },
+      { text: 'Up to 21 meals per plan — breakfast, lunch and dinner' },
+      { text: '150 camera scans a month', soon: true },
     ],
     cta: 'Choose Pro',
   },

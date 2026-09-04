@@ -9,7 +9,6 @@ import {
 } from "react-router-dom";
 import { AIVisionPage } from "./pages/AIVisionPage";
 import { DashboardPage } from "./pages/DashboardPage";
-import { DetectionResultsPage } from "./pages/DetectionResultsPage";
 import { ExpiryAlertPage } from "./pages/ExpiryAlertPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { LandingPage } from "./pages/LandingPage";
@@ -80,7 +79,6 @@ export default function App() {
             <Route path="/pantry" element={<RequireAuth><PantryPage /></RequireAuth>} />
             <Route path="/expiry-alert" element={<RequireAuth><ExpiryAlertPage /></RequireAuth>} />
             <Route path="/ai-vision" element={<RequireAuth><AIVisionPage /></RequireAuth>} />
-            <Route path="/detection-results" element={<RequireAuth><DetectionResultsPage /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
             {/* Where Stripe returns the browser after checkout, and where the
                 customer portal returns it afterwards. */}

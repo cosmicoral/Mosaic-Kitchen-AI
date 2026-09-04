@@ -1,4 +1,4 @@
-import { Check, Crown, Loader2, Sparkles } from "lucide-react";
+import { Check, Clock, Crown, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { pricingMascot } from "../assets/mascots";
@@ -145,9 +145,17 @@ export function PricingPage() {
 
                 <ul className="check-list">
                   {plan.features.map((feature) => (
-                    <li key={feature}>
-                      <Check size={17} />
-                      <span>{t(feature)}</span>
+                    <li key={feature.text} style={{ opacity: feature.soon ? 0.65 : 1 }}>
+                      {feature.soon ? <Clock size={17} /> : <Check size={17} />}
+                      <span>
+                        {t(feature.text)}
+                        {feature.soon ? (
+                          <>
+                            {" "}
+                            <Badge variant="cream">{t("Coming soon")}</Badge>
+                          </>
+                        ) : null}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -169,6 +177,9 @@ export function PricingPage() {
 
         <p className="small muted" style={{ textAlign: "center", marginTop: 8 }}>
           {t("Pantry, shopping lists and expiry alerts are unlimited on every plan, including Free.")}
+        </p>
+        <p className="tiny muted" style={{ textAlign: "center" }}>
+          {t("Lines marked Coming soon are not available yet. Cancel any time.")}
         </p>
       </div>
     </main>

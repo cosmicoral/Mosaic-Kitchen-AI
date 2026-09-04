@@ -1,5 +1,4 @@
-import { Camera, Check, History, ImagePlus, ScanLine } from "lucide-react";
-import { useState } from "react";
+import { Camera, Clock, ScanLine } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { aiScanMascot } from "../assets/mascots";
 import { TopNav } from "../components/navigation/TopNav";
@@ -7,117 +6,78 @@ import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
-import { useToast } from "../components/ui/Toast";
-import { iconMap } from "../data/mockData";
 import { useLocale } from "../context/LocaleContext";
 
+// The scanning flow is not built. This page used to fake it: buttons that
+// "selected a file", a hardcoded 94% accuracy badge, and a Scan button that
+// navigated to a page of invented detections. None of it touched a camera or a
+// model. Showing that to a paying user is worse than showing nothing, so the
+// page now says plainly what it will do and what it cannot do yet.
 export function AIVisionPage() {
   const navigate = useNavigate();
-  const { showToast } = useToast();
   const { t } = useLocale();
-  const [mockFileState, setMockFileState] = useState<string | null>(null);
-
-  const chooseMockFile = (source: string) => {
-    setMockFileState(source);
-    showToast(`${source} selected for mock scan`);
-  };
 
   return (
     <main className="app-shell">
       <div className="page">
-        <TopNav
-          backTo="/dashboard"
-          onRightAction={() => showToast("Vision scan history is mocked")}
-          rightLabel="History"
-          title="AI Vision Scan"
-        />
+        <TopNav backTo="/dashboard" title={t("AI Vision Scan")} />
 
         <section className="section">
           <Card variant="dark">
             <div className="brand-row">
               <MascotAvatar size="md" src={aiScanMascot} />
               <span>
-                <Badge variant="cream">{t("Powered by Computer Vision")}</Badge>
+                <Badge variant="cream">{t("Coming soon")}</Badge>
                 <h2 style={{ margin: "8px 0 4px" }}>{t("AI Food Vision")}</h2>
                 <p className="small">
-                  Detect ingredients in seconds with computer vision and machine learning.
+                  {t(
+                    "Point your camera at a shelf or a receipt and have everything land in your pantry."
+                  )}
                 </p>
               </span>
             </div>
-            <div className="choice-grid" style={{ marginTop: 16 }}>
-              <Badge variant="dark">{t("Ingredient recognition")}</Badge>
-              <Badge variant="dark">{t("Real-time detection")}</Badge>
-              <Badge variant="dark">94% accuracy</Badge>
-            </div>
           </Card>
 
-          <section className="page-heading">
-            <img
-              className="page-mascot"
-              src={aiScanMascot}
-              alt="Mosaic Kitchen mascot scanning food in a fridge"
-            />
-            <h1>{t("Scan Your Fridge")}</h1>
-            <p>{t("Take a photo of your fridge, pantry or groceries. AI will identify ingredients automatically.")}</p>
-          </section>
-
-          <div className="vision-dropzone">
-            <span>
-              <span className="feature-icon" style={{ margin: "0 auto 12px" }}>
-                <Camera size={22} />
+          <Card className="section">
+            <div className="brand-row">
+              <Clock size={18} />
+              <span>
+                <strong>{t("Not available yet")}</strong>
+                <br />
+                <span className="small muted">
+                  {t(
+                    "We are building this now. Until it ships, add pantry items by hand — everything else works from there."
+                  )}
+                </span>
               </span>
-              <strong>{t("Take Photo")}</strong>
-              <br />
-              <span className="small muted">{t("or upload an image")}</span>
-              <div className="two-col" style={{ marginTop: 14 }}>
-                <Button icon={<Camera size={16} />} onClick={() => chooseMockFile("Photo")} variant="secondary">
-                  {t("Take Photo")}
-                </Button>
-                <Button icon={<ImagePlus size={16} />} onClick={() => chooseMockFile("Image upload")} variant="secondary">
-                  {t("Upload Image")}
-                </Button>
-              </div>
-              {mockFileState ? (
-                <Card className="section" variant="soft">
-                  <strong>{mockFileState} ready</strong>
-                  <span className="small muted">{t("This is a local mock file state.")}</span>
-                </Card>
-              ) : null}
-              <div className="choice-grid" style={{ justifyContent: "center", marginTop: 14 }}>
-                <Badge variant="green">{t("Fridge")}</Badge>
-                <Badge variant="green">{t("Pantry")}</Badge>
-                <Badge variant="green">{t("Groceries")}</Badge>
-              </div>
-            </span>
-          </div>
-
-          <h2>{t("Example Detection")}</h2>
-          <Card className="example-detection">
-            <div className="food-icon-strip">
-              {["spinach", "egg", "chicken", "tomato", "milk", "rice"].map((icon) => (
-                <span key={icon}>{iconMap[icon]}</span>
-              ))}
-            </div>
-            <p className="eyebrow">{t("Demo - Detected Ingredients")}</p>
-            <div className="choice-grid">
-              {["Spinach 98%", "Eggs 97%", "Chicken Breast 94%", "Tomatoes 92%"].map((item) => (
-                <Badge key={item} variant="cream">
-                  <Check size={13} /> {item}
-                </Badge>
-              ))}
             </div>
           </Card>
 
-          <Button
-            fullWidth
-            icon={<ScanLine size={18} />}
-            onClick={() => navigate("/detection-results")}
-          >
-            {t("Scan My Food")}
-          </Button>
-          <p className="tiny muted" style={{ textAlign: "center" }}>
-            Photos are processed locally in this mock interface.
-          </p>
+          <h2>{t("What it will do")}</h2>
+          <Card>
+            <ul className="check-list">
+              {[
+                "Read a supermarket receipt and add every item at once",
+                "Recognise what is on a fridge shelf",
+                "Guess sensible expiry dates you can correct",
+              ].map((line) => (
+                <li key={line}>
+                  <ScanLine size={17} />
+                  <span>{t(line)}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+
+          <div className="footer-actions">
+            <Button
+              fullWidth
+              icon={<Camera size={18} />}
+              onClick={() => navigate("/pantry")}
+            >
+              {t("Add pantry items by hand")}
+            </Button>
+          </div>
         </section>
       </div>
     </main>

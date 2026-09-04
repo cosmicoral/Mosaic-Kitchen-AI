@@ -1,25 +1,23 @@
-import { Mail, Send } from "lucide-react";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { LifeBuoy } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { loginMascot } from "../assets/mascots";
+import { SocialSignIn } from "../components/SocialSignIn";
 import { TopNav } from "../components/navigation/TopNav";
 import { AuthMascotPanel } from "../components/ui/AuthMascotPanel";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
-import { Input } from "../components/ui/Input";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
-import { useToast } from "../components/ui/Toast";
 import { useLocale } from "../context/LocaleContext";
 
-export function ForgotPasswordPage() {
-  const [isSent, setIsSent] = useState(false);
-  const { showToast } = useToast();
-  const { t } = useLocale();
+const SUPPORT_EMAIL = "support@mosaickitchen.ai";
 
-  const sendResetLink = () => {
-    setIsSent(true);
-    showToast("Reset link sent");
-  };
+// Self-service password reset needs a verified sending domain, which does not
+// exist yet. Until it does, this page says so. The previous version showed a
+// "Reset link sent" confirmation and sent nothing — which left someone locked
+// out of their account and waiting for an email that was never coming.
+export function ForgotPasswordPage() {
+  const navigate = useNavigate();
+  const { t } = useLocale();
 
   return (
     <main className="app-shell auth-shell">
@@ -37,32 +35,55 @@ export function ForgotPasswordPage() {
             <section className="auth-head">
               <MascotAvatar size="lg" src={loginMascot} />
               <h1>{t("Forgot Your Password?")}</h1>
-              <p>{t("No worries. Enter your email address and we will send you a secure reset link.")}</p>
+              <p>
+                {t(
+                  "Self-service password reset is not available yet. Here are two ways back in."
+                )}
+              </p>
             </section>
 
             <Card>
-              <form className="form-grid">
-                <Input icon={<Mail size={17} />} label={t("Email Address")} placeholder="you@example.com" type="email" />
-              </form>
+              <strong>{t("If you signed up with Google")}</strong>
+              <p className="small muted">
+                {t("Use the Google button below — there is no password to reset.")}
+              </p>
             </Card>
 
-            {isSent ? (
-              <Card className="section" variant="soft">
-                <strong>{t("Check your inbox")}</strong>
-                <p className="small muted">
-                  {t("We sent a mock reset link to your email address. No real email is sent yet.")}
-                </p>
-              </Card>
-            ) : null}
+            <Card className="section">
+              <div className="brand-row">
+                <LifeBuoy size={18} />
+                <span>
+                  <strong>{t("If you signed up with an email and password")}</strong>
+                  <br />
+                  <span className="small muted">
+                    {t("Email us and we will reset it for you, usually within a day.")}
+                  </span>
+                </span>
+              </div>
+              <Button
+                fullWidth
+                onClick={() => {
+                  window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                    "Password reset"
+                  )}`;
+                }}
+                style={{ marginTop: 14 }}
+                variant="secondary"
+              >
+                {SUPPORT_EMAIL}
+              </Button>
+            </Card>
 
-            <Button fullWidth icon={<Send size={17} />} onClick={sendResetLink} style={{ marginTop: 14 }}>
-              {t("Send Reset Link")}
-            </Button>
+            <SocialSignIn />
 
-            <p className="small muted" style={{ textAlign: "center" }}>
+            <p className="small muted" style={{ textAlign: "center", marginTop: 14 }}>
               <Link className="text-link" to="/login">
                 {t("Back To Login")}
               </Link>
+              {" · "}
+              <button className="text-link" onClick={() => navigate("/signup")} type="button">
+                {t("Create an account")}
+              </button>
             </p>
           </section>
         </div>
