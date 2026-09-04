@@ -19,6 +19,7 @@ import { useAuth } from "../context/AuthContext";
 import { useDashboard } from "../hooks/useDashboard";
 import { expiryTone, formatExpiryForLocale } from "../lib/pantryFormat";
 import { totalMeals } from "../lib/mealPlanFormat";
+import { PLAN_COPY } from "../lib/plans";
 import { useLocale } from "../context/LocaleContext";
 
 export function DashboardPage() {
@@ -145,9 +146,12 @@ export function DashboardPage() {
           </span>
           <span>
             <strong>{t("AI Vision Scan")}</strong>{" "}
-            <Badge variant="gold">{t("Premium")}</Badge>
+            {/* Not "Premium": the feature does not exist on any tier yet, and
+                a gold badge reads as "pay to unlock this" rather than "not
+                built". */}
+            <Badge variant="cream">{t("Coming soon")}</Badge>
             <br />
-            <span className="small muted">{t("Scan your fridge instantly.")}</span>
+            <span className="small muted">{t("Scan a shelf or a receipt into your pantry.")}</span>
           </span>
           <ChevronRight color="var(--color-gold)" size={19} />
         </button>
@@ -155,9 +159,15 @@ export function DashboardPage() {
         <Card className="section" variant="dark">
           <div className="premium-strip">
             <span>
-              <strong>{t("Unlock Unlimited Meal Plans")}</strong>
+              <strong>{t("Cook for the whole household")}</strong>
               <br />
-              <span className="small">{t("Premium from £3.99/month")}</span>
+              {/* Sourced from PLAN_COPY rather than typed in, so the day this
+                  price changes in Stripe there is one place to change it here
+                  too. The hardcoded £3.99 that used to sit here was left over
+                  from the mock pricing and undercut the real plans by half. */}
+              <span className="small">
+                {t("Plus from")} {PLAN_COPY[1]?.price.month} {t("a month")}
+              </span>
             </span>
             <Button onClick={() => navigate("/pricing")} variant="premium">
               {t("Upgrade")}
