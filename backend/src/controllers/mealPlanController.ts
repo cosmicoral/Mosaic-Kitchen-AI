@@ -197,7 +197,10 @@ export async function latestPantryCook(req: Request, res: Response) {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
 
   try {
-    const mealPlan = await mealPlanService.getLatestPantryCook(req.user.id);
+    const mealPlan = await mealPlanService.getLatestPantryCook(
+      req.user.id,
+      readLocale(req.headers['accept-language'])
+    );
     return res.status(200).json({ mealPlan });
   } catch (error) {
     return handleError(error, res, 'Pantry cook fetch error');
@@ -208,7 +211,10 @@ export async function latest(req: Request, res: Response) {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
 
   try {
-    const mealPlan = await mealPlanService.getLatest(req.user.id);
+    const mealPlan = await mealPlanService.getLatest(
+      req.user.id,
+      readLocale(req.headers['accept-language'])
+    );
     // null is normal for an account that has never generated one.
     return res.status(200).json({ mealPlan });
   } catch (error) {
@@ -225,7 +231,11 @@ export async function getOne(req: Request, res: Response) {
   }
 
   try {
-    const mealPlan = await mealPlanService.getById(id, req.user.id);
+    const mealPlan = await mealPlanService.getById(
+      id,
+      req.user.id,
+      readLocale(req.headers['accept-language'])
+    );
     return res.status(200).json({ mealPlan });
   } catch (error) {
     return handleError(error, res, 'Meal plan fetch error');

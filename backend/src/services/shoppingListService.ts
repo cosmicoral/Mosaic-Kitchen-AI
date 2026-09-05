@@ -4,6 +4,8 @@ import { aggregateShoppingList } from './ingredientAggregation.ts';
 import { AppError, PANTRY_CATEGORIES } from '../types/index.ts';
 import type { ShoppingListItem } from '../repositories/shoppingListRepository.ts';
 import type { PantryCategory } from '../types/index.ts';
+import * as mealPlanService from './mealPlanService.ts';
+import type { SupportedLocale } from '../utils/locale.ts';
 
 const MAX_NAME_LENGTH = 100;
 const MAX_UNIT_LENGTH = 20;
@@ -23,13 +25,19 @@ export async function getList(userId: string): Promise<ShoppingListItem[]> {
   return shoppingListRepository.findAllByUser(userId);
 }
 
-export async function generateFromLatestPlan(userId: string): Promise<ShoppingListItem[]> {
+export async function generateFromLatestPlan(
+  userId: string,
+  locale: SupportedLocale = 'en'
+): Promise<ShoppingListItem[]> {
   const plan = await mealPlanRepository.findLatestForUser(userId);
   if (!plan) {
     throw new AppError('Generate a meal plan first', 'NOT_FOUND');
   }
 
-  const items = aggregateShoppingList(plan.plan);
+  // Built from the plan as the reader sees it, not as it was stored. A list of
+  // English ingredients under a Chinese meal plan is the same bug twice, and
+  // this is the point where the two could drift apart.
+  const items = aggregateShoppingList(await mealPlanService.readInLocale(plan, locale));
   return shoppingListRepository.replacePlanItems(userId, plan.id, items);
 }
 

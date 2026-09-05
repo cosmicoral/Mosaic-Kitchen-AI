@@ -25,13 +25,10 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-function assertValidCredentials(email: string, password: string): string {
-  const normalizedEmail = normalizeEmail(email);
-
-  if (normalizedEmail.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(normalizedEmail)) {
-    throw new AppError('A valid email address is required', 'VALIDATION_ERROR');
-  }
-
+// Split out of assertValidCredentials so account settings can apply exactly
+// the same rules to a changed password. A second copy would drift, and the
+// direction password rules drift is always weaker.
+export function assertValidPassword(password: string): void {
   if (password.length < MIN_PASSWORD_LENGTH) {
     throw new AppError(
       `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
@@ -60,6 +57,16 @@ function assertValidCredentials(email: string, password: string): string {
   if (!/[^A-Za-z0-9\s]/.test(password)) {
     throw new AppError('Password must include a special character', 'VALIDATION_ERROR');
   }
+}
+
+function assertValidCredentials(email: string, password: string): string {
+  const normalizedEmail = normalizeEmail(email);
+
+  if (normalizedEmail.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(normalizedEmail)) {
+    throw new AppError('A valid email address is required', 'VALIDATION_ERROR');
+  }
+
+  assertValidPassword(password);
 
   return normalizedEmail;
 }

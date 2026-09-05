@@ -28,6 +28,12 @@ import {
   type ArithmeticViolation,
   type BudgetViolation,
 } from './budgetCompliance.ts';
+import { translatePlan } from './planTranslator.ts';
+import {
+  describeLanguageViolation,
+  findLanguageViolation,
+  type LanguageViolation,
+} from './languageCompliance.ts';
 import { findViolations } from './ingredientSafety.ts';
 import type { SafetyViolation } from './ingredientSafety.ts';
 import * as billingService from './billingService.ts';
@@ -67,7 +73,7 @@ export interface GenerateResult {
 export function localizedSystemPrompt(locale: SupportedLocale): string {
   const languageRule = locale === 'zh'
     ? 'LANGUAGE: Write summary, dish names, ingredient names, cooking steps and the waste-reduction tip in Simplified Chinese. Keep native_name in the dish\'s authentic original script. JSON keys and enum values must remain exactly as defined by the schema.'
-    : 'LANGUAGE: Write all user-facing content in British English. Keep native_name in the dish\'s authentic original script.';
+    : 'LANGUAGE: Write all user-facing content in British English — summary, dish names, ingredient names, cooking steps and the tip. Some ingredient and region names below are given to you in Chinese; translate them into English in your answer rather than copying them through. The single exception is native_name, which stays in the dish\'s authentic original script.';
   return `${MEAL_PLAN_SYSTEM_PROMPT}\n\n${languageRule}`;
 }
 
@@ -80,7 +86,8 @@ export function buildRetryPrompt(
   locale: SupportedLocale = 'en',
   recentDishes: readonly string[] = [],
   arithmeticIssue: ArithmeticViolation | null = null,
-  budgetIssue: BudgetViolation | null = null
+  budgetIssue: BudgetViolation | null = null,
+  languageIssue: LanguageViolation | null = null
 ): string {
   const corrections: string[] = [];
 
@@ -112,6 +119,10 @@ export function buildRetryPrompt(
     corrections.push(
       `Cuisine distribution was wrong: ${detail}. For each under-represented cuisine, choose a specific regional home dish and give its native name.`
     );
+  }
+
+  if (languageIssue) {
+    corrections.push(describeLanguageViolation(languageIssue));
   }
 
   if (arithmeticIssue) {
@@ -254,18 +265,7 @@ function reportRequestInsights(
 
   if (pantry.length > 0) {
     onInsight({ key: 'pantry_reusable', data: { count: pantry.length } });
-
-    const dated = pantry
-      .filter((item): item is PantryItem & { expires_on: string } => Boolean(item.expires_on))
-      .sort((a, b) => a.expires_on.localeCompare(b.expires_on));
-
-    const soonest = dated[0];
-    if (soonest) {
-      const days = Math.ceil(
-        (Date.parse(`${soonest.expires_on}T00:00:00Z`) - Date.now()) / 86_400_000
-      );
-      onInsight({ key: 'expiry_soonest', data: { name: soonest.name, days } });
-    }
+    reportSoonestExpiry(pantry, onInsight);
   } else {
     onInsight({ key: 'pantry_empty', data: {} });
   }
@@ -274,8 +274,28 @@ function reportRequestInsights(
     onInsight({ key: 'budget_target', data: { amount: Number(profile.weekly_budget) } });
   }
 
-  // The regions actually going into this prompt, chosen or rotated. Not a
-  // claim about what will come back — a statement of what was asked for.
+  reportCultureRegions(profile, onInsight);
+}
+
+// Pulled out of reportRequestInsights so the pantry flow can emit these two
+// without the weekly-shop ones it has no business claiming.
+function reportSoonestExpiry(items: PantryItem[], onInsight: InsightReporter): void {
+  const dated = items
+    .filter((item): item is PantryItem & { expires_on: string } => Boolean(item.expires_on))
+    .sort((a, b) => a.expires_on.localeCompare(b.expires_on));
+
+  const soonest = dated[0];
+  if (!soonest) return;
+
+  const days = Math.ceil(
+    (Date.parse(`${soonest.expires_on}T00:00:00Z`) - Date.now()) / 86_400_000
+  );
+  onInsight({ key: 'expiry_soonest', data: { name: soonest.name, days } });
+}
+
+// The regions actually going into this prompt, chosen or rotated. Not a
+// claim about what will come back — a statement of what was asked for.
+function reportCultureRegions(profile: UserProfile, onInsight: InsightReporter): void {
   const regions =
     profile.cuisine_regions.length > 0 ? profile.cuisine_regions : profile.cuisines;
   if (regions.length > 0) {
@@ -421,12 +441,17 @@ export async function generate(
       profile.weekly_budget === null ? null : Number(profile.weekly_budget)
     );
 
+    // Checked last because it is the only one that can be true of an
+    // otherwise perfect plan: right meals, right budget, wrong language.
+    const languageIssue = findLanguageViolation(generation.plan, locale);
+
     const isClean =
       violations.length === 0 &&
       cuisineIssues.length === 0 &&
       mealCountIssue === null &&
       arithmeticIssue === null &&
-      budgetIssue === null;
+      budgetIssue === null &&
+      languageIssue === null;
 
     await aiUsageRepository.record(userId, {
       feature: 'meal-plan',
@@ -440,6 +465,28 @@ export async function generate(
 
     // Accept the plan only when every check passes.
     if (isClean) {
+      plan = generation.plan;
+      break;
+    }
+
+    const onlyLanguageLeft =
+      languageIssue !== null &&
+      violations.length === 0 &&
+      cuisineIssues.length === 0 &&
+      mealCountIssue === null &&
+      arithmeticIssue === null &&
+      budgetIssue === null;
+
+    // Out of attempts and the only complaint is the language: take it. An
+    // allergen or a doubled budget is a reason to show nothing; a Chinese dish
+    // name in an English plan is a reason to be slightly annoyed. Throwing
+    // here would spend the user's quota and hand back an error instead of a
+    // perfectly safe week of dinners.
+    if (onlyLanguageLeft && attempts >= MAX_ATTEMPTS) {
+      console.warn(
+        `Accepting a plan in the wrong language after ${attempts} attempts:`,
+        languageIssue
+      );
       plan = generation.plan;
       break;
     }
@@ -467,7 +514,8 @@ export async function generate(
       locale,
       recentDishes,
       arithmeticIssue,
-      budgetIssue
+      budgetIssue,
+      languageIssue
     );
   }
 
@@ -485,7 +533,9 @@ export async function generate(
       userId,
       today(),
       plan,
-      profile
+      profile,
+      'weekly',
+      locale
     );
 
   return {
@@ -569,7 +619,18 @@ export async function generateFromPantry(
     key: 'selection_items',
     data: { list: selected.map((item) => item.name) },
   });
-  reportRequestInsights(profile, selected, onInsight);
+
+  // Deliberately not reportRequestInsights(). That reports on a weekly shop:
+  // it would announce a weekly budget this flow does not spend, and count
+  // "ingredients already in your kitchen" — which is the selection we just
+  // named, said a second time. Only the two that are true of three dishes
+  // made from a chosen handful are emitted here.
+  onInsight({
+    key: 'profile_signals',
+    data: { count: countProfileSignals(profile) },
+  });
+  reportSoonestExpiry(selected, onInsight);
+  reportCultureRegions(profile, onInsight);
 
   const schema = buildMealPlanSchema(profile.cuisines);
   const recentDishes = await mealPlanRepository.findRecentDishNames(
@@ -614,8 +675,13 @@ export async function generateFromPantry(
     const mealCountIssue = findMealCountViolation(generation.plan, dishes);
     const arithmeticIssue = findArithmeticViolation(generation.plan);
 
+    const languageIssue = findLanguageViolation(generation.plan, locale);
+
     const isClean =
-      violations.length === 0 && mealCountIssue === null && arithmeticIssue === null;
+      violations.length === 0 &&
+      mealCountIssue === null &&
+      arithmeticIssue === null &&
+      languageIssue === null;
 
     await aiUsageRepository.record(userId, {
       feature: 'pantry-cook',
@@ -627,6 +693,20 @@ export async function generateFromPantry(
     });
 
     if (isClean) {
+      plan = generation.plan;
+      break;
+    }
+
+    // Same judgement as the weekly flow: language gives way, safety does not.
+    const onlyLanguageLeft =
+      languageIssue !== null && violations.length === 0 && mealCountIssue === null &&
+      arithmeticIssue === null;
+
+    if (onlyLanguageLeft && attempts >= MAX_ATTEMPTS) {
+      console.warn(
+        `Accepting dishes in the wrong language after ${attempts} attempts:`,
+        languageIssue
+      );
       plan = generation.plan;
       break;
     }
@@ -646,7 +726,8 @@ export async function generateFromPantry(
       locale,
       recentDishes,
       arithmeticIssue,
-      null
+      null,
+      languageIssue
     );
   }
 
@@ -659,25 +740,42 @@ export async function generateFromPantry(
 
   onStage({ stage: 'finalising', attempt: attempts });
 
-  const saved = await mealPlanRepository.create(userId, today(), plan, profile, 'pantry');
+  const saved = await mealPlanRepository.create(
+    userId,
+    today(),
+    plan,
+    profile,
+    'pantry',
+    locale
+  );
   return { mealPlan: saved, attempts };
 }
 
-export async function getLatestPantryCook(userId: string): Promise<MealPlanRow | null> {
-  return mealPlanRepository.findLatestForUser(userId, 'pantry');
+// Every read goes through readInLocale, so a stored plan is handed back in the
+// language the reader is actually using. The row's own locale field stays as
+// it was — this returns a view of the plan, not a rewrite of it.
+export async function getLatestPantryCook(
+  userId: string,
+  locale: SupportedLocale = 'en'
+): Promise<MealPlanRow | null> {
+  const found = await mealPlanRepository.findLatestForUser(userId, 'pantry');
+  if (!found) return null;
+  return { ...found, plan: await readInLocale(found, locale) };
 }
 
 export async function getLatest(
-  userId: string
+  userId: string,
+  locale: SupportedLocale = 'en'
 ): Promise<MealPlanRow | null> {
-  return mealPlanRepository.findLatestForUser(
-    userId
-  );
+  const found = await mealPlanRepository.findLatestForUser(userId);
+  if (!found) return null;
+  return { ...found, plan: await readInLocale(found, locale) };
 }
 
 export async function getById(
   id: string,
-  userId: string
+  userId: string,
+  locale: SupportedLocale = 'en'
 ): Promise<MealPlanRow> {
   const found =
     await mealPlanRepository.findByIdForUser(
@@ -692,7 +790,7 @@ export async function getById(
     );
   }
 
-  return found;
+  return { ...found, plan: await readInLocale(found, locale) };
 }
 
 export async function getQuota(
@@ -718,4 +816,57 @@ export async function getQuota(
     limit,
     remaining: Math.max(0, limit - used),
   };
+}
+
+// Returns the plan in the language the reader is using. The stored plan is
+// never modified: a translation is an extra row, produced once and then cached
+// for good, so the second time anyone opens this plan in this language it
+// costs nothing.
+//
+// Failure here is deliberately soft. If the translation call fails the reader
+// gets the plan in its original language, which is the same thing they had
+// before this existed — a language mismatch is not a reason to show an error
+// page instead of dinner.
+export async function readInLocale(
+  row: mealPlanRepository.MealPlanRow,
+  locale: SupportedLocale
+): Promise<GeneratedMealPlan> {
+  if (row.locale === locale) return row.plan;
+
+  const cached = await mealPlanRepository.findTranslation(row.id, locale);
+  if (cached) return cached;
+
+  try {
+    const result = await translatePlan(row.plan, locale);
+    const complete = result.translated === result.total;
+
+    await aiUsageRepository.record(row.user_id, {
+      feature: 'plan-translate',
+      model: result.model,
+      promptTokens: result.promptTokens,
+      completionTokens: result.completionTokens,
+      costUsd: result.costUsd,
+      succeeded: complete,
+    });
+
+    if (!complete) {
+      // Loud, because the symptom otherwise is a page that just looks like the
+      // language toggle does nothing.
+      console.warn(
+        `Plan ${row.id} translated ${result.translated}/${result.total} strings into ${locale}.`
+      );
+    }
+
+    // Only a complete translation is cached. A partial one cached is a
+    // half-Chinese page that never retries, which is worse than paying for a
+    // second attempt on the next page load.
+    if (complete) {
+      await mealPlanRepository.saveTranslation(row.id, locale, result.plan);
+    }
+
+    return result.plan;
+  } catch (error) {
+    console.error(`Could not translate plan ${row.id} into ${locale}:`, error);
+    return row.plan;
+  }
 }

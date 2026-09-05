@@ -26,13 +26,22 @@ function resolvePricing(model: string): { input: number; output: number } {
 
 const PRICE_PER_MILLION = resolvePricing(MODEL);
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  // Without a timeout a hung request holds an Express handler open until the
-  // socket dies, which under load is how a server stops responding.
-  timeout: 90_000,
-  maxRetries: 2,
-});
+// Constructed on first use, not at import. Built eagerly, this module could
+// not be imported at all without an API key — which meant a pure function like
+// the plan translator, tested entirely with a stub, still demanded credentials
+// to load. Nothing that never calls the API should need one.
+let client: OpenAI | null = null;
+function openai(): OpenAI {
+  if (client) return client;
+  client = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    // Without a timeout a hung request holds an Express handler open until the
+    // socket dies, which under load is how a server stops responding.
+    timeout: 90_000,
+    maxRetries: 2,
+  });
+  return client;
+}
 
 export interface GenerationResult {
   plan: GeneratedMealPlan;
@@ -54,7 +63,7 @@ export async function generateMealPlan(
   userPrompt: string,
   schema: z.ZodType<GeneratedMealPlan> = GeneratedMealPlanSchema
 ): Promise<GenerationResult> {
-  const completion = await client.chat.completions.parse({
+  const completion = await openai().chat.completions.parse({
     model: MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
@@ -86,6 +95,59 @@ export async function generateMealPlan(
 
   return {
     plan,
+    model: MODEL,
+    promptTokens,
+    completionTokens,
+    costUsd: calculateCost(promptTokens, completionTokens),
+  };
+}
+export interface StructuredResult<T> {
+  value: T;
+  model: string;
+  promptTokens: number;
+  completionTokens: number;
+  costUsd: number;
+}
+
+// The same call shape as generateMealPlan, but not tied to a meal plan. Added
+// for translation, which sends a bare list of strings and gets a bare list
+// back — the plan's numbers and enum values never go near the model.
+export async function generateStructured<T>(
+  systemPrompt: string,
+  userPrompt: string,
+  schema: z.ZodType<T>,
+  schemaName: string
+): Promise<StructuredResult<T>> {
+  const completion = await openai().chat.completions.parse({
+    model: MODEL,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    response_format: zodResponseFormat(schema, schemaName),
+  });
+
+  const choice = completion.choices[0];
+  if (!choice) throw new Error('OpenAI returned no choices');
+
+  if (choice.message.refusal) {
+    const error = new Error(`Model refused: ${choice.message.refusal}`);
+    error.name = 'ModelRefusalError';
+    throw error;
+  }
+
+  const value = choice.message.parsed;
+  if (value === null || value === undefined) {
+    throw new Error(
+      `OpenAI returned no parsed content (finish_reason: ${choice.finish_reason})`
+    );
+  }
+
+  const promptTokens = completion.usage?.prompt_tokens ?? 0;
+  const completionTokens = completion.usage?.completion_tokens ?? 0;
+
+  return {
+    value,
     model: MODEL,
     promptTokens,
     completionTokens,

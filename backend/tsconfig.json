@@ -29,5 +29,10 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts"]
+  // Tests are checked too. They were left out originally, which meant a
+  // UserProfile literal in a test could be missing six required fields and
+  // still "typecheck" — the failure only appeared when that test ran and read
+  // a property off undefined. A test that lies about its types is worse than
+  // no test, because it passes.
+  "include": ["src/**/*.ts", "scripts/**/*.ts", "tests/**/*.ts"]
 }

@@ -1,5 +1,5 @@
 import { Camera, Loader2, Plus, RefreshCw, Trash2, X, Check, ChefHat } from "lucide-react";
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { pantryMascot } from "../assets/mascots";
 import { BottomNav } from "../components/navigation/BottomNav";
@@ -10,6 +10,7 @@ import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useToast } from "../components/ui/Toast";
+import { GenerationProgress } from "../components/GenerationProgress";
 import { usePantry } from "../hooks/usePantry";
 import { MAX_SELECTION, usePantryCook } from "../hooks/usePantryCook";
 import { daysUntil, expiryTone, formatAmount, formatExpiryForLocale } from "../lib/pantryFormat";
@@ -37,6 +38,10 @@ export function PantryPage() {
   const cook = usePantryCook();
   const [picking, setPicking] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // The cook button lives under the whole list; the progress card lives at the
+  // top. Without this the page would not move and the click would look ignored.
+  const statusRef = useRef<HTMLDivElement | null>(null);
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [showAllExpiring, setShowAllExpiring] = useState(false);
@@ -176,6 +181,21 @@ export function PantryPage() {
             </span>
           </div>
         </Card>
+
+        <div ref={statusRef} />
+
+        {/* Directly under the overview, not at the foot of the list. Sticky
+            only helps once the card is already on screen, and the button that
+            starts this sits below a list that can be thirty rows long — put
+            here, it is visible the moment it appears and stays there. */}
+        {cook.cooking ? (
+          <GenerationProgress
+            finished={cook.finishing}
+            insights={cook.insights}
+            stages={cook.stages}
+            variant="pantry"
+          />
+        ) : null}
 
         {status === "loading" ? (
           <SkeletonList count={3} label={t("Loading your pantry…")} />
@@ -428,13 +448,16 @@ export function PantryPage() {
                 }
                 icon={<ChefHat size={17} />}
                 onClick={async () => {
+                  statusRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                   const plan = await cook.cook();
                   if (plan) setPicking(false);
                 }}
               >
                 {cook.cooking
                   ? t("Working it out…")
-                  : `${t("Cook with")} ${cook.selected.length}`}
+                  : cook.selected.length > MAX_SELECTION
+                    ? `${t("Pick at most")} ${MAX_SELECTION}`
+                    : `${t("Generate meals")} · ${cook.selected.length}`}
               </Button>
             </>
           ) : (

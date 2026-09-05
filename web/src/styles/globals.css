@@ -1088,32 +1088,182 @@ img {
   border-bottom: 0;
 }
 
-.profile-cover {
+/* The banner replaces a 120px flat green slab that had nothing on it. It is
+   the mascot's own artwork, so the aspect ratio is fixed rather than a height:
+   cropping the cat's head off at a narrow width would be worse than a slightly
+   shorter banner. object-position keeps the face in frame as it narrows. */
+.profile-banner {
   position: relative;
-  height: 120px;
   margin: calc(var(--space-5) * -1) calc(var(--space-4) * -1) 0;
-  background: linear-gradient(135deg, var(--color-forest), var(--color-primary-deep));
+  aspect-ratio: 16 / 7;
+  max-height: 190px;
+  overflow: hidden;
+  background: var(--color-cream-strong);
 }
 
-/* The card overlaps the cover and the avatar straddles the seam. Before, the
-   card only rose 34px and the avatar sat wholly inside it, which left ~76px
-   of bare green slab with nothing on it. The three numbers below are tied
-   together: card top lands at 74px, and the 92px avatar is pulled up so its
-   centre sits exactly on that line. */
-.profile-card {
-  margin-top: -46px;
-  text-align: center;
+.profile-banner__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 38%;
+  display: block;
 }
 
-.profile-card .mascot-avatar--lg {
-  margin-top: -66px;
-  margin-bottom: var(--space-2);
+/* The artwork fades into the page rather than ending on a hard line, which is
+   what made the old header read as a separate slab stuck on top. */
+.profile-banner::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 64px;
+  background: linear-gradient(to bottom, rgba(247, 248, 233, 0), var(--color-cream));
+  pointer-events: none;
+}
+
+/* Overlaps the banner instead of clearing it. -28px is small on purpose: the
+   old -46px plus a 66px avatar offset left a large empty band, which is the
+   "oversized empty green area" this page was carrying. */
+.profile-identity {
+  position: relative;
+  z-index: 2;
+  margin-top: -28px;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.profile-identity__top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.profile-identity__name {
+  margin: 0;
+  font-size: 19px;
+  line-height: 1.25;
+  /* Emails are long and unbreakable; without this one pushes the badge off. */
+  overflow-wrap: anywhere;
+}
+
+.profile-identity__sub {
+  margin: 0;
+  color: var(--color-muted);
 }
 
 .profile-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 2fr 1fr;
   gap: var(--space-3);
+}
+
+/* Two equal columns while editing: Cancel and Save are not a primary and a
+   secondary, they are two ends of the same decision. */
+.profile-actions--editing {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* The AI personalisation card. Gradient and a thin border rather than a solid
+   fill, so it reads as a surface rather than another green block. */
+.ai-profile-card {
+  position: relative;
+  background:
+    linear-gradient(155deg, rgba(154, 205, 34, 0.13), rgba(255, 255, 255, 0) 55%),
+    var(--color-surface);
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-soft);
+}
+
+.ai-profile-card__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-surface-soft);
+  color: var(--color-primary-deep);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.ai-profile-grid {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.ai-profile-row {
+  display: grid;
+  grid-template-columns: 108px 1fr;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.ai-profile-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.ai-profile-row__label {
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.ai-profile-row__value {
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* Anything the household has not told us. Kept visually quiet rather than
+   hidden: an empty field is information, and hiding it makes the profile look
+   more complete than it is. */
+.ai-profile-row__value--empty {
+  color: var(--color-subtle);
+  font-weight: 500;
+}
+
+.ai-profile-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ai-pill {
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-surface-soft);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.ai-pill--warn {
+  border-color: #f3c9c1;
+  background: var(--color-red-soft);
+  color: #a63a2a;
+}
+
+/* Was a full premium block with a 34px crown, competing with the user's own
+   data for the top of the page. Now a single quiet row. */
+.plan-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.plan-strip__text h3 {
+  margin: 0 0 2px;
+  font-size: 15px;
+}
+
+.plan-strip__text p {
+  margin: 0;
 }
 
 .pricing-grid {
@@ -1766,4 +1916,15 @@ button:active:not(:disabled) {
   .chef-stage__img--out {
     display: none;
   }
+}
+
+/* Follows the reader for as long as it is on screen. Two different buttons
+   start a generation — "Generate my plan" in the empty state at the top, and
+   "Regenerate" beside the day list at the bottom — so moving this card next
+   to one of them would hide it from the other. Sticking it under the nav
+   works from either. */
+.generation-card {
+  position: sticky;
+  top: 60px;
+  z-index: 15;
 }

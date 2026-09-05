@@ -1,7 +1,7 @@
-import { Crown, Edit, Loader2, LogOut, RefreshCw, Save, Settings } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Edit, Loader2, LogOut, RefreshCw, Save, Settings, Sparkles } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { genericAvatar } from "../assets/mascots";
+import { genericAvatar, profileBanner } from "../assets/mascots";
 import { BottomNav } from "../components/navigation/BottomNav";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -30,6 +30,32 @@ import { ExtrasPicker } from "../components/ExtrasPicker";
 import { FlavourPicker } from "../components/FlavourPicker";
 import { CUISINES, type Cuisine, type UserProfileInput } from "../types";
 import { useLocale } from "../context/LocaleContext";
+
+// One row of the personalisation card. `empty` is passed explicitly rather
+// than inferred from the children, because "0 people" and "£0.00" are real
+// answers that a falsiness check would wrongly report as unset.
+function AiRow({
+  label,
+  children,
+  empty = false,
+  emptyText = "Not set",
+}: {
+  label: string;
+  children?: ReactNode;
+  empty?: boolean;
+  emptyText?: string;
+}) {
+  return (
+    <div className="ai-profile-row">
+      <span className="ai-profile-row__label">{label}</span>
+      <span
+        className={`ai-profile-row__value${empty ? " ai-profile-row__value--empty" : ""}`}
+      >
+        {empty ? emptyText : children}
+      </span>
+    </div>
+  );
+}
 
 export function ProfilePage() {
   const navigate = useNavigate();
@@ -119,20 +145,38 @@ export function ProfilePage() {
   return (
     <main className="app-shell">
       <div className="page page--nav">
-        <div className="profile-cover" />
+        <div className="profile-banner">
+          {/* Decorative: the identity below says everything this conveys, so
+              announcing it again would only lengthen a screen reader's trip
+              through the header. */}
+          <img alt="" className="profile-banner__img" src={profileBanner} />
+        </div>
 
-        <Card className="profile-card">
-          <MascotAvatar size="lg" src={genericAvatar} />
-          {/* Email lives on the account, not the profile, so it comes from the
-              auth context and is not editable here. */}
-          <h1 style={{ marginBottom: 4 }}>{user?.email ?? t("Your account")}</h1>
-          {/* Was hardcoded to "Free Account", which told a paying subscriber
-              their plan was free on the page where they manage their account. */}
-          <Badge variant="cream">
-            {billing ? t(TIER_LABELS[billing.tier]) : t("Loading…")}
-          </Badge>
+        <Card className="profile-identity">
+          <div className="profile-identity__top">
+            <MascotAvatar size="md" src={genericAvatar} />
+            <span style={{ minWidth: 0 }}>
+              <h1 className="profile-identity__name">{t("Your kitchen profile")}</h1>
+              {/* Email lives on the account, not the profile, so it comes from
+                  the auth context and is not editable here. */}
+              <span className="small muted">{user?.email ?? t("Your account")}</span>
+            </span>
+            {/* Was hardcoded to "Free Account", which told a paying subscriber
+                their plan was free on the page where they manage their
+                account. */}
+            <Badge variant="cream">
+              {billing ? t(TIER_LABELS[billing.tier]) : t("Loading…")}
+            </Badge>
+          </div>
 
-          <div className="profile-actions" style={{ marginTop: 18 }}>
+          <p className="small profile-identity__sub">
+            {t("Mosaic uses these preferences to personalise your meal plans.")}
+          </p>
+
+          <div
+            className={`profile-actions${isEditing ? " profile-actions--editing" : ""}`}
+            style={{ marginTop: 6 }}
+          >
             {isEditing ? (
               <>
                 <Button disabled={saving} onClick={cancelEditing} variant="secondary">
@@ -144,17 +188,14 @@ export function ProfilePage() {
               </>
             ) : (
               <>
-                <Button
-                  disabled={!profile}
-                  icon={<Edit size={17} />}
-                  onClick={startEditing}
-                  variant="secondary"
-                >
+                {/* Primary now. Editing preferences is the reason to be on this
+                    page; Settings is a button that currently only apologises. */}
+                <Button disabled={!profile} icon={<Edit size={17} />} onClick={startEditing}>
                   {t("Edit Preferences")}
                 </Button>
                 <Button
                   icon={<Settings size={17} />}
-                  onClick={() => showToast("Settings are not built yet")}
+                  onClick={() => showToast(t("Settings are not built yet"))}
                   variant="secondary"
                 >
                   {t("Settings")}
@@ -200,39 +241,112 @@ export function ProfilePage() {
 
           {profile ? (
             <>
-              {/* Two different cards, because a subscriber and a free user
+              {/* What Mosaic actually sends to the model, said back to the
+                  household in their own words. Every row is read from the
+                  saved profile — nothing here is decorative, and a field the
+                  user has not filled in says so rather than being hidden.
+                  Hidden during editing, where the pickers below are the live
+                  copy and this would show the pre-edit values. */}
+              {!isEditing ? (
+                <Card className="ai-profile-card">
+                  <span className="ai-profile-card__label">
+                    <Sparkles size={12} /> {t("AI personalisation")}
+                  </span>
+
+                  <div className="ai-profile-grid">
+                    <AiRow label={t("Household")}>
+                      {householdTotal} {t(householdTotal === 1 ? "person" : "people")}
+                    </AiRow>
+
+                    <AiRow
+                      empty={profile.cuisines.length === 0}
+                      emptyText={t("Not set")}
+                      label={t("Food cultures")}
+                    >
+                      <span className="ai-profile-pills">
+                        {profile.cuisines.map((cuisine) => (
+                          <span className="ai-pill" key={cuisine}>
+                            {t(CUISINE_LABELS[cuisine])}
+                          </span>
+                        ))}
+                        {profile.cuisine_regions.map((region) => (
+                          <span className="ai-pill" key={region}>
+                            {t(regionLabel(region))}
+                          </span>
+                        ))}
+                      </span>
+                    </AiRow>
+
+                    <AiRow
+                      empty={profile.weekly_budget === null}
+                      emptyText={t("Not set")}
+                      label={t("Weekly budget")}
+                    >
+                      £{Number(profile.weekly_budget).toFixed(2)}{" "}
+                      <span className="tiny muted">
+                        · {profile.meals_per_week} {t("meals per week")}
+                      </span>
+                    </AiRow>
+
+                    <AiRow
+                      empty={profile.avoid_ingredients.length === 0}
+                      emptyText={t("Nothing excluded")}
+                      label={t("Avoiding")}
+                    >
+                      <span className="ai-profile-pills">
+                        {profile.avoid_ingredients.map((ingredient) => (
+                          <span className="ai-pill ai-pill--warn" key={ingredient}>
+                            {ingredient}
+                          </span>
+                        ))}
+                      </span>
+                    </AiRow>
+
+                    <AiRow
+                      empty={profile.cooking_style === null}
+                      emptyText={t("Not set")}
+                      label={t("Cooking time")}
+                    >
+                      {profile.cooking_style
+                        ? t(COOKING_STYLE_LABELS[profile.cooking_style])
+                        : null}
+                    </AiRow>
+                  </div>
+                </Card>
+              ) : null}
+
+              {/* Two different messages, because a subscriber and a free user
                   need opposite things here. The old one sold "unlimited plans
                   and AI Vision scanning" to someone already paying, and
                   neither of those is true: the plans are capped and the
-                  scanning does not exist yet. */}
-              <Card variant="premium">
-                <div className="premium-strip">
-                  <span>
-                    <Badge variant="gold">
-                      {billing ? t(TIER_LABELS[billing.tier]) : t("Loading…")}
-                    </Badge>
-                    <h2>
+                  scanning does not exist yet.
+
+                  Demoted from a full premium block with a 34px crown to one
+                  row. It was outranking the household's own data on a page
+                  about the household. */}
+              <Card>
+                <div className="plan-strip">
+                  <span className="plan-strip__text">
+                    <h3>
                       {billing && billing.tier !== "free"
                         ? t("Your plan and allowances")
                         : t("Cook for the whole household")}
-                    </h2>
+                    </h3>
                     <p className="small muted">
                       {billing && billing.tier !== "free"
                         ? t("See what is left this month, change plan or cancel.")
                         : t("More meal plans, more people, and cook from what is already in your kitchen.")}
                     </p>
                   </span>
-                  <Crown color="var(--color-orange)" size={34} />
+                  <Button
+                    onClick={() =>
+                      navigate(billing && billing.tier !== "free" ? "/subscription" : "/pricing")
+                    }
+                    variant="secondary"
+                  >
+                    {billing && billing.tier !== "free" ? t("Your plan") : t("See plans")}
+                  </Button>
                 </div>
-                <Button
-                  fullWidth
-                  onClick={() =>
-                    navigate(billing && billing.tier !== "free" ? "/subscription" : "/pricing")
-                  }
-                  variant="premium"
-                >
-                  {billing && billing.tier !== "free" ? t("Your plan") : t("See plans")}
-                </Button>
               </Card>
 
               <Card>

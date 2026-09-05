@@ -55,3 +55,33 @@ export async function setStripeCustomerId(
     userId,
   ]);
 }
+
+export async function findWithPasswordById(
+  id: string
+): Promise<UserWithPassword | null> {
+  const result = await pool.query<UserWithPassword>(
+    'SELECT id, email, password_hash, created_at FROM users WHERE id = $1',
+    [id]
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function updatePasswordHash(
+  userId: string,
+  passwordHash: string
+): Promise<void> {
+  await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [
+    passwordHash,
+    userId,
+  ]);
+}
+
+// Everything that references a user does so ON DELETE CASCADE, so this one
+// statement takes the profile, pantry, meal plans, shopping list, sessions,
+// OAuth identities, subscription row and usage records with it. That is the
+// point of having written the constraints that way; a hand-rolled sequence of
+// deletes here would be a second, worse copy of the schema that goes stale the
+// first time a table is added.
+export async function deleteById(userId: string): Promise<void> {
+  await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+}

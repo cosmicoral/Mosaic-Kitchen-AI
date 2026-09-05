@@ -1,6 +1,10 @@
 import { useCallback, useState } from 'react';
 import { ApiError } from '../lib/api';
-import { cookFromPantry } from '../lib/pantryCook';
+import {
+  streamMealPlan,
+  type InsightEvent,
+  type StageEvent,
+} from '../lib/mealPlanStream';
 import type { MealPlanRecord } from '../types';
 
 // The most a selection can be before the dishes stop being about any of it.
@@ -18,6 +22,10 @@ export function usePantryCook() {
   const [result, setResult] = useState<MealPlanRecord | null>(null);
   const [cooking, setCooking] = useState(false);
   const [error, setError] = useState<CookFailure | null>(null);
+  // Same shape as the weekly flow, so one progress component serves both.
+  const [stages, setStages] = useState<StageEvent[]>([]);
+  const [insights, setInsights] = useState<InsightEvent[]>([]);
+  const [finishing, setFinishing] = useState(false);
 
   // No cap on selecting. The same selection also drives bulk delete, where
   // picking twenty things is entirely reasonable — so the limit belongs on the
@@ -37,6 +45,8 @@ export function usePantryCook() {
     setSelected([]);
     setResult(null);
     setError(null);
+    setStages([]);
+    setInsights([]);
   }, []);
 
   const cook = useCallback(async () => {
@@ -44,8 +54,30 @@ export function usePantryCook() {
 
     setCooking(true);
     setError(null);
+    setStages([]);
+    setInsights([]);
+    setFinishing(false);
+
     try {
-      const plan = await cookFromPantry(selected);
+      const plan = await streamMealPlan(
+        {
+          onStage: (event) =>
+            setStages((previous) => [
+              ...previous.filter((entry) => entry.stage !== event.stage),
+              event,
+            ]),
+          onInsight: (event) =>
+            setInsights((previous) =>
+              previous.some((entry) => entry.key === event.key)
+                ? previous
+                : [...previous, event]
+            ),
+        },
+        { pantryItemIds: selected }
+      );
+
+      setFinishing(true);
+      await new Promise((resolve) => setTimeout(resolve, 800));
       setResult(plan);
       return plan;
     } catch (caught) {
@@ -56,8 +88,13 @@ export function usePantryCook() {
       return null;
     } finally {
       setCooking(false);
+      setFinishing(false);
     }
   }, [selected]);
 
-  return { selected, toggle, selectMany, clear, cook, cooking, result, error, setResult };
+  return {
+    selected, toggle, selectMany, clear,
+    cook, cooking, result, error, setResult,
+    stages, insights, finishing,
+  };
 }

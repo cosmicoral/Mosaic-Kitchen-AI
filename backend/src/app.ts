@@ -7,6 +7,7 @@ import cookieParser from 'cookie-parser';
 import pantryRouter from './routes/pantry.ts';
 import mealPlanRouter from './routes/mealPlan.ts';
 import authRouter from './routes/auth.ts';
+import accountRouter from './routes/account.ts';
 import { globalLimiter } from './middleware/rateLimiters.ts';
 import profileRouter from './routes/profile.ts';
 import shoppingListRouter from './routes/shoppingList.ts';
@@ -73,6 +74,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRouter);
+app.use('/api/account', accountRouter);
 app.use('/api/pantry', pantryRouter);
 app.use('/api/meal-plan', mealPlanRouter);
 app.use('/api/profile', profileRouter);

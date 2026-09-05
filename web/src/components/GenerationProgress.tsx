@@ -1,17 +1,33 @@
 import { Check } from "lucide-react";
 import { Card } from "./ui/Card";
 import { ChefStage } from "./ChefStage";
+import type { GenerationVariant } from "../assets/meal-plan-generation";
 import { useLocale } from "../context/LocaleContext";
 import { GENERATION_STAGES, type InsightEvent, type StageEvent } from "../lib/mealPlanStream";
+import { CUISINE_LABELS, REGION_LABELS } from "../lib/profileOptions";
+import type { Cuisine } from "../types";
 
 // Wording lives here, not in the API. The server sends stage identifiers and
 // insight values so every user-facing string stays translatable.
-const STAGE_LABELS: Record<string, string> = {
-  analysing_profile: "Reading your preferences",
-  checking_pantry: "Checking what you already have",
-  building_meals: "Building your week",
-  reviewing: "Checking allergens, cuisines and budget",
-  finalising: "Finishing your plan",
+// Two flows, two vocabularies. The pantry flow makes three dishes out of a
+// handful of things you ticked — it has no week and no weekly budget, so
+// borrowing the weekly wording would have the chef narrate work it is not
+// doing. Only the first stage is genuinely the same in both.
+const STAGE_LABELS: Record<GenerationVariant, Record<string, string>> = {
+  weekly: {
+    analysing_profile: "Reading your preferences",
+    checking_pantry: "Checking what you already have",
+    building_meals: "Building your week",
+    reviewing: "Checking allergens, cuisines and budget",
+    finalising: "Finishing your plan",
+  },
+  pantry: {
+    analysing_profile: "Reading your preferences",
+    checking_pantry: "Looking at what you picked",
+    building_meals: "Working out dishes from these ingredients",
+    reviewing: "Checking allergens and cuisines",
+    finalising: "Finishing your dishes",
+  },
 };
 
 // Each takes the values the server measured and puts them in a sentence. No
@@ -19,7 +35,8 @@ const STAGE_LABELS: Record<string, string> = {
 // for a household it is not true of.
 function insightText(
   insight: InsightEvent,
-  t: (key: string) => string
+  t: (key: string) => string,
+  variant: GenerationVariant
 ): string | null {
   const { key, data } = insight;
 
@@ -38,7 +55,9 @@ function insightText(
       return `${t("Keeping within")} £${Number(data.amount).toFixed(0)}`;
     case "culture_regions":
       return Array.isArray(data.list)
-        ? `${t("Cooking this week")} ${data.list.map((entry) => t(regionOrCuisine(entry))).join(", ")}`
+        ? `${t(variant === "pantry" ? "Cooking in the style of" : "Cooking this week")} ${data.list
+            .map((entry) => t(regionOrCuisine(entry)))
+            .join(", ")}`
         : null;
     case "selection_items":
       return Array.isArray(data.list)
@@ -49,19 +68,31 @@ function insightText(
   }
 }
 
-// Region values arrive namespaced as "chinese:hunan"; the label table is keyed
-// on the bare slug.
+// Values arrive either namespaced ("chinese:hunan") or as a bare cuisine
+// ("chinese"). Both have to reach a display label before translation, because
+// the locale table is keyed on labels — passing the raw slug through t() is
+// what put "这周做 yunnan" on screen.
 function regionOrCuisine(value: string): string {
-  return value.includes(":") ? (value.split(":")[1] ?? value) : value;
+  if (value.includes(":")) {
+    const slug = value.split(":")[1] ?? value;
+    return REGION_LABELS[slug] ?? slug;
+  }
+  return CUISINE_LABELS[value as Cuisine] ?? value;
 }
 
 interface Props {
   stages: StageEvent[];
   insights: InsightEvent[];
   finished?: boolean;
+  variant?: GenerationVariant;
 }
 
-export function GenerationProgress({ stages, insights, finished = false }: Props) {
+export function GenerationProgress({
+  stages,
+  insights,
+  finished = false,
+  variant = "weekly",
+}: Props) {
   const { t } = useLocale();
 
   const current = stages[stages.length - 1];
@@ -77,7 +108,11 @@ export function GenerationProgress({ stages, insights, finished = false }: Props
   return (
     <Card className="generation-card mk-rise" variant="dark">
       <div className="generation-card__head">
-        <ChefStage finished={finished} stage={current?.stage ?? "analysing_profile"} />
+        <ChefStage
+            finished={finished}
+            stage={current?.stage ?? "analysing_profile"}
+            variant={variant}
+          />
         <div>
           <span className="generation-card__name">Mosaic Chef</span>
           <span className="generation-card__status">
@@ -89,8 +124,8 @@ export function GenerationProgress({ stages, insights, finished = false }: Props
 
       <h2 className="generation-card__headline">
         {finished
-          ? t("Your meal plan is ready!")
-          : t(STAGE_LABELS[current?.stage ?? "analysing_profile"] ?? "")}
+          ? t(variant === "pantry" ? "Here is what to cook" : "Your meal plan is ready!")
+          : t(STAGE_LABELS[variant][current?.stage ?? "analysing_profile"] ?? "")}
       </h2>
 
       {/* Stage-based, never a percentage. We know which step we are on; we do
@@ -116,7 +151,7 @@ export function GenerationProgress({ stages, insights, finished = false }: Props
                 )}
               </span>
               <span className="small">
-                {t(STAGE_LABELS[stage] ?? stage)}
+                {t(STAGE_LABELS[variant][stage] ?? stage)}
                 {stage === "building_meals" && retry ? (
                   <>
                     {" — "}
@@ -134,7 +169,7 @@ export function GenerationProgress({ stages, insights, finished = false }: Props
       {insights.length > 0 ? (
         <div className="insight-chips mk-stagger">
           {insights.map((insight, index) => {
-            const text = insightText(insight, t);
+            const text = insightText(insight, t, variant);
             if (!text) return null;
             return (
               <span className="insight-chip" key={`${insight.key}-${index}`}>

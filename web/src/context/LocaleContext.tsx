@@ -143,7 +143,26 @@ const zh: Record<string, string> = {
   'Cook with these': '用这些做菜', 'Pick what needs using': '选出需要用掉的食材',
   'We will suggest a few dishes built around them, in your cuisines and avoiding what you avoid.':
     '我们会围绕它们给出几道菜,符合你的菜系并避开你的忌口。',
-  'Cook with': '用', 'Working it out…': '正在想菜…',
+  'Generate meals': '生成菜谱', 'Pick at most': '最多选', 'Working it out…': '正在想菜…',
+  // Pantry-cook wording. Kept separate from the weekly strings because this
+  // flow makes a few dishes now, not a week's shop.
+  'Looking at what you picked': '正在看你挑的这些食材',
+  'Working out dishes from these ingredients': '正在用这些食材想菜',
+  'Checking allergens and cuisines': '正在检查忌口和菜系',
+  'Finishing your dishes': '正在写做法',
+  'Cooking in the style of': '菜系参考',
+  // Profile page.
+  'Your kitchen profile': '你的厨房档案',
+  'Mosaic uses these preferences to personalise your meal plans.':
+    'Mosaic 会根据这些偏好为你定制餐单。',
+  'AI personalisation': 'AI 个性化',
+  'Food cultures': '饮食文化',
+  'Cooking time': '做饭时长',
+  'meals per week': '餐/周',
+  'Settings are not built yet': '设置功能还没做',
+  'This list was built in another language': '这份清单是用另一种语言生成的',
+  'Rebuild it from your meal plan to get it in the language you are using. Rebuilding clears the ticks on items that came from the plan; anything you added yourself stays.':
+    '从餐单重新生成即可换成你正在用的语言。重新生成会清掉餐单带来的那些勾选,你自己加的条目会保留。',
   'Select': '选择', 'Select all': '全选', 'Select none': '取消全选',
   'Your plan': '我的方案', 'Your plan and allowances': '你的方案与额度',
   'See what is left this month, change plan or cancel.': '查看本月剩余额度、更换方案或取消订阅。',
@@ -184,7 +203,7 @@ const zh: Record<string, string> = {
   'Checking allergens, cuisines and budget': '正在检查忌口、菜系和预算',
   'Finishing your plan': '正在完成你的餐单',
   'Working': '进行中', 'Agent done': '完成',
-  'Your meal plan is ready!': '餐单做好了!',
+  'Your meal plan is ready!': '餐单做好了!', 'Here is what to cook': '就做这几道吧!',
   'a dish contained': '有一道菜含有', 'trying again': '正在重新安排',
   // Insight chips — the values come from the server, the sentences from here
   'Planning around': '正在参考你的',

@@ -14,6 +14,7 @@ import { useShoppingList } from "../hooks/useShoppingList";
 import { PANTRY_CATEGORIES, type PantryCategory, type ShoppingListItem } from "../types";
 import { SkeletonList } from "../components/ui/Skeleton";
 import { useLocale } from "../context/LocaleContext";
+import { mismatchesLocale } from "../lib/textLocale";
 
 const CATEGORY_LABELS: Record<PantryCategory, string> = {
   vegetables: "Vegetables",
@@ -38,7 +39,7 @@ function formatAmount(item: ShoppingListItem): string {
 export function ShoppingListPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const {
     items, status, error, refresh,
     generate, generating, generateError,
@@ -67,6 +68,18 @@ export function ShoppingListPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const checkedCount = items.filter((item) => item.is_checked).length;
+
+  // Only items that came from the plan. Something the user typed as 生抽 is
+  // their own data and is correct in any interface language — flagging it
+  // would be telling them their own spelling is wrong.
+  const languageMismatch = useMemo(
+    () =>
+      mismatchesLocale(
+        items.filter((item) => item.source === "plan").map((item) => item.name),
+        locale
+      ),
+    [items, locale]
+  );
   const progress = items.length === 0 ? 0 : Math.round((checkedCount / items.length) * 100);
 
   // Grouped here rather than fetched pre-grouped, so the counts can never
@@ -187,6 +200,30 @@ export function ShoppingListPage() {
               </span>
               <span className="progress-ring">{progress}%</span>
             </Card>
+
+            {/* The list is derived from the meal plan, but it is stored as
+                rows — so a list built while the app was in Chinese stays in
+                Chinese after the language is switched. The plan itself now
+                translates on read; this list cannot, because the ticks are
+                state that only exist here. So it says so and offers the
+                rebuild, rather than leaving someone to wonder whether the
+                toggle is broken. */}
+            {languageMismatch ? (
+              <Card>
+                <strong>{t("This list was built in another language")}</strong>
+                <p className="small muted" style={{ marginTop: 4 }}>
+                  {t("Rebuild it from your meal plan to get it in the language you are using. Rebuilding clears the ticks on items that came from the plan; anything you added yourself stays.")}
+                </p>
+                <Button
+                  disabled={generating}
+                  onClick={() => void generate()}
+                  style={{ marginTop: 12 }}
+                  variant="secondary"
+                >
+                  {generating ? t("Rebuilding…") : t("Rebuild")}
+                </Button>
+              </Card>
+            ) : null}
 
             <div className="section-title">
               <h2>{t("Categories")}</h2>

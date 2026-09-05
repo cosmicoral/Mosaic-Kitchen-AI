@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import * as shoppingListService from '../services/shoppingListService.ts';
 import { AppError } from '../types/index.ts';
+import { readLocale } from '../utils/locale.ts';
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -39,7 +40,10 @@ export async function list(req: Request, res: Response) {
 export async function generate(req: Request, res: Response) {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
   try {
-    const items = await shoppingListService.generateFromLatestPlan(req.user.id);
+    const items = await shoppingListService.generateFromLatestPlan(
+      req.user.id,
+      readLocale(req.headers['accept-language'])
+    );
     return res.status(200).json({ items });
   } catch (error) {
     return handleError(error, res, 'Shopping list generation error');

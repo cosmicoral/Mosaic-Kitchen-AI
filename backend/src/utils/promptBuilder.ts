@@ -455,7 +455,7 @@ export function buildPantryCookPrompt(
   const languageInstruction =
     locale === 'zh'
       ? 'OUTPUT LANGUAGE\nUse natural Simplified Chinese for every user-facing value. Preserve authentic dish names in native_name. Keep JSON keys and schema enum values in English.'
-      : 'OUTPUT LANGUAGE\nUse British English for user-facing values. Preserve authentic dish names in native_name.';
+      : 'OUTPUT LANGUAGE\nUse British English for user-facing values. Some ingredient names below are written in Chinese; translate them into English rather than copying them through. Preserve authentic dish names in native_name.';
 
   const mustUse = selected
     .map((item) => {
@@ -504,7 +504,9 @@ TIME
 ${profile.cooking_style ? 'Keep to the household\'s usual cooking time.' : 'No strong preference.'}
 
 Return an empty extras array for every day: this is about using up what is
-already here, not adding a pudding to the shop.${repeats}`;
+already here, not adding a pudding to the shop.${repeats}
+
+${languageInstruction}`;
 }
 
 export function buildMealPlanPrompt(
@@ -534,7 +536,7 @@ export function buildMealPlanPrompt(
     ? `OUTPUT LANGUAGE
 Use natural Simplified Chinese for every user-facing value, including summary, meal names, ingredient names, steps and tips. Preserve authentic dish names in native_name. Keep JSON keys and schema enum values in English.`
     : `OUTPUT LANGUAGE
-Use British English for user-facing values. Preserve authentic dish names in native_name.`;
+Use British English for user-facing values. Some ingredient and region names below are written in Chinese; translate them into English rather than copying them through. Preserve authentic dish names in native_name.`;
 
   return `${languageInstruction}
 
@@ -568,5 +570,7 @@ ALREADY IN THE KITCHEN
 ${describePantry(pantry)}
 
 Mark every ingredient the household already has with from_pantry: true.
-Spread the meals across days, starting at day_index 0.`;
+Spread the meals across days, starting at day_index 0.
+
+${languageInstruction}`;
 }

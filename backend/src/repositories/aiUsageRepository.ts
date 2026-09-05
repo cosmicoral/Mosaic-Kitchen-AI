@@ -1,6 +1,10 @@
 import pool from '../db/pool.ts';
 
-export type AiFeature = 'meal-plan' | 'pantry-cook' | 'vision-scan';
+// Must stay in step with the ai_usage_feature_valid CHECK constraint in the
+// migrations. tests/aiUsageFeatures.test.ts compares the two, because adding a
+// key here without widening the constraint is a failure that only shows up
+// after a model call has already been paid for.
+export type AiFeature = 'meal-plan' | 'pantry-cook' | 'plan-translate' | 'vision-scan';
 
 export interface UsageRecord {
   feature: AiFeature;
