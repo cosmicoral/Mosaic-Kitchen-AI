@@ -29,7 +29,7 @@ describe('Chinese meal-plan prompts', () => {
       user_id: '00000000-0000-0000-0000-000000000000',
       adults: 2, teenagers: 0, children: 0, toddlers: 0,
       household_size: 2, meals_per_week: 3, weekly_budget: '50.00',
-      cuisines: ['chinese'], cuisine_regions: [],
+      cuisines: ['chinese'], cuisine_substyles: [],
       seasoning_intensity: null, flavour_notes: [],
       low_salt: false, low_sugar: false, nutrition_focus: [],
       include_extras: [], extras_frequency: 'some',

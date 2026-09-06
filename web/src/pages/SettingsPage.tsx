@@ -1,5 +1,5 @@
-import { AlertTriangle, Check, Download, KeyRound, Loader2, LogOut, Trash2 } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { AlertTriangle, Check, Download, ImagePlus, KeyRound, Loader2, LogOut, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { BottomNav } from "../components/navigation/BottomNav";
 import { TopNav } from "../components/navigation/TopNav";
@@ -11,11 +11,15 @@ import { SkeletonList } from "../components/ui/Skeleton";
 import { useToast } from "../components/ui/Toast";
 import { useAuth } from "../context/AuthContext";
 import { useLocale } from "../context/LocaleContext";
+import { genericAvatar } from "../assets/mascots";
+import { MascotAvatar } from "../components/ui/MascotAvatar";
 import {
   changePassword,
   deleteAccount,
   downloadData,
   fetchAccount,
+  removeAvatar,
+  uploadAvatar,
   type AccountOverview,
 } from "../lib/account";
 import { ApiError } from "../lib/api";
@@ -42,6 +46,9 @@ export function SettingsPage() {
   const [savingPassword, setSavingPassword] = useState(false);
 
   const [exporting, setExporting] = useState(false);
+
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInput = useRef<HTMLInputElement | null>(null);
 
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmEmail, setConfirmEmail] = useState("");
@@ -90,6 +97,34 @@ export function SettingsPage() {
       );
     } finally {
       setSavingPassword(false);
+    }
+  }
+
+  async function handleAvatarUpload(file: File) {
+    setUploadingAvatar(true);
+    try {
+      const { avatarUrl } = await uploadAvatar(file);
+      // Updated in place rather than refetching the whole account: the only
+      // thing that changed is this one field.
+      setAccount((current) => (current ? { ...current, avatar_url: avatarUrl } : current));
+      showToast(t("Picture updated"));
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Could not save that image");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }
+
+  async function handleAvatarRemove() {
+    setUploadingAvatar(true);
+    try {
+      await removeAvatar();
+      setAccount((current) => (current ? { ...current, avatar_url: null } : current));
+      showToast(t("Back to the cat"));
+    } catch {
+      showToast("Could not remove your picture");
+    } finally {
+      setUploadingAvatar(false);
     }
   }
 
@@ -144,6 +179,57 @@ export function SettingsPage() {
 
         {account ? (
           <>
+            <Card>
+              <h2>{t("Profile picture")}</h2>
+              <div className="avatar-editor">
+                <MascotAvatar
+                  size="lg"
+                  src={account.avatar_url ?? genericAvatar}
+                />
+                <div className="avatar-editor__actions">
+                  <p className="small muted">
+                    {t("Square images work best. We resize to 256px and strip location data from the file.")}
+                  </p>
+                  <div className="choice-grid" style={{ marginTop: 12 }}>
+                    <Button
+                      disabled={uploadingAvatar}
+                      icon={<ImagePlus size={17} />}
+                      onClick={() => fileInput.current?.click()}
+                      variant="secondary"
+                    >
+                      {uploadingAvatar ? t("Uploading…") : t("Change picture")}
+                    </Button>
+                    {account.avatar_url ? (
+                      <Button
+                        disabled={uploadingAvatar}
+                        onClick={() => void handleAvatarRemove()}
+                        variant="secondary"
+                      >
+                        {t("Use the cat again")}
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              {/* Hidden, driven by the button above: the native file input is
+                  unstyleable and looks like a form from 1998 next to the rest
+                  of the page. */}
+              <input
+                accept="image/jpeg,image/png,image/webp,image/gif,image/avif"
+                hidden
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  // Cleared immediately so choosing the same file twice in a
+                  // row still fires a change event.
+                  event.target.value = "";
+                  if (file) void handleAvatarUpload(file);
+                }}
+                ref={fileInput}
+                type="file"
+              />
+            </Card>
+
             <Card>
               <h2>{t("How you sign in")}</h2>
               <div className="summary-list" style={{ marginTop: 12 }}>

@@ -2,7 +2,7 @@ import pool from '../db/pool.ts';
 import type { UserProfile, UserProfileInput } from '../types/index.ts';
 
 const COLUMNS = `user_id, adults, teenagers, children, toddlers, household_size,
-                 meals_per_week, weekly_budget, cuisines, cuisine_regions,
+                 meals_per_week, weekly_budget, cuisines, cuisine_substyles,
                  seasoning_intensity, flavour_notes, low_salt, low_sugar,
                  nutrition_focus, include_extras, extras_frequency, avoid_ingredients, priorities, cooking_style, postcode,
                  created_at, updated_at`;
@@ -25,7 +25,7 @@ export async function upsert(
   const result = await pool.query<UserProfile>(
     `INSERT INTO user_profiles (
        user_id, adults, teenagers, children, toddlers,
-       meals_per_week, weekly_budget, cuisines, cuisine_regions,
+       meals_per_week, weekly_budget, cuisines, cuisine_substyles,
        seasoning_intensity, flavour_notes, low_salt, low_sugar,
        nutrition_focus, include_extras, extras_frequency,
        avoid_ingredients, priorities, cooking_style, postcode
@@ -39,7 +39,7 @@ export async function upsert(
        meals_per_week      = EXCLUDED.meals_per_week,
        weekly_budget       = EXCLUDED.weekly_budget,
        cuisines            = EXCLUDED.cuisines,
-       cuisine_regions     = EXCLUDED.cuisine_regions,
+       cuisine_substyles     = EXCLUDED.cuisine_substyles,
        seasoning_intensity = EXCLUDED.seasoning_intensity,
        flavour_notes       = EXCLUDED.flavour_notes,
        low_salt            = EXCLUDED.low_salt,
@@ -62,7 +62,7 @@ export async function upsert(
       input.meals_per_week,
       input.weekly_budget,
       input.cuisines,
-      input.cuisine_regions,
+      input.cuisine_substyles,
       input.seasoning_intensity,
       input.flavour_notes,
       input.low_salt,

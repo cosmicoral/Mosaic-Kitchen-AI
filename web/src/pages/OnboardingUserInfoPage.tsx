@@ -1,6 +1,6 @@
 import { ArrowRight, Minus, Plus, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { CuisineRegionPicker } from "../components/CuisineRegionPicker";
+import { CuisineStylePicker } from "../components/CuisineStylePicker";
 import { TopNav } from "../components/navigation/TopNav";
 import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
@@ -47,7 +47,7 @@ export function OnboardingUserInfoPage() {
     // cuisine silently restores choices the user thought they had cleared.
     update({
       cuisines: selected,
-      cuisine_regions: draft.cuisine_regions.filter((entry) =>
+      cuisine_substyles: draft.cuisine_substyles.filter((entry) =>
         selected.includes(entry.split(":")[0] as Cuisine)
       ),
     });
@@ -135,10 +135,10 @@ export function OnboardingUserInfoPage() {
           </div>
         </Card>
 
-        <CuisineRegionPicker
+        <CuisineStylePicker
           cuisines={draft.cuisines}
-          onChange={(cuisine_regions) => update({ cuisine_regions })}
-          selected={draft.cuisine_regions}
+          onChange={(cuisine_substyles) => update({ cuisine_substyles })}
+          selected={draft.cuisine_substyles}
         />
 
         <div className="footer-actions">

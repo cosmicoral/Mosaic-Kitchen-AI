@@ -118,7 +118,7 @@ export type Cuisine = (typeof CUISINES)[number];
 // ('chinese:sichuan') because "Northern" and "Central" name different places
 // depending on the cuisine they belong to, and a flat list of bare slugs could
 // not tell 'northern' Chinese from 'northern' Vietnamese apart.
-export const CUISINE_REGIONS = {
+export const CUISINE_SUBSTYLES = {
   chinese: ['sichuan', 'cantonese', 'hunan', 'jiangnan', 'northern', 'dongbei', 'fujian', 'yunnan', 'xinjiang', 'hakka'],
   japanese: ['kanto', 'kansai', 'kyushu', 'hokkaido', 'tohoku', 'okinawa'],
   korean: ['seoul', 'jeolla', 'gyeongsang', 'gangwon', 'jeju'],
@@ -141,7 +141,7 @@ export const CUISINE_REGIONS = {
 export function isCuisineRegion(value: string): boolean {
   const [cuisine, region] = value.split(':');
   if (!cuisine || !region) return false;
-  const regions = (CUISINE_REGIONS as Record<string, readonly string[]>)[cuisine];
+  const regions = (CUISINE_SUBSTYLES as Record<string, readonly string[]>)[cuisine];
   return Array.isArray(regions) && regions.includes(region);
 }
 
@@ -206,7 +206,7 @@ export interface UserProfile {
   meals_per_week: number;
   weekly_budget: string | null;
   cuisines: Cuisine[];
-  cuisine_regions: string[];
+  cuisine_substyles: string[];
   seasoning_intensity: SeasoningIntensity | null;
   flavour_notes: FlavourNote[];
   low_salt: boolean;
@@ -232,7 +232,7 @@ export interface UserProfileInput {
   meals_per_week: number;
   weekly_budget: number | null;
   cuisines: Cuisine[];
-  cuisine_regions: string[];
+  cuisine_substyles: string[];
   seasoning_intensity: SeasoningIntensity | null;
   flavour_notes: FlavourNote[];
   low_salt: boolean;

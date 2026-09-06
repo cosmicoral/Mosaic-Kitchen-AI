@@ -4,7 +4,7 @@ import { ChefStage } from "./ChefStage";
 import type { GenerationVariant } from "../assets/meal-plan-generation";
 import { useLocale } from "../context/LocaleContext";
 import { GENERATION_STAGES, type InsightEvent, type StageEvent } from "../lib/mealPlanStream";
-import { CUISINE_LABELS, REGION_LABELS } from "../lib/profileOptions";
+import { CUISINE_LABELS, SUBSTYLE_LABELS } from "../lib/profileOptions";
 import type { Cuisine } from "../types";
 
 // Wording lives here, not in the API. The server sends stage identifiers and
@@ -53,7 +53,7 @@ function insightText(
         : `${data.name} ${t("expires in")} ${data.days} ${t("days — using it first")}`;
     case "budget_target":
       return `${t("Keeping within")} £${Number(data.amount).toFixed(0)}`;
-    case "culture_regions":
+    case "culture_styles":
       return Array.isArray(data.list)
         ? `${t(variant === "pantry" ? "Cooking in the style of" : "Cooking this week")} ${data.list
             .map((entry) => t(regionOrCuisine(entry)))
@@ -75,7 +75,7 @@ function insightText(
 function regionOrCuisine(value: string): string {
   if (value.includes(":")) {
     const slug = value.split(":")[1] ?? value;
-    return REGION_LABELS[slug] ?? slug;
+    return SUBSTYLE_LABELS[slug] ?? slug;
   }
   return CUISINE_LABELS[value as Cuisine] ?? value;
 }

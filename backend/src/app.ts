@@ -8,6 +8,9 @@ import pantryRouter from './routes/pantry.ts';
 import mealPlanRouter from './routes/mealPlan.ts';
 import authRouter from './routes/auth.ts';
 import accountRouter from './routes/account.ts';
+import glossRouter from './routes/gloss.ts';
+import avatarRouter from './routes/avatar.ts';
+import { LOCAL_UPLOAD_ROOT, storageBackend } from './services/objectStorage.ts';
 import { globalLimiter } from './middleware/rateLimiters.ts';
 import profileRouter from './routes/profile.ts';
 import shoppingListRouter from './routes/shoppingList.ts';
@@ -75,6 +78,27 @@ app.get('/', (req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/account', accountRouter);
+app.use('/api/gloss', glossRouter);
+app.use('/api/avatar', avatarRouter);
+
+// Development only. Without R2 configured, uploads land on disk and have to be
+// readable, or an avatar could be uploaded locally and never seen. In
+// production R2 serves them directly and this route does not exist — Express
+// is not a CDN and should not be asked to be one.
+if (storageBackend() === 'filesystem') {
+  app.use(
+    '/uploads',
+    express.static(LOCAL_UPLOAD_ROOT, {
+      // Keys are random and an upload creates a new one, so a cached file can
+      // never be stale.
+      immutable: true,
+      maxAge: '1y',
+      // No directory listing, and no falling through to index.html.
+      index: false,
+      fallthrough: false,
+    })
+  );
+}
 app.use('/api/pantry', pantryRouter);
 app.use('/api/meal-plan', mealPlanRouter);
 app.use('/api/profile', profileRouter);

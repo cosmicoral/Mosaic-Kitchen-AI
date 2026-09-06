@@ -34,7 +34,11 @@ interface CuisineProfile {
   // Rotated per generation. Naming two or three regions steers the model into
   // a corner of the cuisine it would not otherwise visit, and rotating them
   // means two plans a week apart do not come back the same.
-  regions: string[];
+  // Named 'substyles' rather than 'regions' because they are not all places.
+  // Chinese food divides along a map; Japanese and Korean food divide as much
+  // by format and technique — ramen, izakaya, banchan-heavy home cooking — and
+  // a field called 'regions' quietly insisted otherwise.
+  substyles: string[];
   techniques: string[];
   storeCupboard: string;
   note?: string;
@@ -49,7 +53,7 @@ interface CuisineProfile {
 // not a shortlist to pick from.
 const CUISINE_GUIDANCE: Record<string, CuisineProfile> = {
   chinese: {
-    regions: ['Sichuan', 'Cantonese', 'Hunan', 'Jiangnan and Shanghai', 'Northern and Shandong', 'Dongbei', 'Fujian', 'Yunnan', 'Xinjiang', 'Hakka'],
+    substyles: ['Sichuan', 'Cantonese', 'Hunan', 'Jiangnan and Shanghai', 'Northern and Shandong', 'Dongbei', 'Fujian', 'Yunnan', 'Xinjiang', 'Hakka'],
     techniques: ['爆炒 fast wok-frying', '红烧 red-braising', '清蒸 steaming', '凉拌 cold dressing', '炖 slow stewing', '干煸 dry-frying', '焖 covered braising'],
     storeCupboard:
       'light and dark soy sauce (not interchangeable), Shaoxing wine, doubanjiang, ' +
@@ -58,74 +62,82 @@ const CUISINE_GUIDANCE: Record<string, CuisineProfile> = {
     note: 'Home cooking, not restaurant banquet dishes. A weeknight table is usually one meat or tofu dish, one vegetable, rice.',
   },
   japanese: {
-    regions: ['Kanto', 'Kansai', 'Kyushu', 'Hokkaido', 'Tohoku', 'Okinawa'],
+    substyles: [
+      'Kanto style', 'Kansai style', 'Kyushu style', 'Hokkaido style', 'Okinawan',
+      'Home-style washoku', 'Izakaya dishes', 'Ramen', 'Sushi and seafood',
+      'Yakitori and grilled dishes',
+    ],
     techniques: ['焼き grilling', '煮物 simmering in dashi', '炒め stir-frying', '揚げ frying', '和え dressing', '蒸し steaming'],
     storeCupboard: 'dashi, mirin, sake, white and red miso, soy sauce, rice vinegar, kombu, katsuobushi',
     note: 'Everyday 家庭料理, not sushi or ramen. Build as 一汁三菜 where it fits: rice, a soup, a main, small sides.',
   },
   korean: {
-    regions: ['Seoul and Gyeonggi', 'Jeolla', 'Gyeongsang', 'Gangwon', 'Jeju'],
+    substyles: [
+      'Home-style Korean', 'Korean BBQ', 'Soups and stews', 'Bibimbap and rice dishes',
+      'Noodles', 'Street food', 'Royal court cuisine', 'Temple vegetarian cuisine',
+      'Jeolla style', 'Jeju style',
+    ],
     techniques: ['찌개 stew', '볶음 stir-fry', '구이 grilling', '무침 seasoned salad', '조림 braising', '전 pan-fried batter'],
     storeCupboard: 'gochujang, gochugaru (coarse, not cayenne), doenjang, ganjang, sesame oil, toasted sesame, plenty of garlic',
     note: 'Rice plus banchan. Name the banchan you expect alongside the main.',
   },
   indian: {
-    regions: ['Punjabi', 'Gujarati', 'Bengali', 'Tamil', 'Kerala', 'Maharashtrian', 'Rajasthani', 'Hyderabadi'],
+    substyles: ['Punjabi', 'Gujarati', 'Bengali', 'Tamil', 'Kerala', 'Maharashtrian', 'Rajasthani', 'Hyderabadi'],
     techniques: ['tadka tempering', 'dry sabzi', 'slow bhuna', 'steaming', 'tawa griddle', 'dum'],
     storeCupboard: 'whole and ground spices, ghee, mustard oil, curry leaves, tamarind, asafoetida, fresh ginger and green chilli',
     note: 'Real household food — dal, sabzi, roti — not curry-house dishes. Say when spices are bloomed.',
   },
   pakistani: {
-    regions: ['Punjabi', 'Karachi and Sindhi', 'Pashtun', 'Kashmiri'],
+    substyles: ['Punjabi', 'Karachi and Sindhi', 'Pashtun', 'Kashmiri'],
     techniques: ['bhunai', 'karahi', 'dum', 'tawa', 'slow stewing'],
     storeCupboard: 'ghee, whole garam masala, ginger-garlic paste, tomato-onion masala base, dried pomegranate seeds',
   },
   'middle-eastern': {
-    regions: ['Levantine', 'Iraqi', 'Persian', 'Egyptian', 'Yemeni', 'Palestinian'],
+    substyles: ['Levantine', 'Iraqi', 'Persian', 'Egyptian', 'Yemeni', 'Palestinian'],
     techniques: ['slow stewing', 'stuffing vegetables', 'grilling', 'layered rice', 'preserving'],
     storeCupboard: 'sumac, pomegranate molasses, tahini, dried limes, seven spice, bulgur, freekeh',
   },
   thai: {
-    regions: ['Central', 'Isan', 'Northern Lanna', 'Southern'],
+    substyles: ['Central', 'Isan', 'Northern Lanna', 'Southern'],
     techniques: ['pounding pastes', 'stir-frying', 'grilling', 'sour soups', 'salads'],
     storeCupboard: 'fish sauce, palm sugar, galangal, makrut lime leaf, shrimp paste, fresh curry paste',
     note: 'Balance hot, sour, salty and sweet in each dish.',
   },
   vietnamese: {
-    regions: ['Northern', 'Central Hue', 'Southern Mekong'],
+    substyles: ['Northern', 'Central Hue', 'Southern Mekong'],
     techniques: ['kho caramel braising', 'canh clear soup', 'grilling', 'fresh herb salads', 'quick stir-fry'],
     storeCupboard: 'fish sauce, rice vinegar, palm sugar, herbs served raw and generous',
   },
   british: {
-    regions: ['English', 'Scottish', 'Welsh', 'Northern Irish', 'Northern English'],
+    substyles: ['English', 'Scottish', 'Welsh', 'Northern Irish', 'Northern English'],
     techniques: ['roasting', 'slow braising', 'pastry', 'pie making', 'griddling'],
     storeCupboard: 'stock, mustard, Worcestershire sauce, suet, seasonal root vegetables',
     note: 'Everyday home cooking, not gastropub plating.',
   },
   italian: {
-    regions: ['Roman', 'Neapolitan', 'Sicilian', 'Emilian', 'Ligurian', 'Tuscan', 'Puglian'],
+    substyles: ['Roman', 'Neapolitan', 'Sicilian', 'Emilian', 'Ligurian', 'Tuscan', 'Puglian'],
     techniques: ['soffritto', 'braising', 'pasta from the pan sauce', 'roasting', 'grilling'],
     storeCupboard: 'good olive oil, tinned tomatoes, anchovies, capers, pecorino and parmesan, dried pulses',
     note: 'Few ingredients, correct pasta shape, no cream in a carbonara.',
   },
   mexican: {
-    regions: ['Oaxacan', 'Yucatecan', 'Poblano', 'Norteño', 'Veracruz'],
+    substyles: ['Oaxacan', 'Yucatecan', 'Poblano', 'Norteño', 'Veracruz'],
     techniques: ['toasting dried chillies', 'comal charring', 'slow braising', 'salsa making', 'nixtamal'],
     storeCupboard: 'dried chillies, masa harina, lime, Mexican oregano, epazote',
     note: 'Regional home food, not Tex-Mex.',
   },
   caribbean: {
-    regions: ['Jamaican', 'Trinidadian', 'Bajan', 'Guyanese', 'Haitian'],
+    substyles: ['Jamaican', 'Trinidadian', 'Bajan', 'Guyanese', 'Haitian'],
     techniques: ['browning', 'stewing', 'jerk grilling', 'one-pot rice', 'escovitch'],
     storeCupboard: 'green seasoning, scotch bonnet, allspice, thyme, coconut milk, browning sauce',
   },
   'west-african': {
-    regions: ['Nigerian', 'Ghanaian', 'Senegalese', 'Ivorian', 'Sierra Leonean'],
+    substyles: ['Nigerian', 'Ghanaian', 'Senegalese', 'Ivorian', 'Sierra Leonean'],
     techniques: ['one-pot rice', 'slow stewing', 'pounding', 'grilling', 'frying'],
     storeCupboard: 'palm oil, scotch bonnet, crayfish, locust bean (iru), egusi, smoked fish',
   },
   mediterranean: {
-    regions: ['Greek', 'Turkish', 'Levantine', 'Spanish', 'Cypriot', 'Maltese'],
+    substyles: ['Greek', 'Turkish', 'Levantine', 'Spanish', 'Cypriot', 'Maltese'],
     techniques: ['slow oven baking', 'braising in olive oil', 'grilling', 'pulses', 'stuffed vegetables'],
     storeCupboard: 'olive oil, lemon, dried oregano, pulses, tomato paste, yoghurt',
   },
@@ -146,12 +158,14 @@ function sample<T>(items: readonly T[], count: number): T[] {
 // Turns 'chinese:sichuan' into the label the prompt wants. Falls back to the
 // slug rather than dropping the region, because an unlabelled "hakka" still
 // steers the model correctly.
-const REGION_LABELS: Record<string, string> = {
+const SUBSTYLE_LABELS: Record<string, string> = {
   sichuan: 'Sichuan', cantonese: 'Cantonese', hunan: 'Hunan',
   jiangnan: 'Jiangnan and Shanghai', northern: 'Northern', dongbei: 'Dongbei',
   fujian: 'Fujian', yunnan: 'Yunnan', xinjiang: 'Xinjiang', hakka: 'Hakka',
-  kanto: 'Kanto', kansai: 'Kansai', kyushu: 'Kyushu', hokkaido: 'Hokkaido',
-  tohoku: 'Tohoku', okinawa: 'Okinawa',
+  kanto: 'Kanto style', kansai: 'Kansai style', kyushu: 'Kyushu style',
+  hokkaido: 'Hokkaido style', okinawa: 'Okinawan',
+  washoku: 'Home-style washoku', izakaya: 'Izakaya dishes', ramen: 'Ramen',
+  sushi: 'Sushi and seafood', yakitori: 'Yakitori and grilled dishes',
   seoul: 'Seoul and Gyeonggi', jeolla: 'Jeolla', gyeongsang: 'Gyeongsang',
   gangwon: 'Gangwon', jeju: 'Jeju',
   punjabi: 'Punjabi', gujarati: 'Gujarati', bengali: 'Bengali', tamil: 'Tamil',
@@ -176,12 +190,12 @@ const REGION_LABELS: Record<string, string> = {
   maltese: 'Maltese',
 };
 
-function chosenRegionsFor(cuisine: string, cuisineRegions: readonly string[]): string[] {
-  return cuisineRegions
+function chosenSubstylesFor(cuisine: string, cuisineSubstyles: readonly string[]): string[] {
+  return cuisineSubstyles
     .filter((entry) => entry.startsWith(`${cuisine}:`))
     .map((entry) => {
       const slug = entry.slice(cuisine.length + 1);
-      return REGION_LABELS[slug] ?? slug;
+      return SUBSTYLE_LABELS[slug] ?? slug;
     });
 }
 
@@ -189,7 +203,7 @@ function describeCuisines(
   cuisines: readonly string[],
   meals: number,
   recentDishes: readonly string[],
-  cuisineRegions: readonly string[] = []
+  cuisineSubstyles: readonly string[] = []
 ): string {
   if (cuisines.length === 0) return 'No cuisine preference stated.';
 
@@ -210,17 +224,25 @@ function describeCuisines(
       // and Hakka has told us something the random sampler can only guess at,
       // and quietly overriding them with "this week try Xinjiang" is the app
       // ignoring the one preference they bothered to state.
-      const chosen = chosenRegionsFor(cuisine, cuisineRegions);
-      const regions =
+      const chosen = chosenSubstylesFor(cuisine, cuisineSubstyles);
+      const substyles =
         chosen.length > 0
           ? chosen
-          : sample(profile.regions, Math.min(3, profile.regions.length));
+          : sample(profile.substyles, Math.min(3, profile.substyles.length));
 
       const techniques = sample(profile.techniques, Math.min(3, profile.techniques.length));
-      const heading = chosen.length > 0 ? 'Only cook from' : 'This week draw from';
+
+      // A preference signal, not a constraint. The previous wording was "Only
+      // cook from", which is the vocabulary of the allergen rules — and those
+      // are enforced in code after generation precisely because a prompt
+      // cannot guarantee anything. Spending that emphasis on a taste
+      // preference both overstates what the prompt can do and boxes the
+      // planner in: somebody who ticked Ramen still eats other Japanese food.
+      const heading =
+        chosen.length > 0 ? 'Strongly prefer' : 'This week draw from';
 
       return `## ${cuisine}
-${heading}: ${regions.join(', ')}.
+${heading}: ${substyles.join(', ')}.
 Lean on these methods: ${techniques.join(', ')}.
 Store cupboard: ${profile.storeCupboard}.${profile.note ? `\n${profile.note}` : ''}`;
     })
@@ -231,7 +253,7 @@ Store cupboard: ${profile.storeCupboard}.${profile.note ? `\n${profile.note}` : 
   // what makes a meal planner feel like a search engine with one result.
   const repeats =
     recentDishes.length > 0
-      ? `\n\nALREADY COOKED — DO NOT REPEAT ANY OF THESE\n${recentDishes.join(', ')}\nChoose different dishes, including different dishes from the same regions.`
+      ? `\n\nALREADY COOKED — DO NOT REPEAT ANY OF THESE\n${recentDishes.join(', ')}\nChoose different dishes, including different dishes in the same styles.`
       : '';
 
   return `${distribution}
@@ -495,7 +517,7 @@ Cook each dish for ${servings} servings.
 ${avoid}
 
 CUISINES
-${describeCuisines(profile.cuisines, dishes, recentDishes, profile.cuisine_regions)}
+${describeCuisines(profile.cuisines, dishes, recentDishes, profile.cuisine_substyles)}
 
 FLAVOUR
 ${describeFlavour(profile)}
@@ -549,7 +571,7 @@ Cook each recipe for ${servings} servings.
 ${avoid}
 
 CUISINES — THIS IS THE POINT OF THE PRODUCT
-${describeCuisines(profile.cuisines, profile.meals_per_week, recentDishes, profile.cuisine_regions)}
+${describeCuisines(profile.cuisines, profile.meals_per_week, recentDishes, profile.cuisine_substyles)}
 
 FLAVOUR
 ${describeFlavour(profile)}

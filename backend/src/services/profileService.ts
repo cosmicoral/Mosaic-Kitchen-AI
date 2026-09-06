@@ -129,15 +129,15 @@ function parseCookingStyle(value: unknown): CookingStyle | null {
 // UI left a stale selection behind when they unticked the cuisine.
 function parseCuisineRegions(value: unknown, cuisines: readonly Cuisine[]): string[] {
   if (value === undefined || value === null) return [];
-  if (!Array.isArray(value)) throw invalid('cuisine_regions must be an array');
+  if (!Array.isArray(value)) throw invalid('cuisine_substyles must be an array');
 
   const cleaned = value.map((entry) => {
     if (typeof entry !== 'string') {
-      throw invalid('cuisine_regions must contain only strings');
+      throw invalid('cuisine_substyles must contain only strings');
     }
     const candidate = entry.trim().toLowerCase();
     if (!isCuisineRegion(candidate)) {
-      throw invalid(`cuisine_regions contains an unknown value: ${entry}`);
+      throw invalid(`cuisine_substyles contains an unknown value: ${entry}`);
     }
     return candidate;
   });
@@ -234,7 +234,7 @@ export async function saveProfile(userId: string, body: unknown): Promise<UserPr
     meals_per_week: parseMealsPerWeek(record.meals_per_week),
     weekly_budget: parseBudget(record.weekly_budget),
     cuisines,
-    cuisine_regions: parseCuisineRegions(record.cuisine_regions, cuisines),
+    cuisine_substyles: parseCuisineRegions(record.cuisine_substyles, cuisines),
     seasoning_intensity: parseSeasoningIntensity(record.seasoning_intensity),
     flavour_notes: parseFromList<FlavourNote>(
       record.flavour_notes,

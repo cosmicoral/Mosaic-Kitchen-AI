@@ -49,10 +49,19 @@ export type Cuisine = (typeof CUISINES)[number];
 // Mirrors the backend catalogue. Values are stored namespaced as
 // 'chinese:sichuan', because "Northern" and "Central" name different places in
 // different cuisines and a bare slug could not tell them apart.
-export const CUISINE_REGIONS: Record<Cuisine, readonly string[]> = {
+export const CUISINE_SUBSTYLES: Record<Cuisine, readonly string[]> = {
   chinese: ['sichuan', 'cantonese', 'hunan', 'jiangnan', 'northern', 'dongbei', 'fujian', 'yunnan', 'xinjiang', 'hakka'],
-  japanese: ['kanto', 'kansai', 'kyushu', 'hokkaido', 'tohoku', 'okinawa'],
-  korean: ['seoul', 'jeolla', 'gyeongsang', 'gangwon', 'jeju'],
+  // Japanese and Korean mix places with formats on purpose. "Kanto" is a real
+  // distinction and so is "ramen", and a household is at least as likely to
+  // reach for the second. Forcing both onto a map was the old model's mistake.
+  japanese: [
+    'kanto', 'kansai', 'kyushu', 'hokkaido', 'okinawa',
+    'washoku', 'izakaya', 'ramen', 'sushi', 'yakitori',
+  ],
+  korean: [
+    'home-korean', 'bbq', 'soups-stews', 'bibimbap', 'korean-noodles',
+    'street-food', 'royal-court', 'temple', 'jeolla', 'jeju',
+  ],
   indian: ['punjabi', 'gujarati', 'bengali', 'tamil', 'kerala', 'maharashtrian', 'rajasthani', 'hyderabadi'],
   pakistani: ['punjabi', 'sindhi', 'pashtun', 'kashmiri'],
   'middle-eastern': ['levantine', 'iraqi', 'persian', 'egyptian', 'yemeni', 'palestinian'],
@@ -106,7 +115,7 @@ export interface UserProfile {
   meals_per_week: number;
   weekly_budget: string | null;
   cuisines: Cuisine[];
-  cuisine_regions: string[];
+  cuisine_substyles: string[];
   seasoning_intensity: SeasoningIntensity | null;
   flavour_notes: FlavourNote[];
   low_salt: boolean;
@@ -130,7 +139,7 @@ export interface UserProfileInput {
   meals_per_week: number;
   weekly_budget: number | null;
   cuisines: Cuisine[];
-  cuisine_regions: string[];
+  cuisine_substyles: string[];
   seasoning_intensity: SeasoningIntensity | null;
   flavour_notes: FlavourNote[];
   low_salt: boolean;

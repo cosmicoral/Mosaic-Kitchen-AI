@@ -23,13 +23,14 @@ import {
   NUTRITION_LABELS,
   PRIORITY_LABELS,
   SEASONING_LABELS,
-  regionLabel,
+  substyleLabel,
 } from "../lib/profileOptions";
-import { CuisineRegionPicker } from "../components/CuisineRegionPicker";
+import { CuisineStylePicker } from "../components/CuisineStylePicker";
 import { ExtrasPicker } from "../components/ExtrasPicker";
 import { FlavourPicker } from "../components/FlavourPicker";
 import { CUISINES, type Cuisine, type UserProfileInput } from "../types";
 import { useLocale } from "../context/LocaleContext";
+import { fetchAccount } from "../lib/account";
 
 // One row of the personalisation card. `empty` is passed explicitly rather
 // than inferred from the children, because "0 people" and "£0.00" are real
@@ -64,6 +65,16 @@ export function ProfilePage() {
   const { t } = useLocale();
   const { profile, status, error, refresh, save } = useProfile();
   const { billing } = useBilling();
+
+  // The uploaded picture, if there is one. Failure is silent and falls back to
+  // the mascot: a missing avatar is not worth an error state on a page about
+  // meal preferences.
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  useEffect(() => {
+    fetchAccount()
+      .then(({ account }) => setAvatarUrl(account.avatar_url))
+      .catch(() => setAvatarUrl(null));
+  }, []);
 
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<UserProfileInput | null>(null);
@@ -106,7 +117,7 @@ export function ProfilePage() {
     // reticking the cuisine would silently restore choices the user cleared.
     updateDraft({
       cuisines,
-      cuisine_regions: draft.cuisine_regions.filter((entry) =>
+      cuisine_substyles: draft.cuisine_substyles.filter((entry) =>
         cuisines.includes(entry.split(":")[0] as Cuisine)
       ),
     });
@@ -154,7 +165,7 @@ export function ProfilePage() {
 
         <Card className="profile-identity">
           <div className="profile-identity__top">
-            <MascotAvatar size="md" src={genericAvatar} />
+            <MascotAvatar size="md" src={avatarUrl ?? genericAvatar} />
             <span style={{ minWidth: 0 }}>
               <h1 className="profile-identity__name">{t("Your kitchen profile")}</h1>
               {/* Email lives on the account, not the profile, so it comes from
@@ -269,9 +280,9 @@ export function ProfilePage() {
                             {t(CUISINE_LABELS[cuisine])}
                           </span>
                         ))}
-                        {profile.cuisine_regions.map((region) => (
+                        {profile.cuisine_substyles.map((region) => (
                           <span className="ai-pill" key={region}>
-                            {t(regionLabel(region))}
+                            {t(substyleLabel(region))}
                           </span>
                         ))}
                       </span>
@@ -486,11 +497,11 @@ export function ProfilePage() {
                     a part of "what we cook" as the cuisines are, and hiding
                     them outside edit mode makes the saved profile look
                     incomplete. */}
-                {!isEditing && profile.cuisine_regions.length > 0 ? (
+                {!isEditing && profile.cuisine_substyles.length > 0 ? (
                   <div className="choice-grid" style={{ marginTop: 12 }}>
-                    {profile.cuisine_regions.map((region) => (
+                    {profile.cuisine_substyles.map((region) => (
                       <Badge key={region} variant="cream">
-                        {t(regionLabel(region))}
+                        {t(substyleLabel(region))}
                       </Badge>
                     ))}
                   </div>
@@ -499,10 +510,10 @@ export function ProfilePage() {
 
               {isEditing && draft ? (
                 <>
-                  <CuisineRegionPicker
+                  <CuisineStylePicker
                     cuisines={draft.cuisines}
-                    onChange={(cuisine_regions) => updateDraft({ cuisine_regions })}
-                    selected={draft.cuisine_regions}
+                    onChange={(cuisine_substyles) => updateDraft({ cuisine_substyles })}
+                    selected={draft.cuisine_substyles}
                   />
                   <FlavourPicker
                     intensity={draft.seasoning_intensity}

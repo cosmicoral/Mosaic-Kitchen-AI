@@ -8,6 +8,7 @@ import * as subscriptionRepository from '../repositories/subscriptionRepository.
 import * as identityRepository from '../repositories/identityRepository.ts';
 import * as userRepository from '../repositories/userRepository.ts';
 import { assertValidPassword } from './authService.ts';
+import { avatarUrlFor, removeAvatar } from './avatarService.ts';
 import { stripe } from './stripe.ts';
 
 // Same cost as signup. A password changed here must be no cheaper to crack
@@ -22,6 +23,9 @@ export interface AccountOverview {
   // password" form would be asking it to change something it does not have.
   has_password: boolean;
   providers: string[];
+  // Null means the mascot. Sent as a URL rather than a key so the client never
+  // has to know how object storage is addressed.
+  avatar_url: string | null;
 }
 
 export async function getOverview(userId: string): Promise<AccountOverview> {
@@ -35,6 +39,7 @@ export async function getOverview(userId: string): Promise<AccountOverview> {
     created_at: user.created_at,
     has_password: user.password_hash !== null,
     providers: identities.map((identity) => identity.provider),
+    avatar_url: avatarUrlFor(await userRepository.findAvatarKey(userId)),
   };
 }
 
@@ -140,6 +145,11 @@ export async function deleteAccount(
   // stored subscription id left to cancel — the row would be gone and the card
   // would keep being charged every month with nobody able to explain why.
   await cancelSubscriptionIfAny(userId);
+
+  // Before the row goes, because the key lives on it. Best-effort, like the
+  // Stripe cancellation: an orphaned object costs a fraction of a penny, while
+  // a blocked deletion denies a legal right.
+  await removeAvatar(userId);
 
   await userRepository.deleteById(userId);
 }

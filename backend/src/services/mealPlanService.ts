@@ -210,7 +210,7 @@ export const INSIGHT_KEYS = [
   'pantry_empty',
   'expiry_soonest',
   'budget_target',
-  'culture_regions',
+  'culture_styles',
   'selection_items',
 ] as const;
 export type InsightKey = (typeof INSIGHT_KEYS)[number];
@@ -239,7 +239,7 @@ const noopInsight: InsightReporter = () => {};
 function countProfileSignals(profile: UserProfile): number {
   const filled = [
     profile.cuisines.length > 0,
-    profile.cuisine_regions.length > 0,
+    profile.cuisine_substyles.length > 0,
     profile.avoid_ingredients.length > 0,
     profile.priorities.length > 0,
     profile.flavour_notes.length > 0,
@@ -297,9 +297,9 @@ function reportSoonestExpiry(items: PantryItem[], onInsight: InsightReporter): v
 // claim about what will come back — a statement of what was asked for.
 function reportCultureRegions(profile: UserProfile, onInsight: InsightReporter): void {
   const regions =
-    profile.cuisine_regions.length > 0 ? profile.cuisine_regions : profile.cuisines;
+    profile.cuisine_substyles.length > 0 ? profile.cuisine_substyles : profile.cuisines;
   if (regions.length > 0) {
-    onInsight({ key: 'culture_regions', data: { list: regions.slice(0, 4) } });
+    onInsight({ key: 'culture_styles', data: { list: regions.slice(0, 4) } });
   }
 }
 

@@ -20,7 +20,7 @@ const EMPTY_DRAFT: UserProfileInput = {
   meals_per_week: 7,
   weekly_budget: null,
   cuisines: [],
-  cuisine_regions: [],
+  cuisine_substyles: [],
   seasoning_intensity: null,
   flavour_notes: [],
   low_salt: false,

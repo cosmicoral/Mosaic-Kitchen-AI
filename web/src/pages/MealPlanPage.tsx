@@ -28,7 +28,7 @@ import {
 } from "../lib/mealPlanFormat";
 import { SkeletonList } from "../components/ui/Skeleton";
 import { useLocale } from "../context/LocaleContext";
-import { CUISINE_LABELS, regionLabel } from "../lib/profileOptions";
+import { CUISINE_LABELS, substyleLabel } from "../lib/profileOptions";
 import type { Cuisine } from "../types";
 
 export function MealPlanPage() {
@@ -253,7 +253,7 @@ export function MealPlanPage() {
                               <span className="tiny muted">
                                 {t(
                                   meal.region
-                                    ? regionLabel(`${meal.cuisine}:${meal.region}`)
+                                    ? substyleLabel(`${meal.cuisine}:${meal.region}`)
                                     : (CUISINE_LABELS[meal.cuisine as Cuisine] ?? meal.cuisine)
                                 )}
                               </span>

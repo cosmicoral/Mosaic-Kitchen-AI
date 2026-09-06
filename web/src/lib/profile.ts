@@ -26,7 +26,7 @@ export function profileToInput(profile: UserProfile): UserProfileInput {
     meals_per_week: profile.meals_per_week,
     weekly_budget: profile.weekly_budget === null ? null : Number(profile.weekly_budget),
     cuisines: profile.cuisines,
-    cuisine_regions: profile.cuisine_regions,
+    cuisine_substyles: profile.cuisine_substyles,
     seasoning_intensity: profile.seasoning_intensity,
     flavour_notes: profile.flavour_notes,
     low_salt: profile.low_salt,

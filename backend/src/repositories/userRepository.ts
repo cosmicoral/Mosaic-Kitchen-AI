@@ -85,3 +85,18 @@ export async function updatePasswordHash(
 export async function deleteById(userId: string): Promise<void> {
   await pool.query('DELETE FROM users WHERE id = $1', [userId]);
 }
+
+export async function findAvatarKey(userId: string): Promise<string | null> {
+  const result = await pool.query<{ avatar_key: string | null }>(
+    'SELECT avatar_key FROM users WHERE id = $1',
+    [userId]
+  );
+  return result.rows[0]?.avatar_key ?? null;
+}
+
+export async function setAvatarKey(
+  userId: string,
+  key: string | null
+): Promise<void> {
+  await pool.query('UPDATE users SET avatar_key = $1 WHERE id = $2', [key, userId]);
+}

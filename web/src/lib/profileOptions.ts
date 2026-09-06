@@ -56,14 +56,24 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
 // a fixed list cannot cover every allergy — the list is a convenience, not a
 // constraint.
 // English labels; the locale layer translates them like every other string.
-export const REGION_LABELS: Record<string, string> = {
+//
+// A substyle is not always a place. Chinese food divides along a map, but
+// Japanese and Korean food divide as much by format — ramen, izakaya, banchan
+// — and the old name for this map, REGION_LABELS, made a claim about every
+// cuisine that was only true of some.
+export const SUBSTYLE_LABELS: Record<string, string> = {
   sichuan: 'Sichuan', cantonese: 'Cantonese', hunan: 'Hunan',
   jiangnan: 'Jiangnan / Shanghai', northern: 'Northern', dongbei: 'Dongbei',
   fujian: 'Fujian', yunnan: 'Yunnan', xinjiang: 'Xinjiang', hakka: 'Hakka',
-  kanto: 'Kanto', kansai: 'Kansai', kyushu: 'Kyushu', hokkaido: 'Hokkaido',
-  tohoku: 'Tohoku', okinawa: 'Okinawa',
-  seoul: 'Seoul', jeolla: 'Jeolla', gyeongsang: 'Gyeongsang',
-  gangwon: 'Gangwon', jeju: 'Jeju',
+  kanto: 'Kanto style', kansai: 'Kansai style', kyushu: 'Kyushu style',
+  hokkaido: 'Hokkaido style', okinawa: 'Okinawan',
+  washoku: 'Home-style washoku', izakaya: 'Izakaya dishes', ramen: 'Ramen',
+  sushi: 'Sushi and seafood', yakitori: 'Yakitori and grilled dishes',
+  'home-korean': 'Home-style Korean', bbq: 'Korean BBQ',
+  'soups-stews': 'Soups and stews', bibimbap: 'Bibimbap and rice dishes',
+  'korean-noodles': 'Noodles', 'street-food': 'Street food',
+  'royal-court': 'Royal court cuisine', temple: 'Temple vegetarian cuisine',
+  jeolla: 'Jeolla style', jeju: 'Jeju style',
   punjabi: 'Punjabi', gujarati: 'Gujarati', bengali: 'Bengali', tamil: 'Tamil',
   kerala: 'Kerala', maharashtrian: 'Maharashtrian', rajasthani: 'Rajasthani',
   hyderabadi: 'Hyderabadi', sindhi: 'Sindhi', pashtun: 'Pashtun',
@@ -86,8 +96,8 @@ export const REGION_LABELS: Record<string, string> = {
   maltese: 'Maltese',
 };
 
-export function regionLabel(value: string): string {
-  return REGION_LABELS[value.split(':')[1] ?? value] ?? value;
+export function substyleLabel(value: string): string {
+  return SUBSTYLE_LABELS[value.split(':')[1] ?? value] ?? value;
 }
 
 export const SEASONING_LABELS: Record<SeasoningIntensity, string> = {

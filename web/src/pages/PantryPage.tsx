@@ -18,6 +18,7 @@ import { PANTRY_CATEGORIES, type PantryCategory, type PantryItem } from "../type
 import { SkeletonList } from "../components/ui/Skeleton";
 import { useLocale } from "../context/LocaleContext";
 import { displayIngredient } from "../lib/ingredientLexicon";
+import { useIngredientGloss } from "../hooks/useIngredientGloss";
 
 const CATEGORY_LABELS: Record<PantryCategory, string> = {
   vegetables: "Vegetables",
@@ -37,6 +38,10 @@ export function PantryPage() {
   const { locale, t } = useLocale();
   const { items, status, error, refresh, addItem, removeItem, removeItems } = usePantry();
   const cook = usePantryCook();
+
+  // Names the local table cannot translate get a short gloss underneath. The
+  // row itself is never rewritten — it is the user's data, in their words.
+  const glosses = useIngredientGloss(items.map((item) => item.name));
   const [picking, setPicking] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -255,6 +260,11 @@ export function PantryPage() {
                 <Card className="alert-choice" key={item.id}>
                   <span>
                     <strong>{displayIngredient(item.name, locale)}</strong>
+                        {glosses[item.name] ? (
+                          <span className="tiny muted ingredient-gloss">
+                            {glosses[item.name]}
+                          </span>
+                        ) : null}
                     <br />
                     <Badge variant={expiryTone(item.expires_on)}>
                       {formatExpiryForLocale(item.expires_on, locale)}
@@ -350,6 +360,11 @@ export function PantryPage() {
                       ) : null}
                       <span>
                         <strong>{displayIngredient(item.name, locale)}</strong>
+                        {glosses[item.name] ? (
+                          <span className="tiny muted ingredient-gloss">
+                            {glosses[item.name]}
+                          </span>
+                        ) : null}
                         <br />
                         <span className="small muted">
                           {formatAmount(item, locale) || t("No quantity set")}

@@ -19,7 +19,7 @@ const PROFILE: UserProfile = {
   meals_per_week: 7,
   weekly_budget: '80.00',
   cuisines: ['chinese', 'british'],
-  cuisine_regions: [],
+  cuisine_substyles: [],
   seasoning_intensity: null,
   flavour_notes: [],
   low_salt: false,

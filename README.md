@@ -33,6 +33,7 @@ OpenAI structured outputs · Stripe · Server-Sent Events
 | **SSE streaming** | Five real generation stages streamed over `fetch` + `ReadableStream`. No invented progress percentage |
 | **Bilingual content** | Plans generated in the reader's language; stored plans translated on demand and cached, with a 220-entry ingredient lexicon answering most strings before any model call |
 | **Usage and cost metering** | Every call recorded in `ai_usage` including failures and retries, per-user monthly quotas, and a global spend ceiling that only ever refuses free accounts |
+| **RAG-ready schema** | pgvector tables, HNSW index, scoped retrieval SQL and a grocery-availability catalogue (region + store class). **Schema only — the corpus is empty, nothing is indexed, and generation does not consult it.** See [`docs/rag.md`](docs/rag.md) |
 | **Tests** | 209 backend, 13 frontend, plus a locale-coverage lint. Three tests read source to check that code and SQL agree |
 
 ---
@@ -90,6 +91,7 @@ storage rules and the testing strategy.
 | Plan storage | JSONB document | Relational meal/ingredient tables | A plan is produced once, always read whole, never queried into and never partially updated. Splitting it would mean three JOINs to rebuild something always wanted in one piece, and every prompt change would be a migration. Profiles get columns, because they are filtered and updated |
 | AI output | Structured output + programmatic post-check | Prompt instructions alone | A schema constrains shape, not truth. Allergen exclusions are a safety property, so they are verified in code after the model has answered, and a violation triggers a retry that names the specific dish |
 | Translation | Lookup table first, model for the rest | Model for everything | Ingredient names are over half the strings and repeat endlessly. Garlic is garlic — a lookup is cheaper *and* more consistent than a model |
+| Grocery availability | Deterministic table lookup | Vector similarity | "Can this be bought in Sheffield?" is a fact with a yes/no answer. Nearest-neighbour returns the most similar thing, which is the wrong shape of answer for a shopping list. Retrieval is reserved for the questions that are genuinely about similarity: substitutions and regional cooking knowledge |
 | Ingredient matching | Exact match only | Fuzzy or substring | Substring matching resolves 青椒炒肉丝 to "green pepper". A shopping list that sends someone home with the wrong vegetable is worse than one in the wrong language |
 
 ---
@@ -98,7 +100,10 @@ storage rules and the testing strategy.
 
 **Accounts** — email/password signup and login, Google sign-in, session
 management, account deletion and JSON data export (UK GDPR erasure and
-access), password change for accounts that have one.
+access), password change for accounts that have one, and profile pictures
+stored in Cloudflare R2. Uploads are decoded and re-encoded rather than
+stored as received, which drops EXIF — a phone photo carries GPS coordinates,
+and publishing those alongside a face is not a trade anyone agreed to.
 → [`docs/auth.md`](docs/auth.md)
 
 **Billing** — three tiers, monthly and yearly, through Stripe Checkout and the
@@ -107,9 +112,13 @@ copy verified against them by a test.
 → [`docs/billing.md`](docs/billing.md)
 
 **Household profile** — adults, teenagers, children and toddlers counted
-separately because each changes the plan differently. Cuisines narrowed by
-**region** (Hunan, Yunnan, Jeolla, Kansai…), plus seasoning intensity, flavour
-preferences, nutrition emphasis, and free-text ingredient exclusions.
+separately because each changes the plan differently. Cuisine preferences can
+be refined with regional or culinary **styles** — Hunan or Yunnan for Chinese
+food, Kansai or home-style washoku for Japanese, Korean BBQ or Jeolla-style
+cooking for Korean — because not every cuisine divides along a map. Plus
+seasoning intensity, flavour preferences, nutrition emphasis, and free-text
+ingredient exclusions. Styles are preference signals in the prompt, not
+constraints; only the safety rules are enforced after generation.
 
 **Pantry** — CRUD with quantities, units and expiry dates. Ownership enforced
 in the SQL `WHERE` clause, so another user's row is structurally unreachable.
@@ -141,9 +150,11 @@ Written down deliberately. An honest list is more useful than a clean one.
   instead of pretending to send anything
 - **Camera scanning does not exist.** The quota field and the pricing row are
   there; the feature is labelled "coming soon" and is not sold as available
-- **No RAG.** Retrieval over a curated recipe corpus is on the roadmap and is
-  not built. Variety currently comes from region rotation and a 40-dish
-  do-not-repeat list
+- **RAG is scaffolding only.** The pgvector schema, the retrieval SQL and the
+  grocery catalogue exist and are tested, but the corpus is empty, no embedding
+  job has been run, and `RETRIEVAL_ENABLED` defaults to off. Generation behaves
+  identically with it on or off. Variety currently comes from style rotation
+  and a 40-dish do-not-repeat list
 - **No mobile app and no grocery integrations.** Both are roadmap items
 - **Expiry dates are user-entered.** A shelf-life lookup table exists but is
   not yet wired into the pantry write path
@@ -248,9 +259,10 @@ Consumption and Waste: A Case Study of Middle-Class Consumers in Kunming
   "coming soon" labels can come off
 - **Then** — expiry-driven waste-reduction flow (discard / use fresh /
   preserve), shelf-life estimation wired into the pantry
-- **Later** — retrieval over a curated recipe corpus so plans draw on real
-  regional dishes; a SwiftUI client on the same API; UK grocery pricing, which
-  depends on a data source that does not currently exist publicly
+- **Later** — populate the knowledge base: a UK grocery-availability catalogue
+  first, so plans stop suggesting ingredients nobody can buy, then regional
+  cooking documents; a SwiftUI client on the same API; retailer integration,
+  which depends on a data source that does not currently exist publicly
 
 ---
 

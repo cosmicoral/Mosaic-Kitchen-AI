@@ -17,6 +17,7 @@ import { useLocale } from "../context/LocaleContext";
 import { mismatchesLocale } from "../lib/textLocale";
 import { formatAmount } from "../lib/pantryFormat";
 import { displayIngredient } from "../lib/ingredientLexicon";
+import { useIngredientGloss } from "../hooks/useIngredientGloss";
 
 const CATEGORY_LABELS: Record<PantryCategory, string> = {
   vegetables: "Vegetables",
@@ -60,6 +61,10 @@ export function ShoppingListPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const checkedCount = items.filter((item) => item.is_checked).length;
+
+  // Names the local table cannot translate get a short gloss underneath. The
+  // row itself is never rewritten — it is the user's data, in their words.
+  const glosses = useIngredientGloss(items.map((item) => item.name));
 
   // Only items that came from the plan. Something the user typed as 生抽 is
   // their own data and is correct in any interface language — flagging it
@@ -264,6 +269,11 @@ export function ShoppingListPage() {
                         }}
                       >
                         <strong>{displayIngredient(item.name, locale)}</strong>
+                        {glosses[item.name] ? (
+                          <span className="tiny muted ingredient-gloss">
+                            {glosses[item.name]}
+                          </span>
+                        ) : null}
                         <br />
                         <span className="small muted">{formatAmount(item, locale) || t("No amount set")}</span>
                       </span>

@@ -214,6 +214,28 @@ const zh: Record<string, string> = {
 
   // Accessibility label, read aloud rather than displayed.
   'Primary navigation': '主导航',
+  'Profile picture': '头像',
+  'Square images work best. We resize to 256px and strip location data from the file.':
+    '方形图片效果最好。我们会缩到 256px,并去掉文件里的位置信息。',
+  'Change picture': '更换头像', 'Uploading…': '正在上传…',
+  'Use the cat again': '换回猫咪',
+  'Picture updated': '头像已更新', 'Back to the cat': '已换回猫咪',
+  // Cuisine substyles. Japanese and Korean mix places with formats, because
+  // that is how people actually describe what they want to eat.
+  'Any styles in particular?': '有特别偏好的风格吗?',
+  'Optional. Leave a cuisine blank and we will move around its styles week to week.':
+    '可不选。某个菜系留空的话,我们会每周在它的各种风格之间轮换。',
+  'Do you have preferred regional or food styles?': '有偏好的地方菜或做法风格吗?',
+  'Kanto style': '关东风', 'Kansai style': '关西风', 'Kyushu style': '九州风',
+  'Hokkaido style': '北海道风', 'Okinawan': '冲绳菜',
+  'Home-style washoku': '家常和食', 'Izakaya dishes': '居酒屋菜',
+  'Ramen': '拉面', 'Sushi and seafood': '寿司与海鲜',
+  'Yakitori and grilled dishes': '烤串与烧物',
+  'Home-style Korean': '韩式家常菜', 'Korean BBQ': '韩式烤肉',
+  'Soups and stews': '汤与炖菜', 'Bibimbap and rice dishes': '拌饭与饭类',
+  'Noodles': '面食', 'Street food': '街头小吃',
+  'Royal court cuisine': '宫廷料理', 'Temple vegetarian cuisine': '寺庙素食',
+  'Jeolla style': '全罗风', 'Jeju style': '济州风',
   // Stripe's subscription vocabulary.
   'Active': '生效中', 'Trial': '试用中', 'Payment failed — retrying': '扣款失败,正在重试',
   'Cancelled': '已取消', 'Unpaid': '未付款', 'Incomplete': '未完成',

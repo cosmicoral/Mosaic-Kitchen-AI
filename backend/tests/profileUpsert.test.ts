@@ -23,7 +23,7 @@ const UPDATABLE_COLUMNS = [
   'meals_per_week',
   'weekly_budget',
   'cuisines',
-  'cuisine_regions',
+  'cuisine_substyles',
   'seasoning_intensity',
   'flavour_notes',
   'low_salt',

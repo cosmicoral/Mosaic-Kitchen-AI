@@ -2052,3 +2052,38 @@ button:active:not(:disabled) {
 .danger-card h2 {
   color: #a63a2a;
 }
+
+/* The gloss under an ingredient name. Indented and quiet: it is an annotation
+   on the user's own words, not a correction of them, and it must never be
+   mistaken for the name itself. */
+.ingredient-gloss {
+  display: block;
+  margin-top: 1px;
+  padding-left: 1px;
+  font-style: italic;
+  opacity: 0.75;
+}
+
+/* Picture beside its controls rather than above them: the image is the subject
+   and the buttons act on it, and stacking them makes the relationship read as
+   two unrelated things. */
+.avatar-editor {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.avatar-editor__actions {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 420px) {
+  /* Below this the two columns leave the buttons about 120px, which wraps
+     every label. */
+  .avatar-editor {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
