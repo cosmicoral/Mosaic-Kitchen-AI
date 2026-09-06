@@ -10,6 +10,16 @@ export interface Entitlements {
   // one action that directly stops food being thrown away — charging a weekly
   // plan's credit for it would be taxing the thing the product is for.
   pantryCooksPerMonth: number;
+  // Reading a stored plan in the other language. Metered separately from
+  // generation, and not folded into mealPlansPerMonth, because charging a plan
+  // credit for reading a plan you already own would be charging twice for one
+  // thing — and because a bilingual household would then get half the plans of
+  // a monolingual one, which is the opposite of what this product is for.
+  //
+  // Costed at about 1.4x a generation, which is the surprise: output tokens
+  // dominate the bill, and a translation reproduces the plan's whole text plus
+  // an indexed JSON envelope. See costModel.ts.
+  planTranslationsPerMonth: number;
   scansPerMonth: number;
 }
 
@@ -21,18 +31,29 @@ export interface Entitlements {
 const ENTITLEMENTS: Record<Tier, Entitlements> = {
   // Roughly two weekly plans a week. Counted monthly because that is the
   // period the billing runs on, and a weekly counter would reset mid-cycle.
+  // Eight plans became six to pay for four translations. At eight plans plus
+  // eight translations the worst-case free account costs £0.069 a month, and
+  // the £100 ceiling would arrive at 1,400 users instead of 3,100 — over half
+  // the runway spent on a feature most users never touch. Six and four costs
+  // £0.044 and keeps the ceiling past 2,200.
   free: {
     householdMembers: 1,
-    mealPlansPerMonth: 8,
+    mealPlansPerMonth: 6,
     maxMealsPerPlan: 7,
     pantryCooksPerMonth: 5,
+    planTranslationsPerMonth: 4,
     scansPerMonth: 3,
   },
+  // Not cut to pay for translation, because the arithmetic does not ask for
+  // it: a Plus account using every allowance costs £0.12 of AI against £6.99
+  // of revenue. Trimming that would save fractions of a penny and cost a
+  // paying customer something they can feel.
   plus: {
     householdMembers: 2,
     mealPlansPerMonth: 10,
     maxMealsPerPlan: 14,
     pantryCooksPerMonth: 30,
+    planTranslationsPerMonth: 20,
     scansPerMonth: 30,
   },
   // Caps bound a runaway loop or an abusive account; they are not a ration.
@@ -43,6 +64,7 @@ const ENTITLEMENTS: Record<Tier, Entitlements> = {
     mealPlansPerMonth: 30,
     maxMealsPerPlan: 21,
     pantryCooksPerMonth: 100,
+    planTranslationsPerMonth: 60,
     scansPerMonth: 150,
   },
 };

@@ -195,7 +195,7 @@ export function ProfilePage() {
                 </Button>
                 <Button
                   icon={<Settings size={17} />}
-                  onClick={() => showToast(t("Settings are not built yet"))}
+                  onClick={() => navigate("/settings")}
                   variant="secondary"
                 >
                   {t("Settings")}

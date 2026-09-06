@@ -1928,3 +1928,17 @@ button:active:not(:disabled) {
   top: 60px;
   z-index: 15;
 }
+
+/* The one card on the settings page whose action cannot be undone. Tinted and
+   outlined rather than shouting: it has to be findable and unmistakable, but a
+   page that alarms you every time you open it stops being read. */
+.danger-card {
+  border: 1px solid #f3c9c1;
+  background:
+    linear-gradient(160deg, rgba(255, 104, 104, 0.06), rgba(255, 255, 255, 0) 60%),
+    var(--color-surface);
+}
+
+.danger-card h2 {
+  color: #a63a2a;
+}

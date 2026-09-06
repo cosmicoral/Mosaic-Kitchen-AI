@@ -82,6 +82,15 @@ Built on `openid-client` v6 directly rather than a wrapper.
 - `password_hash` is nullable, because an account that arrived through Google has no password. Every read of it handles `null` rather than assuming a string
 - Sign in with Apple is deliberately not built yet — it needs a paid Apple Developer account and a verified domain, neither of which exists
 
+### Account and data rights
+
+UK GDPR gives people a right to a copy of their data and a right to have it erased. Both are built, because a product taking UK household data cannot ship without them.
+
+- **Export** returns everything the account owns — profile, pantry, meal plans, shopping list — as a JSON download, in the shape it is stored. Passwords and session ids are excluded: those are credentials, not personal data anyone needs back
+- **Deletion** is irreversible and says so. It requires the account's own email address typed exactly, which a mis-click cannot produce. Stripe is cancelled **before** the row is deleted, because the delete cascades the subscription record away and there would be no id left to cancel — the account would be gone and the card would keep being charged
+- If Stripe is unreachable the account is still deleted and the failure is logged as `URGENT`. Holding a legal right hostage to a third party's uptime is the worse of the two options; a subscription cancelled by hand the next morning is the better one
+- **Changing a password** works only where there is one to change. An account created through Google has `password_hash IS NULL`, and the page says why rather than offering a form that cannot work. *Setting* a first password on such an account is refused: it adds a second way in, and doing that silently from a session is a takeover path
+
 ### Billing
 
 Stripe hosted Checkout and the Customer Portal, so no card data ever reaches this codebase.
@@ -96,12 +105,27 @@ Stripe hosted Checkout and the Customer Portal, so no card data ever reaches thi
 | Monthly | £0 | £6.99 | £11.99 |
 | Yearly | £0 | £69.99 | £119.99 |
 | Household members | 1 | 2 | 6 |
-| Meal plans / month | 8 | 10 | 30 |
+| Meal plans / month | 6 | 10 | 30 |
 | Meals per plan | 7 | 14 | 21 |
 | Cook-from-pantry / month | 5 | 30 | 100 |
+| Plan translations / month | 4 | 20 | 60 |
 | Camera scans / month | — *(not built)* | — *(not built)* | — *(not built)* |
 
 Camera scanning is listed in the entitlement table because the quota plumbing exists, but the feature does not. It is labelled "coming soon" in the interface and is not sold as available.
+
+The allowances are a decision made against `services/costModel.ts`, which holds the token shape of every AI call and is read by a test. If a quota moves or a prompt grows, that test fails and the decision gets made again rather than going stale.
+
+Worst case — every allowance used to the last one:
+
+| | AI cost / month | Revenue | Share |
+| --- | --- | --- | --- |
+| Free | £0.044 | £0 | £100 cap reached at ~2,250 users |
+| Plus | £0.12 | £6.99 | 1.7% |
+| Pro | £0.40 | £11.99 | 3.3% |
+
+**Free plans went from eight to six to pay for four translations.** The counter-intuitive part is that a translation costs about **1.4× the generation it translates**: output tokens dominate the bill, a translation reproduces the plan's entire user-facing text, and the indexed JSON envelope adds a per-string overhead on top. Leaving free at eight plans and adding eight translations would have moved the £100 ceiling from roughly 3,100 users to 1,400 — over half the runway spent on a feature most users never touch.
+
+The paid tiers were **not** cut to fund it. A Plus account using every allowance costs twelve pence of AI against £6.99 of revenue; trimming that would save fractions of a penny and cost a paying customer something they can feel. Their translation numbers are a bound on a runaway loop, not a ration.
 
 ### Pantry
 
@@ -270,13 +294,35 @@ OPENAI_API_KEY=your_openai_api_key
 
 # development | production — controls secure/sameSite cookie flags and trust proxy
 NODE_ENV=development
+PORT=3000
 
 # Comma-separated browser origins allowed to send credentialed requests
 CORS_ORIGINS=http://localhost:5173
 
+# Where the browser lives, and where this API answers. Used to build OAuth
+# redirect URIs and Stripe return URLs, so they must be the real origins.
+APP_URL=http://localhost:5173
+API_ORIGIN=http://localhost:3000
+
 # Optional. Must exist in MODEL_PRICING in services/openai.ts
 OPENAI_MODEL=gpt-5.6-luna
+
+# Global ceiling on AI spend attributable to free accounts. Paying customers
+# are never refused by it. Warns in the logs at 80%.
+FREE_TIER_MONTHLY_SPEND_CAP_GBP=100
+
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRICE_PLUS_MONTHLY=
+STRIPE_PRICE_PLUS_YEARLY=
+STRIPE_PRICE_PRO_MONTHLY=
+STRIPE_PRICE_PRO_YEARLY=
 ```
+
+`node --watch` only watches `.ts` files, so a change to `.env` needs `node --watch --env-file=.env src/server.ts` or a manual restart. An edited value that appears to have no effect is usually this.
 
 ## Tests
 
@@ -416,7 +462,6 @@ Written down deliberately — an honest list is more useful than a clean one.
 - **Camera scanning does not exist.** The quota field and the pricing row are there; the feature is labelled "coming soon" and is not sold as available
 - **Expiry dates are user-entered.** A shelf-life lookup table is written but not wired into the pantry write path, so the app cannot yet estimate a date nobody typed
 - **No account lockout.** Rate limiting is per-IP, so a distributed attack against one account is not slowed
-- **Settings has a backend and no page.** Delete account, data export and change password exist at `/api/account`; the interface still shows a placeholder
 - **Estimated costs are model guesses**, not supermarket prices. The arithmetic and the budget band are checked deterministically; the prices themselves are not real quotes, and the interface does not claim otherwise
 - **The shopping list cannot be translated in place.** It is rows, not a document, and the tick state only exists there — so a list built in another language offers a rebuild and says what the rebuild will cost
 
@@ -440,7 +485,7 @@ Written down deliberately — an honest list is more useful than a clean one.
 - [x] Expiry alerts from real pantry data
 - [x] Dashboard wired to live data
 - [x] English + Simplified Chinese interface, locale-aware generation and on-demand translation of stored plans
-- [ ] Settings page — delete account, export data, change password *(API done, UI pending)*
+- [x] Settings — delete account, export data, change password
 - [ ] **Deployment** — see the deployment plan above
 - [ ] Password reset *(blocked on the domain)*
 - [ ] Camera scanning, so the "coming soon" labels can come off
@@ -491,6 +536,7 @@ Two decisions worth recording:
 
 - **`native_name` is never translated.** 剁椒鱼头 stays 剁椒鱼头 in an English plan. Every language check and the translator itself exempt that field, because preserving the dish's own script is the entire reason it exists
 - **User-entered data is never translated.** A pantry item typed as 生抽 reads 生抽 in the English interface. Rewriting someone's own words amounts to telling them they spelled it wrong
+- **Translation is metered separately from generation.** Charging a plan credit to read a plan you already own would charge twice for one thing, and would leave a bilingual household with half the plans of a monolingual one — the opposite of what this product is for. Running out is not an error either: the plan is shown in the language it was written in, because blocking the page over a translation budget takes away the thing the reader came for
 
 ---
 

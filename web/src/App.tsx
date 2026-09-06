@@ -20,6 +20,7 @@ import { OnboardingUserInfoPage } from "./pages/OnboardingUserInfoPage";
 import { PantryPage } from "./pages/PantryPage";
 import { PricingPage } from "./pages/PricingPage";
 import { ProfilePage } from "./pages/ProfilePage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { ShoppingListPage } from "./pages/ShoppingListPage";
 import { SignupPage } from "./pages/SignupPage";
 import { SubscriptionPage } from "./pages/SubscriptionPage";
@@ -80,6 +81,7 @@ export default function App() {
             <Route path="/expiry-alert" element={<RequireAuth><ExpiryAlertPage /></RequireAuth>} />
             <Route path="/ai-vision" element={<RequireAuth><AIVisionPage /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><ProfilePage /></RequireAuth>} />
+            <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
             {/* Where Stripe returns the browser after checkout, and where the
                 customer portal returns it afterwards. */}
             <Route path="/subscription" element={<RequireAuth><SubscriptionPage /></RequireAuth>} />

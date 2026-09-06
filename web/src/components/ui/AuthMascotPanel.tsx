@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { useLocale } from "../../context/LocaleContext";
 
 type AuthMascotPanelProps = {
   src: string;
@@ -13,6 +14,12 @@ export function AuthMascotPanel({
   subtitle,
   bullets = ["Save money", "Eat healthier", "Reduce food waste"],
 }: AuthMascotPanelProps) {
+  // The default bullets are English strings baked into this file, so they never
+  // passed through a caller's t() and rendered raw next to translated copy.
+  // Translating here covers the defaults and any English key a caller passes,
+  // and t() returns its input unchanged when there is no entry.
+  const { t } = useLocale();
+
   return (
     <aside className="auth-mascot-panel">
       <img className="auth-mascot-image" src={src} alt="" />
@@ -23,7 +30,7 @@ export function AuthMascotPanel({
           {bullets.map((bullet) => (
             <li key={bullet}>
               <Check size={17} />
-              <span>{bullet}</span>
+              <span>{t(bullet)}</span>
             </li>
           ))}
         </ul>

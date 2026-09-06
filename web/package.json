@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run && npm run check:locale",
+    "check:locale": "node scripts/check-locale-coverage.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

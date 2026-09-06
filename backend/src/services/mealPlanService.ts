@@ -833,8 +833,39 @@ export async function readInLocale(
 ): Promise<GeneratedMealPlan> {
   if (row.locale === locale) return row.plan;
 
+  // Cache first, and the cache is not metered. Re-reading a plan you have
+  // already had translated costs nothing, so it must not cost a credit either.
   const cached = await mealPlanRepository.findTranslation(row.id, locale);
   if (cached) return cached;
+
+  const tier = await billingService.getTier(row.user_id);
+  const limits = entitlementsFor(tier);
+  const used = await aiUsageRepository.countSuccessfulThisMonth(
+    row.user_id,
+    'plan-translate'
+  );
+
+  // Over the allowance, the plan is shown in the language it was written in.
+  // Deliberately not an error: the reader still gets their meal plan, in a
+  // language they chose it in once. Blocking the page over a translation
+  // budget would take away the thing they came for.
+  if (used >= limits.planTranslationsPerMonth) {
+    console.warn(
+      `User ${row.user_id} is over the ${tier} translation allowance ` +
+        `(${used}/${limits.planTranslationsPerMonth}); showing plan ${row.id} in ${row.locale}.`
+    );
+    return row.plan;
+  }
+
+  // The whole-product ceiling still wins for free accounts, exactly as it does
+  // for generation. A translation is a model call like any other.
+  if (tier === 'free') {
+    try {
+      await assertFreeTierSpendAvailable();
+    } catch {
+      return row.plan;
+    }
+  }
 
   try {
     const result = await translatePlan(row.plan, locale);

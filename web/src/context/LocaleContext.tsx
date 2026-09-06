@@ -151,6 +151,71 @@ const zh: Record<string, string> = {
   'Checking allergens and cuisines': '正在检查忌口和菜系',
   'Finishing your dishes': '正在写做法',
   'Cooking in the style of': '菜系参考',
+  // Pricing and subscription.
+  'Monthly': '按月', 'Yearly': '按年',
+  'Opening checkout…': '正在打开结账页…',
+  'Could not start checkout': '无法开始结账',
+  'That plan is not available right now': '该方案当前不可用',
+  'You already have a subscription': '你已经有订阅了',
+  'Cook your own food, without the planning': '专心做饭,规划交给我们',
+  'Pantry, shopping lists and expiry alerts are unlimited on every plan, including Free.':
+    '食材库、购物清单和到期提醒在所有方案(包括免费)都不限次。',
+  'Pantry, shopping lists and expiry alerts are unlimited on every plan.':
+    '食材库、购物清单和到期提醒在所有方案都不限次。',
+  'Lines marked Coming soon are not available yet. Cancel any time.':
+    '标注「即将推出」的功能尚未上线。可随时取消。',
+  'Cancel any time. Prices include VAT where it applies.':
+    '可随时取消。价格已含增值税(适用时)。',
+  'Your Plan': '我的方案',
+  'This month': '本月',
+  'Household members': '家庭成员',
+  'AI meal plans': 'AI 餐单',
+  'Meals per plan': '每份餐单餐数',
+  'Camera scans': '相机扫描',
+  'Renews': '续费日期',
+  'Access ends': '服务截止',
+  'Manage billing': '管理付款',
+  'Compare plans': '比较方案',
+  'Opening…': '正在打开…',
+  'Could not load your plan': '无法加载你的方案',
+  'Could not open billing': '无法打开付款管理',
+  'Confirming your payment…': '正在确认付款…',
+  'Your card went through. This usually takes a few seconds.':
+    '扣款已成功,通常几秒钟内完成。',
+  'Your plan is set to cancel. You keep everything until the date above.':
+    '你的方案已设置为到期取消。在上述日期之前所有功能照常使用。',
+
+  // Login, signup and password recovery.
+  'Plans for households': '家庭方案',
+  'Up to six people, each with their own restrictions, from £6.99 a month.':
+    '最多 6 人,每人可设置各自的忌口,£6.99/月起。',
+  'Create an account': '创建账户',
+  'Self-service password reset is not available yet. Here are two ways back in.':
+    '自助重置密码还没做。这里有两种找回方式。',
+  'If you signed up with Google': '如果你用 Google 注册',
+  'Use the Google button below — there is no password to reset.':
+    '直接用下方的 Google 登录——没有密码需要重置。',
+  'If you signed up with an email and password': '如果你用邮箱和密码注册',
+  'Email us and we will reset it for you, usually within a day.':
+    '发邮件给我们,通常一天内为你重置。',
+
+  // Dashboard upsell.
+  'Cook for the whole household': '为全家做饭',
+  'Plus from': 'Plus 低至',
+  'a month': '每月',
+
+  // Accessibility label, read aloud rather than displayed.
+  'Primary navigation': '主导航',
+  'Save money': '省钱', 'Eat healthier': '吃得更健康', 'Reduce food waste': '减少食物浪费',
+  'Email': '邮箱',
+
+  '6 AI meal plans a month': '每月 6 份 AI 餐单',
+  '5 cook-from-your-pantry suggestions a month': '每月 5 次「用现有食材做菜」',
+  '30 cook-from-your-pantry suggestions a month': '每月 30 次「用现有食材做菜」',
+  '100 cook-from-your-pantry suggestions a month': '每月 100 次「用现有食材做菜」',
+  '4 plan translations between English and Chinese a month': '每月 4 次餐单中英互译',
+  '20 plan translations between English and Chinese a month': '每月 20 次餐单中英互译',
+  '60 plan translations between English and Chinese a month': '每月 60 次餐单中英互译',
   // Profile page.
   'Your kitchen profile': '你的厨房档案',
   'Mosaic uses these preferences to personalise your meal plans.':
@@ -159,7 +224,32 @@ const zh: Record<string, string> = {
   'Food cultures': '饮食文化',
   'Cooking time': '做饭时长',
   'meals per week': '餐/周',
-  'Settings are not built yet': '设置功能还没做',
+  'Your account, your data, and how you sign in.': '你的账号、你的数据,以及登录方式。',
+  'Could not load your account': '无法加载账号信息',
+  'How you sign in': '登录方式',
+  'Sign-in method': '登录方式',
+  'This account signs in with Google, so it has no password to change. Setting one adds a new way into your account, so it needs email confirmation — that is not built yet.':
+    '这个账号通过 Google 登录,没有密码可改。设置密码等于给账号新增一条登录路径,需要邮件确认——这部分还没做。',
+  'Changing your email address needs a confirmation sent to the new address. That is not built yet.':
+    '更改邮箱需要向新地址发送确认信,这部分还没做。',
+  'Change password': '修改密码',
+  'Current password': '当前密码',
+  'New password': '新密码',
+  'Password changed': '密码已修改',
+  'Export your data': '导出你的数据',
+  'A JSON file containing your profile, pantry, meal plans and shopping list. Nothing is summarised or left out.':
+    '一个 JSON 文件,包含你的偏好、食材库、历史餐单和购物清单。不做任何概括或删减。',
+  'Download my data': '下载我的数据',
+  'Preparing…': '正在准备…',
+  'Your data has been downloaded': '数据已下载',
+  'Delete your account': '删除账号',
+  'This removes your profile, pantry, meal plans and shopping list permanently. There is no undo and no backup you can ask us to restore from.':
+    '这会永久删除你的偏好、食材库、历史餐单和购物清单。无法撤销,也没有可供恢复的备份。',
+  'Any active subscription is cancelled at the same time. Consider downloading your data first.':
+    '正在生效的订阅会同时取消。建议先导出数据。',
+  'Type your email address to confirm': '输入你的邮箱以确认',
+  'Delete for ever': '永久删除',
+  'Deleting…': '正在删除…',
   'This list was built in another language': '这份清单是用另一种语言生成的',
   'Rebuild it from your meal plan to get it in the language you are using. Rebuilding clears the ticks on items that came from the plan; anything you added yourself stays.':
     '从餐单重新生成即可换成你正在用的语言。重新生成会清掉餐单带来的那些勾选,你自己加的条目会保留。',
@@ -171,7 +261,6 @@ const zh: Record<string, string> = {
   'Cook with them, or clear them out of your pantry.': '用它们做菜,或者从食材库里清掉。',
   'Cooking works with up to': '做菜最多支持',
   'ingredients — deleting has no limit.': '样食材,删除没有上限。',
-  'Deleting…': '正在删除…',
   'Delete these ingredients from your pantry?': '确定从食材库删除这些食材吗?',
   'removed': '项已删除', 'could not be removed': '项删除失败',
   'Cook these': '就做这些', 'Could not suggest dishes': '无法给出菜品建议',
