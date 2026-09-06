@@ -73,6 +73,36 @@ Hand-rolled session authentication rather than a library or a managed service, s
 - Timing-attack defence: a login for an unknown email still runs a bcrypt comparison, so response time cannot be used to discover which addresses are registered
 - Rate limiting on auth routes, `helmet` security headers, and a CORS allowlist that never uses a wildcard alongside credentials
 
+### Sign in with Google
+
+Built on `openid-client` v6 directly rather than a wrapper.
+
+- PKCE, `state` and `nonce` are generated per attempt and held in one short-lived `HttpOnly` cookie
+- Identities are keyed on `(provider, sub)`, **never on email**. A provider can change the email attached to an account; the subject identifier is the stable one. Keying on email is how account-takeover bugs happen
+- `password_hash` is nullable, because an account that arrived through Google has no password. Every read of it handles `null` rather than assuming a string
+- Sign in with Apple is deliberately not built yet — it needs a paid Apple Developer account and a verified domain, neither of which exists
+
+### Billing
+
+Stripe hosted Checkout and the Customer Portal, so no card data ever reaches this codebase.
+
+- Webhooks are verified against the raw request body, mounted **before** `express.json()`, because a parsed and re-serialised body no longer matches the signature
+- Each event id is recorded in `stripe_events` before being acted on, so a redelivery cannot apply the same change twice
+- Subscription state is re-fetched from the Stripe API rather than trusted from the event payload, since events can arrive late or out of order
+- An unrecognised price id resolves to the free tier. Failures should cost the business, not hand out entitlements
+
+| | Free | Plus | Pro |
+| --- | --- | --- | --- |
+| Monthly | £0 | £6.99 | £11.99 |
+| Yearly | £0 | £69.99 | £119.99 |
+| Household members | 1 | 2 | 6 |
+| Meal plans / month | 8 | 10 | 30 |
+| Meals per plan | 7 | 14 | 21 |
+| Cook-from-pantry / month | 5 | 30 | 100 |
+| Camera scans / month | — *(not built)* | — *(not built)* | — *(not built)* |
+
+Camera scanning is listed in the entitlement table because the quota plumbing exists, but the feature does not. It is labelled "coming soon" in the interface and is not sold as available.
+
 ### Pantry
 
 Full CRUD over ingredients with quantities, units and expiry dates.
@@ -80,6 +110,7 @@ Full CRUD over ingredients with quantities, units and expiry dates.
 - Ownership is enforced in the SQL `WHERE` clause rather than checked after the fetch, so another user's row is structurally unreachable
 - "Missing", "malformed id" and "belongs to someone else" all return an identical 404, so responses cannot be used to probe for what exists
 - Expiry is stored as a `DATE` and returned as a plain `YYYY-MM-DD` string, avoiding the off-by-one-day class of timezone bug
+- Bulk select drives both bulk delete and cook-from-pantry, so one selection serves two actions
 
 ### Household Profile
 
@@ -87,19 +118,60 @@ Onboarding captures only what the meal planner consumes.
 
 - Household is split into adults, teenagers, children and toddlers, because each band changes the plan differently — teenagers eat more than adults, toddlers need mild and choke-safe food
 - Dietary presets such as Halal tick ingredient exclusions rather than storing a diet label, so the database records what someone does not eat instead of what they believe
-- Cuisines come from a closed list because they have to match recipe tags for retrieval; avoided ingredients are free text because allergies cannot be enumerated in advance
+- Cuisines come from a closed list because they have to match recipe tags; **regions** narrow them further (Hunan, Yunnan, Jeolla, Kansai…), because "Chinese" is not a cuisine anyone actually cooks
+- Flavour preferences — seasoning intensity, low salt, low sugar, tastes to favour — and nutrition emphasis are stored as machine-readable values and phrased as ingredient guidance in the prompt
+- Avoided ingredients are free text, including anything the user types themselves, because allergies cannot be enumerated in advance
 
 ### AI Meal Plan Generation
 
-- Output shape is enforced by the OpenAI API through a JSON schema derived from Zod, so malformed JSON is not a failure mode
-- Plans are built from the user's real profile and current pantry contents, with items expiring soonest listed first
-- Avoided ingredients get three layers of defence: the system prompt, a restatement in the user message, and a **programmatic scan of every dish name and ingredient after generation**. Only the third is a guarantee — a prompt is a request, and some of these are allergies
-- A violation triggers one retry that names the specific dish and ingredient, because repeating a rule the model already broke does not help
-- Every call is recorded in `ai_usage` — including failures and retries, since both cost money — while only the attempt that produced a usable plan counts against the monthly quota
+Three layers, and only the third is a guarantee: **prompt → schema → programmatic check with a retry.** A prompt is a request; a schema constrains shape but not truth; the post-check is the part that holds.
+
+- Output shape is enforced through a JSON schema derived from Zod. The cuisine enum is **built per user**, so a cuisine outside their list is not merely discouraged but unrepresentable
+- Avoided ingredients are scanned across every dish name and ingredient after generation. A violation triggers one retry naming the specific dish and ingredient, because repeating a rule the model already broke does not help
+- Budget compliance is deterministic: the stated total must equal the sum of the meals, and the plan must land within a tolerance band that widens with the budget and never drops below £10
+- Variety comes from rotating regions, techniques and store-cupboard staples with a 40-dish do-not-repeat list — **not** from example dishes. Naming example dishes in the prompt caused the model to return them verbatim
+- Language compliance is checked after generation too: an English plan containing Chinese dish names is retried. `native_name` is exempt, because keeping the dish's own script is what that field is for. Unlike safety and budget, a language failure gives way after one retry — refusing to show a safe plan over its wording is worse than showing it
+- Every call is recorded in `ai_usage` — including failures and retries, since both cost money — while only the attempt that produced a usable plan counts against the quota
+
+### Agent-style generation experience
+
+Generation streams over SSE (`fetch` + `ReadableStream`, not `EventSource`, which cannot POST with credentials).
+
+- **Five stages, because there are five real stages.** No invented chain-of-thought, no percentage: the step is known, the distance through a model call is not, and a number for it would be a lie
+- Insight chips report values measured **before** the model answers — how many preferences were read, which ingredient expires soonest, the budget target
+- A retry is named rather than hidden, so a rejected first attempt is visible work instead of thirty unexplained seconds
+- Eight mascot illustrations, preloaded, crossfading on a fixed aspect ratio so nothing shifts. The weekly and cook-from-pantry flows use different pose sets; three poses are shared on purpose, because differing artwork would imply a difference that is not there
+- `prefers-reduced-motion` holds the pose still
+
+### Cook from what is in the kitchen
+
+Pick up to twelve pantry items and get dishes built around them. Counted under its own monthly quota so it never eats the weekly-plan allowance, and cheaper per call. The allergen scan runs identically — a shorter answer is not a less dangerous one.
+
+### Bilingual interface and content
+
+English and Simplified Chinese, throughout — not only the chrome.
+
+- The interface language is a user setting, sent as `Accept-Language` on every request. Reading the browser's header instead would mean the toggle did nothing, which is exactly the bug this replaced
+- Meal plans are **generated** in the reader's language, and the language a plan was written in is recorded on the row
+- A stored plan opened in the other language is **translated on demand and cached**, one call per plan per language. Only user-facing strings are sent to the model: costs, cuisine enums, day indices and quantities never enter the prompt, so a translation cannot alter what the household is told to spend
+- Translation is indexed and batched, so a short or partial answer costs only the entries actually missing rather than discarding the whole plan. Partial results are not cached, or a half-translated page would never retry
+
+### Spend control
+
+A global monthly ceiling on AI spend, checked before any generation a free account triggers.
+
+- Paying customers are never refused by it; only free accounts are, and the message says so plainly
+- Warns in the logs at 80% of the cap
+- Free-tier cost works out to roughly £0.065 per user per month, so 1,000 free users sit under a £100 ceiling — with a test asserting it
 
 ### Testing
 
-128 backend tests run against a dedicated Neon database branch, alongside 16 frontend unit and hook tests. Coverage includes cross-user isolation, expired-session rejection, password policy, bilingual AI prompts, dashboard aggregation, expiry queries, and a regression test for the DATE timezone bug.
+**177 backend tests** and **11 frontend tests.** The backend suite runs against a dedicated Neon branch and truncates between tests; 6 of the 17 files need that database and will refuse to run without `NODE_ENV=test`.
+
+Coverage includes cross-user isolation, expired-session rejection, password policy, rate limiters, entitlement resolution, budget arithmetic, language compliance, translation safety, bilingual prompts, and two regression tests written after real bugs:
+
+- `profileUpsert.test.ts` reads the SQL source and asserts every column appears in both the `INSERT` and the `ON CONFLICT DO UPDATE SET` list. Two preference fields had been saving on create and silently ignoring updates
+- `aiUsageFeatures.test.ts` compares the feature keys used in code against the `CHECK` constraint in the migrations. A key added in code but not in the constraint made every cook-from-pantry request fail **after** a paid model call — a failure typechecking cannot see, because it lives inside a SQL string
 
 ---
 
@@ -229,6 +301,87 @@ npm test
 
 ---
 
+# 🚢 Deployment Plan
+
+Not deployed yet. This is the plan, written down before the fact so the order and the reasoning are on record.
+
+## Shape
+
+```
+Vercel (web)  ──HTTPS──▶  nginx on a Hetzner VPS  ──▶  Node/Express  ──▶  Neon Postgres
+   app.<domain>                api.<domain>
+```
+
+Frontend on Vercel because it is static and benefits from a CDN. API on a small VPS rather than a serverless platform for three concrete reasons, not preference:
+
+1. **SSE.** Generation streams for thirty seconds or more. Serverless request timeouts and response buffering are hostile to that
+2. **Stripe webhooks need the raw body.** Straightforward on Express, fiddly wherever a platform parses the body first
+3. **A long-lived `pg` pool.** Serverless functions open a connection per invocation, which is how a free Neon tier runs out of connections
+
+## Order of work
+
+Each step must be finished before the next, because each one is a prerequisite for the one after — not merely a preference for ordering.
+
+| # | Step | Why it must come first |
+| --- | --- | --- |
+| 1 | Buy the domain | Nothing else can be verified without it: no TLS certificate, no OAuth redirect URI, no email sending domain |
+| 2 | Provision the VPS, non-root user, SSH keys only, firewall to 22/80/443 | A box reachable on other ports is a box being scanned right now |
+| 3 | DNS: `api` and `app` records | Certbot validates over HTTP against the real name |
+| 4 | nginx + Let's Encrypt on `api.<domain>` | Cookies are `Secure` in production, so nothing authenticates over plain HTTP |
+| 5 | `proxy_buffering off` for the SSE routes | **Without this the generation UI hangs.** nginx buffers the response by default and the stream arrives all at once at the end, which looks exactly like a broken feature |
+| 6 | systemd unit, `NODE_ENV=production`, run migrations | `trust proxy` and the secure-cookie flags key off `NODE_ENV` |
+| 7 | Deploy the frontend to Vercel, set `VITE_API_URL` | — |
+| 8 | Cross-site cookies: `SameSite=None; Secure`, `CORS_ORIGINS` set to the real origin | `app.<domain>` and `api.<domain>` are different sites to a browser. `SameSite=Lax` silently drops the session cookie on cross-site requests, and the symptom is a 401 on every call after login |
+| 9 | Add the production redirect URI in Google Cloud Console | OAuth fails closed on an unregistered URI |
+| 10 | Point the Stripe webhook at `api.<domain>`, take the **live** signing secret | The test-mode secret does not verify live events |
+| 11 | Verify end to end against production: sign in, generate, checkout, cancel | Everything above has only ever been exercised on localhost |
+
+## nginx, the parts that are not boilerplate
+
+```nginx
+location /api/meal-plan/stream        { proxy_pass http://127.0.0.1:3000; proxy_buffering off; proxy_read_timeout 300s; }
+location /api/meal-plan/pantry-cook/stream { proxy_pass http://127.0.0.1:3000; proxy_buffering off; proxy_read_timeout 300s; }
+```
+
+The backend already sends `X-Accel-Buffering: no` on those routes, which nginx honours — but the explicit `proxy_buffering off` is kept as well, so the behaviour does not depend on one header surviving a config change.
+
+## Environment differences from local
+
+```env
+NODE_ENV=production
+APP_URL=https://app.<domain>
+API_ORIGIN=https://api.<domain>
+CORS_ORIGINS=https://app.<domain>
+COOKIE_SAMESITE=none
+
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...        # the live endpoint's secret, not the CLI's
+STRIPE_PRICE_PLUS_MONTHLY=price_...    # live-mode price ids
+STRIPE_PRICE_PLUS_YEARLY=price_...
+STRIPE_PRICE_PRO_MONTHLY=price_...
+STRIPE_PRICE_PRO_YEARLY=price_...
+
+FREE_TIER_MONTHLY_SPEND_CAP_GBP=100
+```
+
+## Operational, before real users
+
+- `npm run cleanup:sessions` on a daily cron
+- Neon's own backups are the recovery story; a restore has to be rehearsed once, or it is an assumption rather than a backup
+- Watch the spend-guard warning in the logs — it fires at 80% of the monthly AI cap
+- Watch for `URGENT: could not cancel Stripe subscription`, which means an account was deleted while Stripe was unreachable and a card is still being charged
+
+## Blocked on the domain
+
+These are not scheduling choices — they cannot be built until a domain exists and can send verified email:
+
+- **Password reset.** Needs single-use expiring tokens and a provider sending from a verified domain
+- **Change email.** Without confirmation to the new address, anyone with a stolen session could move the account to their own address
+- **Setting a first password on a Google account.** That adds a second way in, and doing it silently from a session is a takeover path. It is refused today, with the reason stated
+- **Sign in with Apple.** Needs a paid Apple Developer account and domain verification
+
+---
+
 # 🧱 Tech Stack
 
 | Layer | Technology |
@@ -244,10 +397,13 @@ npm test
 | Schema validation | Zod |
 | Testing | Node's built-in `node:test` + Supertest |
 | Version control | GitHub |
+| OAuth | `openid-client` v6 — PKCE, state and nonce |
+| Payments | Stripe hosted Checkout and Customer Portal |
+| Streaming | Server-Sent Events over `fetch` + `ReadableStream` |
+| Planned: deployment | Vercel (web) + nginx on a Hetzner VPS (API) |
 | Planned: mobile | SwiftUI |
 | Planned: AI vision | OpenAI Vision |
 | Planned: vector search | pgvector |
-| Planned: deployment | Vercel (web) + VPS or Render (API) |
 
 ---
 
@@ -255,13 +411,14 @@ npm test
 
 Written down deliberately — an honest list is more useful than a clean one.
 
-- **No email verification.** Any address can be registered without proving ownership
-- **No password reset.** The forgot-password screen is not wired to anything; a real flow needs single-use expiring tokens and an email provider
+- **Not deployed.** Production cookie behaviour (`Secure`, `SameSite=None`), CORS across two real subdomains, and SSE through nginx have never been exercised outside localhost
+- **No email verification, no password reset, no change-email.** All three need a provider sending from a verified domain. The forgot-password screen says so plainly instead of pretending to send anything
+- **Camera scanning does not exist.** The quota field and the pricing row are there; the feature is labelled "coming soon" and is not sold as available
+- **Expiry dates are user-entered.** A shelf-life lookup table is written but not wired into the pantry write path, so the app cannot yet estimate a date nobody typed
 - **No account lockout.** Rate limiting is per-IP, so a distributed attack against one account is not slowed
-- **Rate limiting is not covered by tests**, because the suite raises the limits to run at all. It is verified by hand
-- **Not deployed yet.** Production cookie behaviour (`Secure`, `SameSite`) and CORS under real domains are untested
-- **Not bilingual yet.** The interface is English-only; Simplified Chinese is planned but no i18n layer exists
-- **Estimated costs are model guesses**, not real supermarket prices
+- **Settings has a backend and no page.** Delete account, data export and change password exist at `/api/account`; the interface still shows a placeholder
+- **Estimated costs are model guesses**, not supermarket prices. The arithmetic and the budget band are checked deterministically; the prices themselves are not real quotes, and the interface does not claim otherwise
+- **The shopping list cannot be translated in place.** It is rows, not a document, and the tick state only exists there — so a list built in another language offers a rebuild and says what the rebuild will cost
 
 ---
 
@@ -270,15 +427,23 @@ Written down deliberately — an honest list is more useful than a clean one.
 ## MVP 0.5 — React Web Application *(in progress)*
 
 - [x] Session authentication
-- [x] Pantry inventory CRUD
-- [x] Household profile and onboarding
+- [x] Sign in with Google
+- [x] Stripe billing — Checkout, Customer Portal, verified webhooks
+- [x] Pantry inventory CRUD, bulk select and delete
+- [x] Household profile, regions, flavour and nutrition preferences
 - [x] AI meal planning from real profile and pantry data
-- [x] Usage and cost tracking, monthly quota
+- [x] Cook from selected pantry ingredients, on its own quota
+- [x] Deterministic budget and arithmetic compliance
+- [x] Streaming agent-style generation over SSE
+- [x] Usage and cost tracking, monthly quota, global free-tier spend cap
 - [x] Shopping list generated from the meal plan
 - [x] Expiry alerts from real pantry data
 - [x] Dashboard wired to live data
-- [ ] Deployment
-- [x] English + Simplified Chinese interface and locale-aware AI meal plans
+- [x] English + Simplified Chinese interface, locale-aware generation and on-demand translation of stored plans
+- [ ] Settings page — delete account, export data, change password *(API done, UI pending)*
+- [ ] **Deployment** — see the deployment plan above
+- [ ] Password reset *(blocked on the domain)*
+- [ ] Camera scanning, so the "coming soon" labels can come off
 
 ## MVP 1.0 — iOS Application
 
@@ -318,9 +483,14 @@ Potential integrations: Tesco, Sainsbury's, Asda, Morrisons, UKCNSHOP, Longdan, 
 
 # 🌐 Bilingual Plan
 
-Mosaic Kitchen is intended to ship in English and Simplified Chinese, with Japanese, Korean, Arabic and Hindi as later possibilities.
+English and Simplified Chinese ship today, in the interface **and** in generated content. Japanese, Korean, Arabic and Hindi are later possibilities.
 
-No i18n layer exists yet. When it lands, the groundwork is already in place: the database stores machine-readable values (`cultural-authenticity`, `vegetables`) and the interface maps them to display labels in one file, so translation touches that file rather than the schema.
+The groundwork that made this cheap: the database stores machine-readable values (`cultural-authenticity`, `vegetables`, `hunan`) and one file maps them to display labels, so adding a language touches that file rather than the schema. The same rule applies to the API — the generation stream sends stage identifiers and measured values, never prose, so no English sentence is ever stranded in a payload.
+
+Two decisions worth recording:
+
+- **`native_name` is never translated.** 剁椒鱼头 stays 剁椒鱼头 in an English plan. Every language check and the translator itself exempt that field, because preserving the dish's own script is the entire reason it exists
+- **User-entered data is never translated.** A pantry item typed as 生抽 reads 生抽 in the English interface. Rewriting someone's own words amounts to telling them they spelled it wrong
 
 ---
 
