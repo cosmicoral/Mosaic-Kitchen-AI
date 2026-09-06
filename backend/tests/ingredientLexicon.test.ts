@@ -90,6 +90,28 @@ test('a qualified name is decomposed rather than sent to the model', () => {
   assert.equal(lookupIngredient('猪肉末', 'en'), 'Pork mince');
 });
 
+test('a prefix and a suffix can both be peeled, but never two of a kind', () => {
+  // 鲜柠檬汁 is fresh + lemon + juice, which one peel could not reach. Two of
+  // the same kind is where it stops, because 带骨去骨鸡腿 is not a thing.
+  assert.equal(lookupIngredient('鲜柠檬汁', 'en'), 'Fresh lemon juice');
+  assert.equal(lookupIngredient('云南腊肉', 'en'), 'Yunnan cured pork');
+  assert.equal(lookupIngredient('整条鲷鱼', 'en'), 'Whole sea bream');
+});
+
+test('a greedy suffix does not block a prefix-only match', () => {
+  // 肉 matches the end of 云南腊肉 and leaves 云南腊, which is not a word. The
+  // candidates are tried in order so the combination that actually resolves
+  // wins rather than the first one that matched.
+  assert.equal(lookupIngredient('云南腊肉', 'en'), 'Yunnan cured pork');
+});
+
+test('a compound phrase is left alone', () => {
+  // 黑芥菜或玫瑰大头菜 is "black mustard greens OR rose kohlrabi" — a sentence,
+  // not an ingredient. Splitting on 或 and translating both halves is the kind
+  // of cleverness that produces confident nonsense on a shopping list.
+  assert.equal(lookupIngredient('黑芥菜或玫瑰大头菜', 'en'), null);
+});
+
 test('decomposition never invents a base it does not know', () => {
   // A modifier on an unknown base is still unknown. Guessing here would put a
   // confident wrong name on a shopping list.

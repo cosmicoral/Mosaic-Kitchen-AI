@@ -527,6 +527,18 @@ const LEXICON: Entry[] = [
     "zh": "腊肉"
   },
   {
+    "en": "Chicken liver",
+    "zh": "鸡肝"
+  },
+  {
+    "en": "Chicken gizzard",
+    "zh": "鸡胗"
+  },
+  {
+    "en": "Pork shoulder",
+    "zh": "猪肩肉"
+  },
+  {
     "en": "Ham",
     "zh": "火腿"
   },
@@ -1041,6 +1053,26 @@ const LEXICON: Entry[] = [
     "zh": "酸菜"
   },
   {
+    "en": "Pea jelly",
+    "zh": "豌豆凉粉"
+  },
+  {
+    "en": "Mustard greens",
+    "zh": "芥菜"
+  },
+  {
+    "en": "Kohlrabi",
+    "zh": "大头菜"
+  },
+  {
+    "en": "Rushan cheese",
+    "zh": "乳扇"
+  },
+  {
+    "en": "Instant rice noodles",
+    "zh": "即食米线"
+  },
+  {
     "en": "Preserved vegetable",
     "zh": "榨菜"
   },
@@ -1252,6 +1284,51 @@ interface Modifier {
 // bases do not.
 const MODIFIERS: Modifier[] = [
   {
+    "zh": "云南",
+    "at": "prefix",
+    "en": "Yunnan {base:lower}"
+  },
+  {
+    "zh": "湖南",
+    "at": "prefix",
+    "en": "Hunan {base:lower}"
+  },
+  {
+    "zh": "四川",
+    "at": "prefix",
+    "en": "Sichuan {base:lower}"
+  },
+  {
+    "zh": "广东",
+    "at": "prefix",
+    "en": "Cantonese {base:lower}"
+  },
+  {
+    "zh": "韩式",
+    "at": "prefix",
+    "en": "Korean-style {base:lower}"
+  },
+  {
+    "zh": "日式",
+    "at": "prefix",
+    "en": "Japanese-style {base:lower}"
+  },
+  {
+    "zh": "整条",
+    "at": "prefix",
+    "en": "Whole {base:lower}"
+  },
+  {
+    "zh": "鲜",
+    "at": "prefix",
+    "en": "Fresh {base:lower}"
+  },
+  {
+    "zh": "汁",
+    "at": "suffix",
+    "en": "{base} juice"
+  },
+  {
     "zh": "带骨",
     "at": "prefix",
     "en": "Bone-in {base:lower}"
@@ -1391,26 +1468,39 @@ function applyModifier(template: string, base: string): string {
   return template.replace('{base:lower}', base.toLowerCase()).replace('{base}', base);
 }
 
-// One modifier, not several. Each extra peel is another chance to mangle a
-// name that was perfectly readable to begin with.
+// At most one prefix and one suffix. Candidates are tried in order because a
+// suffix can be greedy: 肉 matches the end of 云南腊肉 and leaves 云南腊, which
+// is not a word.
 function decompose(name: string): string | null {
   const trimmed = name.trim();
 
-  for (const modifier of MODIFIERS) {
-    const attached =
-      modifier.at === 'prefix'
-        ? trimmed.startsWith(modifier.zh)
-        : trimmed.endsWith(modifier.zh);
-    if (!attached) continue;
+  const prefix = MODIFIERS.find((m) => m.at === 'prefix' && trimmed.startsWith(m.zh));
+  const afterPrefix = prefix ? trimmed.slice(prefix.zh.length) : trimmed;
+  const suffix = MODIFIERS.find((m) => m.at === 'suffix' && afterPrefix.endsWith(m.zh));
 
-    const base =
-      modifier.at === 'prefix'
-        ? trimmed.slice(modifier.zh.length)
-        : trimmed.slice(0, -modifier.zh.length);
-    if (base.length < 1) continue;
+  const candidates: Array<{ base: string; wrap: (value: string) => string }> = [];
 
-    const translated = ingredients.toEn.get(normalise(base));
-    if (translated) return applyModifier(modifier.en, translated);
+  if (prefix && suffix) {
+    candidates.push({
+      base: afterPrefix.slice(0, -suffix.zh.length),
+      // Suffix names the thing, prefix qualifies the whole of it.
+      wrap: (v) => applyModifier(prefix.en, applyModifier(suffix.en, v)),
+    });
+  }
+  if (prefix) {
+    candidates.push({ base: afterPrefix, wrap: (v) => applyModifier(prefix.en, v) });
+  }
+  if (suffix) {
+    candidates.push({
+      base: afterPrefix.slice(0, -suffix.zh.length),
+      wrap: (v) => applyModifier(suffix.en, v),
+    });
+  }
+
+  for (const candidate of candidates) {
+    if (candidate.base.length < 1) continue;
+    const translated = ingredients.toEn.get(normalise(candidate.base));
+    if (translated) return candidate.wrap(translated);
   }
 
   return null;

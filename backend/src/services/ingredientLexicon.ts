@@ -123,6 +123,9 @@ export const LEXICON_ENTRIES: Entry[] = [
   { en: 'Sausage', zh: '香肠' },
   { en: 'Chinese cured sausage', zh: '腊肠' },
   { en: 'Cured pork', zh: '腊肉' },
+  { en: 'Chicken liver', zh: '鸡肝' },
+  { en: 'Chicken gizzard', zh: '鸡胗' },
+  { en: 'Pork shoulder', zh: '猪肩肉' },
   { en: 'Ham', zh: '火腿' },
 
   // Fish and seafood
@@ -239,6 +242,11 @@ export const LEXICON_ENTRIES: Entry[] = [
   { en: 'Kelp', zh: '海带' },
   { en: 'Kimchi', zh: '泡菜', also: ['韩式泡菜'] },
   { en: 'Pickled mustard greens', zh: '酸菜' },
+  { en: 'Pea jelly', zh: '豌豆凉粉' },
+  { en: 'Mustard greens', zh: '芥菜' },
+  { en: 'Kohlrabi', zh: '大头菜' },
+  { en: 'Rushan cheese', zh: '乳扇' },
+  { en: 'Instant rice noodles', zh: '即食米线' },
   { en: 'Preserved vegetable', zh: '榨菜' },
 
   // Fruit
@@ -312,6 +320,18 @@ interface Modifier {
 }
 
 export const MODIFIER_ENTRIES: Modifier[] = [
+  // Regional prefixes. The model writes 云南腊肉, not 腊肉 — the region is part
+  // of how the household thinks about the ingredient, and dropping it would
+  // lose information the plan depends on.
+  { zh: '云南', at: 'prefix', en: 'Yunnan {base:lower}' },
+  { zh: '湖南', at: 'prefix', en: 'Hunan {base:lower}' },
+  { zh: '四川', at: 'prefix', en: 'Sichuan {base:lower}' },
+  { zh: '广东', at: 'prefix', en: 'Cantonese {base:lower}' },
+  { zh: '韩式', at: 'prefix', en: 'Korean-style {base:lower}' },
+  { zh: '日式', at: 'prefix', en: 'Japanese-style {base:lower}' },
+  { zh: '整条', at: 'prefix', en: 'Whole {base:lower}' },
+  { zh: '鲜',   at: 'prefix', en: 'Fresh {base:lower}' },
+  { zh: '汁',   at: 'suffix', en: '{base} juice' },
   { zh: '带骨', at: 'prefix', en: 'Bone-in {base:lower}' },
   { zh: '去骨', at: 'prefix', en: 'Boneless {base:lower}' },
   { zh: '熟', at: 'prefix', en: 'Cooked {base:lower}' },
@@ -379,30 +399,56 @@ export function lookupIngredient(
   return null;
 }
 
-// Peels one known modifier off a name and looks up what is left. One, not
-// several: 带骨鸡腿薄片 is rare enough not to be worth the ambiguity, and each
-// extra peel is another chance to mangle a name that was readable to begin
-// with.
+// At most one prefix and one suffix, never two of either.
+//
+// One peel alone could not reach 鲜柠檬汁 — fresh + lemon + juice — which is an
+// ordinary way to write an ingredient. Two peels of the same kind is where it
+// stops: 带骨去骨鸡腿 is not something anybody writes, and each extra peel is
+// another chance to mangle a name that was readable to begin with.
 function decompose(name: string): string | null {
   const trimmed = name.trim();
 
-  for (const modifier of MODIFIER_ENTRIES) {
-    const attached =
-      modifier.at === 'prefix'
-        ? trimmed.startsWith(modifier.zh)
-        : trimmed.endsWith(modifier.zh);
-    if (!attached) continue;
+  const prefix = MODIFIER_ENTRIES.find(
+    (m) => m.at === 'prefix' && trimmed.startsWith(m.zh)
+  );
+  const afterPrefix = prefix ? trimmed.slice(prefix.zh.length) : trimmed;
 
-    const base =
-      modifier.at === 'prefix'
-        ? trimmed.slice(modifier.zh.length)
-        : trimmed.slice(0, -modifier.zh.length);
+  const suffix = MODIFIER_ENTRIES.find(
+    (m) => m.at === 'suffix' && afterPrefix.endsWith(m.zh)
+  );
 
-    // A one-character remainder is not a word; 肉 alone is not an ingredient.
-    if (base.length < 1) continue;
+  // Tried in order, because a suffix can be greedy: 肉 matches the end of
+  // 云南腊肉 and leaves 云南腊, which is not a word. Peeling both, then only
+  // the prefix, then only the suffix, lets the combination that actually
+  // resolves win instead of the first one that matched.
+  const candidates: Array<{ base: string; wrap: (value: string) => string }> = [];
 
-    const translated = TO_EN.get(normalise(base));
-    if (translated) return applyModifier(modifier.en, translated);
+  if (prefix && suffix) {
+    candidates.push({
+      base: afterPrefix.slice(0, -suffix.zh.length),
+      // Suffix first, then prefix: the suffix names the thing ("lemon juice")
+      // and the prefix qualifies the whole of it. The other order would give
+      // "fresh lemon" juice, which is a different claim.
+      wrap: (v) => applyModifier(prefix.en, applyModifier(suffix.en, v)),
+    });
+  }
+  if (prefix) {
+    candidates.push({
+      base: afterPrefix,
+      wrap: (v) => applyModifier(prefix.en, v),
+    });
+  }
+  if (suffix) {
+    candidates.push({
+      base: afterPrefix.slice(0, -suffix.zh.length),
+      wrap: (v) => applyModifier(suffix.en, v),
+    });
+  }
+
+  for (const candidate of candidates) {
+    if (candidate.base.length < 1) continue;
+    const translated = TO_EN.get(normalise(candidate.base));
+    if (translated) return candidate.wrap(translated);
   }
 
   return null;
@@ -412,8 +458,8 @@ const UNIT_TO_EN = new Map<string, string>();
 const UNIT_TO_ZH = new Map<string, string>();
 
 // First entry wins in both directions. 'piece' and 'pieces' both map to 个,
-// and 个 has to come back as the singular — the plural is listed only so that
-// a plan written with it is still recognised.
+// and 个 has to come back as the singular — the plural is listed only so a
+// plan written with it is still recognised.
 for (const entry of UNIT_ENTRIES) {
   const zhKey = normalise(entry.zh);
   const enKey = normalise(entry.en);
@@ -430,8 +476,6 @@ for (const entry of UNIT_ENTRIES) {
   }
 }
 
-// The English phrasing is a template rather than a function so the generated
-// client copy can carry it across: a function does not survive JSON.
 export function applyModifier(template: string, base: string): string {
   return template
     .replace('{base:lower}', base.toLowerCase())

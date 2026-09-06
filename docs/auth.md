@@ -280,3 +280,45 @@ second round trip.
   deployment forced onto `sameSite: 'none'` would need real CSRF tokens.
 - **No structured logging.** `console.error` is fine locally; production wants
   levelled, redacted, aggregated logs.
+
+---
+
+## Sign in with Google
+
+Built on `openid-client` v6 directly rather than a wrapper.
+
+- PKCE, `state` and `nonce` are generated per attempt and held in one short-lived `HttpOnly` cookie
+- Identities are keyed on `(provider, sub)`, **never on email**. A provider can change the email attached to an account; the subject identifier is the stable one. Keying on email is how account-takeover bugs happen
+- `password_hash` is nullable, because an account that arrived through Google has no password. Every read of it handles `null` rather than assuming a string
+- Sign in with Apple is deliberately not built yet — it needs a paid Apple Developer account and a verified domain, neither of which exists
+
+### Why identities are keyed on `(provider, sub)`
+
+A provider can change the email attached to an account, and two providers can
+report the same email for different people. The subject identifier is the only
+stable, provider-scoped key. Keying on email is how account-takeover bugs
+happen: sign up with a provider, have it assert an email that already exists
+locally, and inherit the existing account.
+
+`password_hash` is nullable because an account that arrived through Google has
+no password. Every read of it handles `null` rather than assuming a string —
+including the change-password route, which refuses rather than pretending.
+
+---
+
+## Account and data rights
+
+UK GDPR gives people a right to a copy of their data and a right to have it erased. Both are built, because a product taking UK household data cannot ship without them.
+
+- **Export** returns everything the account owns — profile, pantry, meal plans, shopping list — as a JSON download, in the shape it is stored. Passwords and session ids are excluded: those are credentials, not personal data anyone needs back
+- **Deletion** is irreversible and says so. It requires the account's own email address typed exactly, which a mis-click cannot produce. Stripe is cancelled **before** the row is deleted, because the delete cascades the subscription record away and there would be no id left to cancel — the account would be gone and the card would keep being charged
+- If Stripe is unreachable the account is still deleted and the failure is logged as `URGENT`. Holding a legal right hostage to a third party's uptime is the worse of the two options; a subscription cancelled by hand the next morning is the better one
+- **Changing a password** works only where there is one to change. An account created through Google has `password_hash IS NULL`, and the page says why rather than offering a form that cannot work. *Setting* a first password on such an account is refused: it adds a second way in, and doing that silently from a session is a takeover path
+
+### Why setting a first password is refused
+
+Adding a password to an account that only had Google is adding a **new way
+in**, and anyone holding a stolen session could do it silently. That needs
+confirmation to the registered address, which needs a verified sending domain
+that does not exist yet. The route refuses and says why, rather than quietly
+being a takeover path.

@@ -225,13 +225,16 @@ test('known ingredients come from the table and never reach the model', async ()
 
 test('an ingredient outside the table still goes to the model', async () => {
   const plan = samplePlan();
-  plan.days[0]!.meals[0]!.ingredients[0]!.name = '云南酸菜';
+  // Deliberately a dish, not an ingredient: the lexicon has grown to cover
+  // 云南酸菜, which this test previously used and which now resolves. A name
+  // that will never be in an ingredient table is the durable choice.
+  plan.days[0]!.meals[0]!.ingredients[0]!.name = '外婆的秘制酱菜';
 
   const { call, seen } = stubCall((values) =>
     values.map((v) => ({ i: v.i, text: `EN:${v.text}` }))
   );
   const result = await translatePlan(plan, 'en', 'full', call as never);
 
-  assert.ok(seen.user.includes('云南酸菜'), 'an unknown ingredient was silently dropped');
-  assert.equal(result.plan.days[0]!.meals[0]!.ingredients[0]!.name, 'EN:云南酸菜');
+  assert.ok(seen.user.includes('外婆的秘制酱菜'), 'an unknown ingredient was silently dropped');
+  assert.equal(result.plan.days[0]!.meals[0]!.ingredients[0]!.name, 'EN:外婆的秘制酱菜');
 });
