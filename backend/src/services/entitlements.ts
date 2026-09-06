@@ -31,14 +31,14 @@ export interface Entitlements {
 const ENTITLEMENTS: Record<Tier, Entitlements> = {
   // Roughly two weekly plans a week. Counted monthly because that is the
   // period the billing runs on, and a weekly counter would reset mid-cycle.
-  // Eight plans became six to pay for four translations. At eight plans plus
-  // eight translations the worst-case free account costs £0.069 a month, and
-  // the £100 ceiling would arrive at 1,400 users instead of 3,100 — over half
-  // the runway spent on a feature most users never touch. Six and four costs
-  // £0.044 and keeps the ceiling past 2,200.
+  // Eight plans briefly became six to pay for four translations, when a
+  // translation cost more than the generation it translated. Lazy scoping and
+  // the ingredient lexicon cut that by about a third, which buys the two plans
+  // back at the same headroom: eight plans plus four translations is £0.045 a
+  // month worst case, and the £100 ceiling still sits beyond 2,200 users.
   free: {
     householdMembers: 1,
-    mealPlansPerMonth: 6,
+    mealPlansPerMonth: 8,
     maxMealsPerPlan: 7,
     pantryCooksPerMonth: 5,
     planTranslationsPerMonth: 4,

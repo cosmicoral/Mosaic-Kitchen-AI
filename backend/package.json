@@ -15,7 +15,8 @@
     "migrate:up": "node-pg-migrate up",
     "migrate:down": "node-pg-migrate down",
     "cleanup:sessions": "node scripts/cleanup-sessions.ts",
-    "migrate:up:test": "node-pg-migrate up --envPath .env.test"
+    "migrate:up:test": "node-pg-migrate up --envPath .env.test",
+    "generate:lexicon": "node scripts/generate-web-lexicon.ts"
   },
   "engines": {
     "node": ">=24.0.0"

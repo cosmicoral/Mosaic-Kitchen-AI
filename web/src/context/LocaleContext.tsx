@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 
 export type Locale = 'en' | 'zh';
 
@@ -206,6 +214,51 @@ const zh: Record<string, string> = {
 
   // Accessibility label, read aloud rather than displayed.
   'Primary navigation': '主导航',
+  // Stripe's subscription vocabulary.
+  'Active': '生效中', 'Trial': '试用中', 'Payment failed — retrying': '扣款失败,正在重试',
+  'Cancelled': '已取消', 'Unpaid': '未付款', 'Incomplete': '未完成',
+  'Save 2 months': '省两个月',
+  // Plan cards. These reach the interface as t(plan.tagline) and t(feature.text)
+  // — a variable, not a literal — so the literal scan never saw them and the
+  // whole pricing table shipped in English.
+  'Enough to cook from, for one person.': '一个人也够用,足以撑起一日三餐。',
+  'For two people cooking together.': '适合两个人一起做饭。',
+  'For a full household, three meals a day.': '适合全家人,一日三餐。',
+  'Start free': '免费开始',
+  'Choose Plus': '选择 Plus',
+  'Choose Pro': '选择 Pro',
+  '1 household member': '1 位家庭成员',
+  '2 household members, each with their own restrictions': '2 位家庭成员,各自可设忌口',
+  '6 household members': '6 位家庭成员',
+  '8 AI meal plans a month': '每月 8 份 AI 餐单',
+  '10 AI meal plans a month': '每月 10 份 AI 餐单',
+  '30 AI meal plans a month': '每月 30 份 AI 餐单',
+  'Up to 14 meals per plan': '每份餐单最多 14 餐',
+  'Up to 21 meals per plan — breakfast, lunch and dinner': '每份餐单最多 21 餐——早、午、晚',
+  'Unlimited pantry, shopping lists and expiry alerts': '食材库、购物清单和到期提醒不限次',
+  '3 camera scans a month': '每月 3 次相机扫描',
+  '30 camera scans a month': '每月 30 次相机扫描',
+  '150 camera scans a month': '每月 150 次相机扫描',
+
+  // Cuisine regions. Rendered through regionLabel(), also a variable.
+  'Punjabi': '旁遮普', 'Gujarati': '古吉拉特', 'Bengali': '孟加拉', 'Tamil': '泰米尔',
+  'Kerala': '喀拉拉', 'Maharashtrian': '马哈拉施特拉', 'Rajasthani': '拉贾斯坦',
+  'Hyderabadi': '海得拉巴', 'Sindhi': '信德', 'Pashtun': '普什图', 'Kashmiri': '克什米尔',
+  'Levantine': '黎凡特', 'Iraqi': '伊拉克', 'Persian': '波斯', 'Egyptian': '埃及',
+  'Yemeni': '也门', 'Palestinian': '巴勒斯坦',
+  'Central': '中部', 'Isan': '伊善', 'Lanna': '兰纳', 'Southern': '南部',
+  'Hue': '顺化', 'Mekong': '湄公河三角洲',
+  'Scottish': '苏格兰', 'Welsh': '威尔士', 'Northern Irish': '北爱尔兰',
+  'Roman': '罗马', 'Neapolitan': '那不勒斯', 'Sicilian': '西西里', 'Emilian': '艾米利亚',
+  'Ligurian': '利古里亚', 'Tuscan': '托斯卡纳', 'Puglian': '普利亚',
+  'Oaxacan': '瓦哈卡', 'Yucatecan': '尤卡坦', 'Poblano': '普埃布拉',
+  'Norteño': '北部', 'Veracruz': '韦拉克鲁斯',
+  'Jamaican': '牙买加', 'Trinidadian': '特立尼达', 'Bajan': '巴巴多斯',
+  'Guyanese': '圭亚那', 'Haitian': '海地',
+  'Nigerian': '尼日利亚', 'Ghanaian': '加纳', 'Senegalese': '塞内加尔',
+  'Ivorian': '科特迪瓦', 'Sierra Leonean': '塞拉利昂',
+  'Greek': '希腊', 'Turkish': '土耳其', 'Spanish': '西班牙',
+  'Cypriot': '塞浦路斯', 'Maltese': '马耳他',
   'Save money': '省钱', 'Eat healthier': '吃得更健康', 'Reduce food waste': '减少食物浪费',
   'Email': '邮箱',
 
@@ -361,7 +414,7 @@ const zh: Record<string, string> = {
   'Choose your plan': '选择方案', 'Unlock smarter food routines': '解锁更智能的饮食方式',
   'Static pricing cards for now. Payments are not connected in this phase.': '当前为价格方案展示，本阶段尚未接入支付。',
   'Best Value': '最超值', 'Starter': '入门版', 'Continue Free': '继续免费使用', 'Upgrade to Premium': '升级高级版',
-  'Unlock Premium Plus': '解锁高级 Plus', 'forever': '永久免费', 'per month': '每月',
+  'Unlock Premium Plus': '解锁高级 Plus', 'forever': '永久免费', 'per month': '每月', 'per year': '每年',
   'Forgot Your Password?': '忘记密码？', 'No worries. Enter your email address and we will send you a secure reset link.': '不用担心，输入邮箱后我们会发送安全的重置链接。',
   'Check your inbox': '请查看收件箱', 'We sent a mock reset link to your email address. No real email is sent yet.': '当前仅模拟发送重置链接，尚未发送真实邮件。',
   'Send Reset Link': '发送重置链接', 'Back To Login': '返回登录', 'Mock payment flow': '模拟支付流程',
@@ -410,12 +463,31 @@ interface LocaleContextValue {
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocale] = useState<Locale>(initialLocale);
+  const [locale, setLocaleState] = useState<Locale>(initialLocale);
 
+  // Written here rather than in an effect, and that is the whole point.
+  //
+  // apiFetch reads the stored locale to set Accept-Language, and effects run
+  // children first: a hook that refetches when the locale changes ran BEFORE
+  // this provider's effect had written the new value, so every refetch went
+  // out asking for the language the user had just left. The symptom was the
+  // two languages swapping places — English interface, Chinese plan.
+  //
+  // Writing during the setter means the storage is correct the moment any
+  // effect can observe the change, whoever runs first.
+  const setLocale = useCallback((next: Locale) => {
+    window.localStorage.setItem(STORAGE_KEY, next);
+    document.documentElement.lang = next === 'zh' ? 'zh-CN' : 'en';
+    setLocaleState(next);
+  }, []);
+
+  // Only for the very first render: initialLocale may have come from the
+  // browser's language rather than from storage, and nothing has written it.
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, locale);
     document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
-  }, [locale]);
+    // Deliberately empty: this is a mount-time backfill, not a sync.
+  }, []);
 
   const value = useMemo(
     () => ({ locale, setLocale, t: (english: string) => locale === 'zh' ? (zh[english] ?? english) : english }),

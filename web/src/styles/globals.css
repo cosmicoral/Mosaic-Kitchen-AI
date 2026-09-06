@@ -12,10 +12,25 @@ body {
   min-width: 320px;
   color: var(--color-text);
   background: var(--color-cream);
-  font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
-  line-height: 1.4;
+  /* Latin first, then the CJK faces each platform actually ships. Without the
+     CJK entries the browser picks its own fallback for Chinese, which is how
+     one interface ends up in two unrelated typefaces mid-sentence.
+
+     No webfont is loaded. The previous stack named Inter without ever
+     importing it, so the site looked one way to people who happened to have it
+     installed and another way to everyone else. A CJK webfont is not a
+     reasonable fix either — the smallest usable Simplified Chinese face is
+     several megabytes, and PingFang and Microsoft YaHei are already excellent.
+     See the note in the README before adding one. */
+  font-family: var(--font-text);
+  line-height: 1.5;
+  /* Kerning and ligatures are off by default in some engines at body sizes.
+     They are most of the difference between "clean" and "cheap". */
+  font-kerning: normal;
+  font-feature-settings: "kern" 1, "liga" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 button,
@@ -486,6 +501,15 @@ img {
   box-shadow: var(--shadow-card);
 }
 
+/* The heading sizes against THIS box, not the viewport. It used to be sized in
+   vw while its column was capped at 1100px by .public-shell, so on a wide
+   monitor the type kept growing while the space for it did not — 77px of
+   "Multicultural Households" in a 290px column, with overflow:hidden quietly
+   cutting the end off. */
+.hero-card__content {
+  container-type: inline-size;
+}
+
 .hero-card__image {
   width: 100%;
   aspect-ratio: 1.26 / 1;
@@ -497,10 +521,65 @@ img {
   text-align: center;
 }
 
+h1,
+h2,
+h3,
+.brand-row,
+.button {
+  font-family: var(--font-display);
+}
+
+/* Bricolage runs a little wide and open at text sizes; a touch more weight and
+   slightly tighter tracking is what makes a heading read as set rather than
+   merely large. */
+h1,
+h2,
+h3 {
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+/* Chinese has none of Bricolage's glyphs and falls through to PingFang, which
+   is already optical at these sizes — negative tracking on it just crowds the
+   characters. */
+h1:lang(zh),
+h2:lang(zh),
+h3:lang(zh) {
+  letter-spacing: 0;
+}
+
 .hero-card h1 {
   margin: 0 0 var(--space-3);
-  font-size: clamp(2rem, 9vw, 3rem);
-  line-height: 0.98;
+  font-size: clamp(1.9rem, 11cqi, 2.9rem);
+  /* 0.98 had the descenders of one line touching the caps of the next. Just
+     over 1 keeps display type tight without the lines colliding. */
+  line-height: 1.06;
+  /* Large type exaggerates default spacing; pulling it in slightly is most of
+     what makes a heading look set rather than typed. */
+  letter-spacing: -0.02em;
+  /* Evens the line lengths instead of leaving one orphan word on the last
+     line. Ignored by engines that do not support it, which is harmless. */
+  text-wrap: balance;
+  /* A long unbreakable word breaks rather than escaping the box. Belt and
+     braces next to the container sizing above: the heading is translated, and
+     no length can be assumed. */
+  overflow-wrap: break-word;
+}
+
+/* Chinese needs its own treatment. It has no word boundaries, so it wraps
+   anywhere and never leaves a ragged edge to balance; and dense glyphs at
+   display sizes need more room between lines than Latin does, not less. */
+.hero-card h1:lang(zh) {
+  font-size: clamp(1.7rem, 9cqi, 2.5rem);
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  text-wrap: initial;
+}
+
+.hero-card p {
+  /* A comfortable measure. Full-width paragraphs at this size are the reason
+     the old hero read as a wall rather than a lede. */
+  max-width: 42ch;
 }
 
 .hero-card p {
@@ -555,7 +634,22 @@ img {
 .page-heading h1 {
   margin: 0;
   font-size: 1.8rem;
-  line-height: 1.08;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+/* Chinese headings across the app, not just the hero: no word boundaries to
+   balance on, and dense glyphs need the extra leading. */
+.page-heading h1:lang(zh),
+h2:lang(zh) {
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-wrap: initial;
+}
+
+.page-heading p {
+  max-width: 56ch;
 }
 
 .auth-head p,
@@ -1503,8 +1597,11 @@ button.check-item {
 
   .hero-card {
     display: grid;
-    min-height: 520px;
-    grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+    min-height: 500px;
+    /* Was 1.2fr image to 0.8fr copy, which left the headline about 290px to
+       live in — the other half of why it was cramped. The copy is the reason
+       someone is on this page; the picture supports it. */
+    grid-template-columns: minmax(0, 1fr) minmax(400px, 1.05fr);
   }
 
   .hero-card__image {
@@ -1516,12 +1613,25 @@ button.check-item {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: clamp(32px, 5vw, 56px);
+    padding: clamp(36px, 4vw, 60px);
     text-align: left;
   }
 
+  /* The call to action does not need to span a 500px column; a button that
+     wide reads as a banner rather than something to press. */
+  .hero-card__content .button--full {
+    width: auto;
+    align-self: flex-start;
+  }
+
+  /* cqi, not vw: see the note on .hero-card__content. 13% of the column is
+     roughly 46-62px across the range the column actually takes. */
   .hero-card h1 {
-    font-size: clamp(2.5rem, 4.8vw, 4.8rem);
+    font-size: clamp(2.2rem, 13cqi, 3.6rem);
+  }
+
+  .hero-card h1:lang(zh) {
+    font-size: clamp(2rem, 11cqi, 3.1rem);
   }
 
   .feature-grid {

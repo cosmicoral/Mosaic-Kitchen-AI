@@ -756,26 +756,29 @@ export async function generateFromPantry(
 // it was — this returns a view of the plan, not a rewrite of it.
 export async function getLatestPantryCook(
   userId: string,
-  locale: SupportedLocale = 'en'
+  locale: SupportedLocale = 'en',
+  scope: mealPlanRepository.TranslationScope = 'card'
 ): Promise<MealPlanRow | null> {
   const found = await mealPlanRepository.findLatestForUser(userId, 'pantry');
   if (!found) return null;
-  return { ...found, plan: await readInLocale(found, locale) };
+  return { ...found, plan: await readInLocale(found, locale, scope) };
 }
 
 export async function getLatest(
   userId: string,
-  locale: SupportedLocale = 'en'
+  locale: SupportedLocale = 'en',
+  scope: mealPlanRepository.TranslationScope = 'card'
 ): Promise<MealPlanRow | null> {
   const found = await mealPlanRepository.findLatestForUser(userId);
   if (!found) return null;
-  return { ...found, plan: await readInLocale(found, locale) };
+  return { ...found, plan: await readInLocale(found, locale, scope) };
 }
 
 export async function getById(
   id: string,
   userId: string,
-  locale: SupportedLocale = 'en'
+  locale: SupportedLocale = 'en',
+  scope: mealPlanRepository.TranslationScope = 'card'
 ): Promise<MealPlanRow> {
   const found =
     await mealPlanRepository.findByIdForUser(
@@ -790,7 +793,7 @@ export async function getById(
     );
   }
 
-  return { ...found, plan: await readInLocale(found, locale) };
+  return { ...found, plan: await readInLocale(found, locale, scope) };
 }
 
 export async function getQuota(
@@ -829,13 +832,18 @@ export async function getQuota(
 // page instead of dinner.
 export async function readInLocale(
   row: mealPlanRepository.MealPlanRow,
-  locale: SupportedLocale
+  locale: SupportedLocale,
+  // 'card' is the default because it is what almost every read needs: the
+  // summary, the tip and the dish names. Cooking steps are two thirds of the
+  // tokens in a plan and most of them are never opened, so they are translated
+  // only when someone actually asks to read a recipe.
+  scope: mealPlanRepository.TranslationScope = 'card'
 ): Promise<GeneratedMealPlan> {
   if (row.locale === locale) return row.plan;
 
   // Cache first, and the cache is not metered. Re-reading a plan you have
   // already had translated costs nothing, so it must not cost a credit either.
-  const cached = await mealPlanRepository.findTranslation(row.id, locale);
+  const cached = await mealPlanRepository.findTranslation(row.id, locale, scope);
   if (cached) return cached;
 
   const tier = await billingService.getTier(row.user_id);
@@ -868,7 +876,7 @@ export async function readInLocale(
   }
 
   try {
-    const result = await translatePlan(row.plan, locale);
+    const result = await translatePlan(row.plan, locale, scope);
     const complete = result.translated === result.total;
 
     await aiUsageRepository.record(row.user_id, {
@@ -884,7 +892,7 @@ export async function readInLocale(
       // Loud, because the symptom otherwise is a page that just looks like the
       // language toggle does nothing.
       console.warn(
-        `Plan ${row.id} translated ${result.translated}/${result.total} strings into ${locale}.`
+        `Plan ${row.id} translated ${result.translated}/${result.total} ${scope} strings into ${locale}.`
       );
     }
 
@@ -892,12 +900,12 @@ export async function readInLocale(
     // half-Chinese page that never retries, which is worse than paying for a
     // second attempt on the next page load.
     if (complete) {
-      await mealPlanRepository.saveTranslation(row.id, locale, result.plan);
+      await mealPlanRepository.saveTranslation(row.id, locale, scope, result.plan);
     }
 
     return result.plan;
   } catch (error) {
-    console.error(`Could not translate plan ${row.id} into ${locale}:`, error);
+    console.error(`Could not translate plan ${row.id} into ${locale} (${scope}):`, error);
     return row.plan;
   }
 }

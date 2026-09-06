@@ -28,6 +28,8 @@ import {
 } from "../lib/mealPlanFormat";
 import { SkeletonList } from "../components/ui/Skeleton";
 import { useLocale } from "../context/LocaleContext";
+import { CUISINE_LABELS, regionLabel } from "../lib/profileOptions";
+import type { Cuisine } from "../types";
 
 export function MealPlanPage() {
   const navigate = useNavigate();
@@ -36,6 +38,7 @@ export function MealPlanPage() {
   const {
     plan, quota, status, error, refresh,
     generate, generating, generationError, stages, insights, finishing,
+    loadRecipeDetail,
   } = useMealPlan();
 
   const [openDay, setOpenDay] = useState<number | null>(0);
@@ -247,7 +250,13 @@ export function MealPlanPage() {
                           return (
                             <div className="daily-meal" key={mealKey}>
                               <Badge variant={SLOT_TONES[meal.slot]}>{t(SLOT_LABELS[meal.slot])}</Badge>{" "}
-                              <span className="tiny muted">{meal.cuisine}</span>
+                              <span className="tiny muted">
+                                {t(
+                                  meal.region
+                                    ? regionLabel(`${meal.cuisine}:${meal.region}`)
+                                    : (CUISINE_LABELS[meal.cuisine as Cuisine] ?? meal.cuisine)
+                                )}
+                              </span>
 
                               <strong style={{ display: "block", marginTop: 6 }}>{meal.name}</strong>
                               {meal.native_name && meal.native_name !== meal.name ? (
@@ -264,7 +273,13 @@ export function MealPlanPage() {
 
                               <button
                                 className="text-link small"
-                                onClick={() => setOpenMeal(showRecipe ? null : mealKey)}
+                                onClick={() => {
+                                  // Opening a recipe is the first moment the
+                                  // cooking steps are worth translating. The
+                                  // hook only fetches once per plan.
+                                  if (!showRecipe) void loadRecipeDetail();
+                                  setOpenMeal(showRecipe ? null : mealKey);
+                                }}
                                 style={{ display: "block", marginTop: 6 }}
                                 type="button"
                               >

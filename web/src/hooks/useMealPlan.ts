@@ -7,6 +7,7 @@ import {
   type StageEvent,
 } from '../lib/mealPlanStream';
 import type { MealPlanQuota, MealPlanRecord } from '../types';
+import { useLocale } from '../context/LocaleContext';
 
 type MealPlanStatus = 'loading' | 'ready' | 'error';
 
@@ -18,6 +19,8 @@ export interface GenerationFailure {
 }
 
 export function useMealPlan() {
+  const { locale } = useLocale();
+
   const [plan, setPlan] = useState<MealPlanRecord | null>(null);
   const [quota, setQuota] = useState<MealPlanQuota | null>(null);
   const [status, setStatus] = useState<MealPlanStatus>('loading');
@@ -35,6 +38,25 @@ export function useMealPlan() {
   // the one moment the wait pays off.
   const [finishing, setFinishing] = useState(false);
 
+  // Whether the recipe text has been fetched in the reader's language yet.
+  // One request per plan, the first time a recipe is opened.
+  const [detailLoaded, setDetailLoaded] = useState(false);
+
+  const loadRecipeDetail = useCallback(async () => {
+    if (detailLoaded) return;
+    setDetailLoaded(true);
+
+    try {
+      const full = await fetchLatestMealPlan('full');
+      if (full) setPlan(full);
+    } catch {
+      // Silent on purpose. The steps are already on screen in the language the
+      // plan was written in; an error card over a translation nobody asked for
+      // by name would be noise, and the retry is simply opening it again.
+      setDetailLoaded(false);
+    }
+  }, [detailLoaded]);
+
   const refresh = useCallback(async () => {
     setStatus('loading');
     setError(null);
@@ -43,6 +65,7 @@ export function useMealPlan() {
       // do not depend on each other, so they go out together.
       const [latest, currentQuota] = await Promise.all([fetchLatestMealPlan(), fetchQuota()]);
       setPlan(latest);
+      setDetailLoaded(false);
       setQuota(currentQuota);
       setStatus('ready');
     } catch (caught) {
@@ -51,9 +74,13 @@ export function useMealPlan() {
     }
   }, []);
 
+  // locale is a dependency, not decoration: the summary, dish names and steps
+  // arrive translated by the server, so the language toggle has to refetch
+  // them. Before this, switching language left whatever had already been
+  // fetched on screen and looked exactly like the toggle doing nothing.
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, locale]);
 
   const generate = useCallback(async () => {
     setGenerating(true);
@@ -104,5 +131,6 @@ export function useMealPlan() {
   return {
     plan, quota, status, error, refresh,
     generate, generating, generationError, stages, insights, finishing,
+    loadRecipeDetail,
   };
 }

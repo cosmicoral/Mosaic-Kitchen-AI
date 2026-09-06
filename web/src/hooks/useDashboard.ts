@@ -3,6 +3,7 @@ import { fetchLatestMealPlan, fetchQuota } from '../lib/mealPlan';
 import { fetchExpiringItems, fetchPantryItems } from '../lib/pantry';
 import { fetchShoppingList } from '../lib/shoppingList';
 import type { MealPlanQuota, MealPlanRecord, PantryItem, ShoppingListItem } from '../types';
+import { useLocale } from '../context/LocaleContext';
 
 export interface DashboardData {
   pantryItems: PantryItem[];
@@ -15,6 +16,9 @@ export interface DashboardData {
 type DashboardStatus = 'loading' | 'ready' | 'error';
 
 export function useDashboard() {
+  // Dish names come from the plan, translated by the server.
+  const { locale } = useLocale();
+
   const [data, setData] = useState<DashboardData | null>(null);
   const [status, setStatus] = useState<DashboardStatus>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +45,7 @@ export function useDashboard() {
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, locale]);
 
   return { data, status, error, refresh };
 }

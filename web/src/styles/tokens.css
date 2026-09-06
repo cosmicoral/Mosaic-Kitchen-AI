@@ -35,6 +35,18 @@
   --space-5: 20px;
   --space-6: 24px;
   --space-7: 32px;
+  /* Two families, both sans. A serif display face would have looked good in
+     English and then sat next to a sans PingFang the moment the interface
+     switched to Chinese — in a bilingual product the heading font has to
+     survive having no Chinese glyphs of its own. */
+  --font-display:
+    "Bricolage Grotesque Variable", ui-sans-serif, system-ui, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-text:
+    "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans CJK SC", sans-serif;
+
   --shell: 430px;
   --shell-wide: 720px;
 }

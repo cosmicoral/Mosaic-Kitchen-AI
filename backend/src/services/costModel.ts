@@ -30,14 +30,22 @@ const WEEKLY_PLAN: TokenShape = { input: 1_800, output: 3_200 };
 // roughly a quarter of the output.
 const PANTRY_COOK: TokenShape = { input: 1_100, output: 800 };
 
-// Translating a stored fourteen-meal plan.
+// Translating a stored fourteen-meal plan, in the two sizes it comes in.
 //
-// Worth spelling out, because the size is counter-intuitive: translation costs
-// MORE than the generation it translates. Output tokens dominate the bill, a
-// translation reproduces the plan's entire user-facing text, and the indexed
-// JSON envelope adds roughly eight tokens per string on top. Five batches of
-// forty also repeat the system prompt five times.
-const PLAN_TRANSLATION: TokenShape = { input: 3_500, output: 4_300 };
+// The first version of this translated everything and cost £0.0046 — MORE than
+// the generation it translated, because output tokens dominate the bill and a
+// translation reproduces the plan's entire text plus an indexed JSON envelope.
+// Two changes brought it down:
+//
+//   'card'  — summary, waste tip and dish names only. Cooking steps are about
+//             two thirds of the tokens in a plan and most are never opened, so
+//             they are translated when somebody actually reads a recipe.
+//   lexicon — ingredient names, over half the strings, are answered from a
+//             curated table before anything reaches a model.
+//
+// Worst case is still the full scope, which is what the entitlement maths uses.
+const PLAN_TRANSLATION_CARD: TokenShape = { input: 500, output: 700 };
+const PLAN_TRANSLATION_FULL: TokenShape = { input: 2_400, output: 3_000 };
 
 // Not built. Included because the entitlement table advertises a number, and a
 // number in the pricing table should be costed even when the feature behind it
@@ -54,7 +62,8 @@ function gbp(shape: TokenShape): number {
 export const COST_GBP = {
   weeklyPlan: gbp(WEEKLY_PLAN),
   pantryCook: gbp(PANTRY_COOK),
-  planTranslation: gbp(PLAN_TRANSLATION),
+  planTranslationCard: gbp(PLAN_TRANSLATION_CARD),
+  planTranslationFull: gbp(PLAN_TRANSLATION_FULL),
   visionScan: gbp(VISION_SCAN),
 } as const;
 
@@ -67,7 +76,9 @@ export function worstCaseMonthlyCostGbp(tier: Tier): number {
   return (
     limits.mealPlansPerMonth * COST_GBP.weeklyPlan +
     limits.pantryCooksPerMonth * COST_GBP.pantryCook +
-    limits.planTranslationsPerMonth * COST_GBP.planTranslation +
+    // The full scope, because worst case is the point: every allowance used,
+    // every recipe opened.
+    limits.planTranslationsPerMonth * COST_GBP.planTranslationFull +
     limits.scansPerMonth * COST_GBP.visionScan
   );
 }

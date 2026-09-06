@@ -433,6 +433,7 @@ These are not scheduling choices — they cannot be built until a domain exists 
 | Layer | Technology |
 | ----- | ---------- |
 | UI/UX design | Figma |
+| Typography | Bricolage Grotesque + Plus Jakarta Sans, self-hosted via `@fontsource-variable` |
 | Web frontend | React + TypeScript + Vite |
 | Backend | Node.js + Express + TypeScript (native type stripping, no build step) |
 | Database | Neon (PostgreSQL 18) |
@@ -536,6 +537,8 @@ Two decisions worth recording:
 
 - **`native_name` is never translated.** 剁椒鱼头 stays 剁椒鱼头 in an English plan. Every language check and the translator itself exempt that field, because preserving the dish's own script is the entire reason it exists
 - **User-entered data is never translated.** A pantry item typed as 生抽 reads 生抽 in the English interface. Rewriting someone's own words amounts to telling them they spelled it wrong
+- **No Chinese webfont is loaded, on purpose.** The smallest usable Simplified Chinese face is several megabytes, and PingFang SC, Hiragino Sans GB and Microsoft YaHei are already on the devices that matter. The two Latin faces are self-hosted through npm rather than the Google Fonts CDN — the CDN sends every visitor's IP to Google on page load, which German courts have held to breach the GDPR, and that is not a risk worth taking for a product built around UK household data. Each `@font-face` carries a `unicode-range`, so Chinese falls through to the system face and the browser never downloads a byte it cannot use: about 67 KB of Latin, nothing else
+- **The display face is a sans, not a serif.** A serif heading would have looked good in English and then sat beside a sans PingFang the moment the interface switched to Chinese. In a bilingual product the heading font has to survive having no glyphs for half the content
 - **Translation is metered separately from generation.** Charging a plan credit to read a plan you already own would charge twice for one thing, and would leave a bilingual household with half the plans of a monolingual one — the opposite of what this product is for. Running out is not an error either: the plan is shown in the language it was written in, because blocking the page over a translation budget takes away the thing the reader came for
 
 ---

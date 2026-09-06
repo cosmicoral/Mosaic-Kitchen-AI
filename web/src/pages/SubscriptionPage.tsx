@@ -25,7 +25,7 @@ const STATUS_LABELS: Record<string, string> = {
 export function SubscriptionPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const [searchParams] = useSearchParams();
   const { billing, status, error, refresh, waitForUpgrade } = useBilling();
 
@@ -63,14 +63,20 @@ export function SubscriptionPage() {
   const copy = PLAN_COPY.find((plan) => plan.tier === tier);
 
   const renewsOn = billing?.current_period_end
-    ? new Date(billing.current_period_end).toLocaleDateString("en-GB", {
+    ? new Date(billing.current_period_end).toLocaleDateString(
+        // Was pinned to en-GB, so a Chinese reader was told their plan renews
+        // on "4 October 2026". The date is the one piece of this card that
+        // Intl can translate for free.
+        locale === "zh" ? "zh-CN" : "en-GB",
+        {
         day: "numeric",
         month: "long",
         year: "numeric",
         // The value is a UTC instant; formatting it in the viewer's zone can
         // move it a day either side of midnight.
         timeZone: "UTC",
-      })
+        }
+      )
     : null;
 
   return (

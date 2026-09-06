@@ -170,7 +170,7 @@ export function OnboardingEatingHabitsPage() {
                     onClick={() => toggleAvoidance(ingredient)}
                     type="button"
                   >
-                    {ingredient} <X size={13} />
+                    {t(ingredient)} <X size={13} />
                   </button>
                 ))}
               </div>

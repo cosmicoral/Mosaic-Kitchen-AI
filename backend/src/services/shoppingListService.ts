@@ -37,7 +37,13 @@ export async function generateFromLatestPlan(
   // Built from the plan as the reader sees it, not as it was stored. A list of
   // English ingredients under a Chinese meal plan is the same bug twice, and
   // this is the point where the two could drift apart.
-  const items = aggregateShoppingList(await mealPlanService.readInLocale(plan, locale));
+  const items = aggregateShoppingList(
+    // 'full', not the default 'card': a shopping list IS the ingredient names,
+    // so the card scope would leave every line in the original language. This
+    // is also the cheapest place to pay for it — the lexicon covers most
+    // ingredients for free, and the result is cached for the meal plan page.
+    await mealPlanService.readInLocale(plan, locale, 'full')
+  );
   return shoppingListRepository.replacePlanItems(userId, plan.id, items);
 }
 

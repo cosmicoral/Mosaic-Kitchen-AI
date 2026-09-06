@@ -46,6 +46,31 @@ function dictionaryKeys() {
   return new Set([...body.matchAll(/'((?:[^'\\]|\\.)*)'\s*:/g)].map((m) => m[1]));
 }
 
+// Data files whose string values are rendered through t(<variable>). The
+// literal check below cannot see those — the argument is not a literal at the
+// call site — which is how the whole pricing table shipped in English while
+// the checker reported no gaps. This was the third distinct class of hole, and
+// the reason the list of files is explicit: a new label table has to be added
+// here on purpose.
+const LABEL_TABLES = [
+  'lib/plans.ts',
+  'lib/profileOptions.ts',
+  'lib/mealPlanFormat.ts',
+];
+
+// Values that are not copy: enum slugs, css class names, price ids, icon keys.
+const NOT_COPY = /^[a-z0-9_:-]+$|^https?:|^£|^\d/;
+
+// BCP 47 tags and IANA zones read like words but are configuration.
+const TECHNICAL = new Set([
+  'UTC', 'en-GB', 'en-US', 'zh-CN', 'GBP', 'long', 'short', 'numeric',
+  // Tier names, kept in English on purpose: they are what the Stripe invoice
+  // and the support conversation will call the plan.
+  'Free', 'Plus', 'Pro',
+  // Sign-in provider names.
+  'Google', 'Apple',
+]);
+
 const keys = dictionaryKeys();
 const untranslated = [];
 const hardcoded = [];
@@ -75,6 +100,53 @@ for (const [path, source] of sources(srcRoot)) {
     if (ALLOWED_LITERAL.has(text)) continue;
     const line = source.slice(0, match.index).split('\n').length;
     hardcoded.push(`${where}:${line}: ${text}`);
+  }
+}
+
+// Label maps declared inside a page or component, e.g.
+//   const STATUS_LABELS: Record<string, string> = { active: 'Active', ... }
+// These are rendered as t(STATUS_LABELS[x]) — a variable again — and live
+// outside LABEL_TABLES, which is where the subscription page's "Active" badge
+// hid. Found by shape rather than by a hand-maintained list, so a new one is
+// covered the day it is written.
+for (const [path, source] of sources(srcRoot)) {
+  const where = relative(srcRoot, path);
+
+  for (const block of source.matchAll(
+    /(?:const|export const)\s+\w*(?:LABELS|COPY|TEXT)\w*\s*:\s*Record<[^>]*>\s*=\s*\{([\s\S]*?)\n\}/g
+  )) {
+    for (const pair of block[1].matchAll(/:\s*['"]([^'"\n]{2,})['"]/g)) {
+      const value = pair[1];
+      if (NOT_COPY.test(value) || TECHNICAL.has(value)) continue;
+      if (!keys.has(value)) untranslated.push(`${where}: ${value}`);
+    }
+  }
+}
+
+for (const relPath of LABEL_TABLES) {
+  const full = join(srcRoot, relPath);
+  let source;
+  try {
+    source = readFileSync(full, 'utf8');
+  } catch {
+    console.error(`\nLABEL_TABLES lists ${relPath}, which does not exist.`);
+    process.exit(1);
+  }
+
+  // Every single-quoted or double-quoted string value in the table. Anything
+  // that looks like a slug, a price id, a URL or a number is skipped: those
+  // are machine-readable values that are never shown to anyone.
+  const values = [
+    ...source.matchAll(/:\s*'((?:[^'\\\n]|\\.)*)'/g),
+    ...source.matchAll(/:\s*"((?:[^"\\\n]|\\.)*)"/g),
+    ...source.matchAll(/text:\s*'((?:[^'\\\n]|\\.)*)'/g),
+  ].map((m) => m[1]);
+
+  for (const value of values) {
+    if (value.length < 2) continue;
+    if (NOT_COPY.test(value)) continue;
+    if (TECHNICAL.has(value)) continue;
+    if (!keys.has(value)) untranslated.push(`${relPath}: ${value}`);
   }
 }
 

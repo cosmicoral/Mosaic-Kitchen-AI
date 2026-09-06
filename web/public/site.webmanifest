@@ -1,0 +1,23 @@
+{
+  "name": "Mosaic Kitchen AI",
+  "short_name": "Mosaic Kitchen",
+  "description": "AI meal planning for multicultural households in the UK.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f8e9",
+  "theme_color": "#9acd22",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

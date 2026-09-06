@@ -51,6 +51,14 @@ export async function generate(req: Request, res: Response) {
 // stays the contract for anything that cannot read a stream (curl, the iOS
 // client later, a retry from a background job), and two paths through one
 // service cannot drift in behaviour.
+
+// ?detail=full asks for the cooking steps and ingredient names in the reader's
+// language too. The page requests it the first time somebody opens a recipe,
+// which is the only moment those strings are worth paying to translate.
+function readScope(req: Request): 'card' | 'full' {
+  return req.query.detail === 'full' ? 'full' : 'card';
+}
+
 export async function generateStream(req: Request, res: Response) {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
 
@@ -199,7 +207,8 @@ export async function latestPantryCook(req: Request, res: Response) {
   try {
     const mealPlan = await mealPlanService.getLatestPantryCook(
       req.user.id,
-      readLocale(req.headers['accept-language'])
+      readLocale(req.headers['accept-language']),
+      readScope(req)
     );
     return res.status(200).json({ mealPlan });
   } catch (error) {
@@ -213,7 +222,8 @@ export async function latest(req: Request, res: Response) {
   try {
     const mealPlan = await mealPlanService.getLatest(
       req.user.id,
-      readLocale(req.headers['accept-language'])
+      readLocale(req.headers['accept-language']),
+      readScope(req)
     );
     // null is normal for an account that has never generated one.
     return res.status(200).json({ mealPlan });
@@ -234,7 +244,8 @@ export async function getOne(req: Request, res: Response) {
     const mealPlan = await mealPlanService.getById(
       id,
       req.user.id,
-      readLocale(req.headers['accept-language'])
+      readLocale(req.headers['accept-language']),
+      readScope(req)
     );
     return res.status(200).json({ mealPlan });
   } catch (error) {

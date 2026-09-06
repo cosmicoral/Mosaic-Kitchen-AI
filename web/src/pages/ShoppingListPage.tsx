@@ -15,6 +15,8 @@ import { PANTRY_CATEGORIES, type PantryCategory, type ShoppingListItem } from ".
 import { SkeletonList } from "../components/ui/Skeleton";
 import { useLocale } from "../context/LocaleContext";
 import { mismatchesLocale } from "../lib/textLocale";
+import { formatAmount } from "../lib/pantryFormat";
+import { displayIngredient } from "../lib/ingredientLexicon";
 
 const CATEGORY_LABELS: Record<PantryCategory, string> = {
   vegetables: "Vegetables",
@@ -25,16 +27,6 @@ const CATEGORY_LABELS: Record<PantryCategory, string> = {
   dairy: "Dairy",
   other: "Other",
 };
-
-function formatAmount(item: ShoppingListItem): string {
-  if (!item.quantity) return item.unit ?? "";
-  const amount = Number(item.quantity);
-  const rounded = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
-  if (!item.unit) return rounded;
-  return ["g", "kg", "ml", "l"].includes(item.unit.toLowerCase())
-    ? `${rounded}${item.unit}`
-    : `${rounded} ${item.unit}`;
-}
 
 export function ShoppingListPage() {
   const navigate = useNavigate();
@@ -256,7 +248,7 @@ export function ShoppingListPage() {
                   {group.items.map((item) => (
                     <div className="check-item" key={item.id}>
                       <button
-                        aria-label={item.is_checked ? `Untick ${item.name}` : `Tick ${item.name}`}
+                        aria-label={item.is_checked ? `Untick ${displayIngredient(item.name, locale)}` : `Tick ${displayIngredient(item.name, locale)}`}
                         className={`check-circle${item.is_checked ? " is-on" : ""}`}
                         onClick={() => void toggle(item).catch(() => showToast("Could not update"))}
                         type="button"
@@ -271,13 +263,13 @@ export function ShoppingListPage() {
                           textDecoration: item.is_checked ? "line-through" : "none",
                         }}
                       >
-                        <strong>{item.name}</strong>
+                        <strong>{displayIngredient(item.name, locale)}</strong>
                         <br />
-                        <span className="small muted">{formatAmount(item) || t("No amount set")}</span>
+                        <span className="small muted">{formatAmount(item, locale) || t("No amount set")}</span>
                       </span>
                       {item.source === "manual" ? <Badge variant="cream">{t("Added")}</Badge> : null}
                       <button
-                        aria-label={`Remove ${item.name}`}
+                        aria-label={`Remove ${displayIngredient(item.name, locale)}`}
                         className="icon-only"
                         onClick={() =>
                           void removeItem(item.id)

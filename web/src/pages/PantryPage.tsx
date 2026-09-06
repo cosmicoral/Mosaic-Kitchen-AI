@@ -17,6 +17,7 @@ import { daysUntil, expiryTone, formatAmount, formatExpiryForLocale } from "../l
 import { PANTRY_CATEGORIES, type PantryCategory, type PantryItem } from "../types";
 import { SkeletonList } from "../components/ui/Skeleton";
 import { useLocale } from "../context/LocaleContext";
+import { displayIngredient } from "../lib/ingredientLexicon";
 
 const CATEGORY_LABELS: Record<PantryCategory, string> = {
   vegetables: "Vegetables",
@@ -253,7 +254,7 @@ export function PantryPage() {
               {visibleExpiring.map((item) => (
                 <Card className="alert-choice" key={item.id}>
                   <span>
-                    <strong>{item.name}</strong>
+                    <strong>{displayIngredient(item.name, locale)}</strong>
                     <br />
                     <Badge variant={expiryTone(item.expires_on)}>
                       {formatExpiryForLocale(item.expires_on, locale)}
@@ -348,10 +349,10 @@ export function PantryPage() {
                         </button>
                       ) : null}
                       <span>
-                        <strong>{item.name}</strong>
+                        <strong>{displayIngredient(item.name, locale)}</strong>
                         <br />
                         <span className="small muted">
-                          {formatAmount(item) || t("No quantity set")}
+                          {formatAmount(item, locale) || t("No quantity set")}
                         </span>
                       </span>
                       <Badge variant={expiryTone(item.expires_on)}>

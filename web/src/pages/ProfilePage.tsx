@@ -296,7 +296,7 @@ export function ProfilePage() {
                       <span className="ai-profile-pills">
                         {profile.avoid_ingredients.map((ingredient) => (
                           <span className="ai-pill ai-pill--warn" key={ingredient}>
-                            {ingredient}
+                            {t(ingredient)}
                           </span>
                         ))}
                       </span>
@@ -589,7 +589,7 @@ export function ProfilePage() {
                             onClick={() => toggleAvoidance(ingredient)}
                             type="button"
                           >
-                            {ingredient}
+                            {t(ingredient)}
                           </button>
                         )
                       )}
@@ -597,7 +597,7 @@ export function ProfilePage() {
                   ) : (
                     profile.avoid_ingredients.map((ingredient) => (
                       <Badge key={ingredient} variant="cream">
-                        {ingredient}
+                        {t(ingredient)}
                       </Badge>
                     ))
                   )}

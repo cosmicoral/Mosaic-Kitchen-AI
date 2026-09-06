@@ -34,13 +34,27 @@ test('the free tier keeps meaningful headroom, not just a passing margin', () =>
   );
 });
 
-test('translation costs more than the generation it translates', () => {
-  // Recorded because it is counter-intuitive and drove the free-tier cut. If a
-  // future change makes this false, the quota split was decided on a premise
-  // that no longer holds and should be revisited.
+test('translating a plan is cheaper than generating one', () => {
+  // The earlier version of this test asserted the opposite, because it was
+  // true: a full translation cost 1.4x a generation, and that is what took the
+  // free tier from eight plans to six. Lazy scoping and the ingredient lexicon
+  // changed the premise, the test failed, and the quota was decided again —
+  // which is the entire reason it was written down as an assertion rather than
+  // left in a comment.
   assert.ok(
-    COST_GBP.planTranslation > COST_GBP.weeklyPlan,
-    'translation is no longer the more expensive call — revisit the free-tier quotas'
+    COST_GBP.planTranslationFull < COST_GBP.weeklyPlan,
+    'a full translation costs more than a generation again — revisit the free-tier quotas'
+  );
+});
+
+test('the card scope is a small fraction of the full one', () => {
+  // The saving that makes browsing in the other language nearly free. If this
+  // narrows, the card tier has started carrying cooking steps and the split
+  // has stopped doing its job.
+  assert.ok(
+    COST_GBP.planTranslationCard < COST_GBP.planTranslationFull * 0.3,
+    `card translation is £${COST_GBP.planTranslationCard.toFixed(5)} against a full ` +
+      `£${COST_GBP.planTranslationFull.toFixed(5)} — the lazy split is not saving much`
   );
 });
 

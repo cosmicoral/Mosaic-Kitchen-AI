@@ -1,20 +1,33 @@
 import type { PantryItem } from '../types';
+import { displayUnit } from './ingredientLexicon';
+import type { Locale } from '../context/LocaleContext';
 
 // "200" + "g" -> "200g", but "2" + "pack" -> "2 pack". Symbols sit flush
 // against the number, words do not.
 const SYMBOL_UNITS = new Set(['g', 'kg', 'ml', 'l']);
 
-export function formatAmount(item: PantryItem): string {
-  if (!item.quantity) return item.unit ?? '';
+// The unit is stored as the generating model wrote it, so a plan produced in
+// Chinese fills the pantry with 克 and 个 — which then showed as "120 克" to a
+// reader who had switched to English. Translated at display time, not in the
+// database: the row is the user's, and a gram is a gram in either language.
+// Typed on the two fields it reads rather than on PantryItem. A shopping list
+// item has a quantity and a unit and no expiry date, and there is no reason
+// this function should care about the difference.
+export function formatAmount(
+  item: { quantity: string | null; unit: string | null },
+  locale: Locale = 'en'
+): string {
+  const unit = item.unit ? displayUnit(item.unit, locale) : null;
+  if (!item.quantity) return unit ?? '';
 
   // NUMERIC(10,2) always comes back with trailing zeros: "200.00".
   const amount = Number(item.quantity);
   const rounded = Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
 
-  if (!item.unit) return rounded;
-  return SYMBOL_UNITS.has(item.unit.toLowerCase())
-    ? `${rounded}${item.unit}`
-    : `${rounded} ${item.unit}`;
+  if (!unit) return rounded;
+  return SYMBOL_UNITS.has(unit.toLowerCase())
+    ? `${rounded}${unit}`
+    : `${rounded} ${unit}`;
 }
 
 // Compares calendar days, never instants. Building both sides from Y/M/D means

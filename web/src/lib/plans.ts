@@ -34,7 +34,7 @@ export const PLAN_COPY: PlanCopy[] = [
     cadence: { month: 'forever', year: 'forever' },
     features: [
       { text: '1 household member' },
-      { text: '6 AI meal plans a month' },
+      { text: '8 AI meal plans a month' },
       { text: '5 cook-from-your-pantry suggestions a month' },
       { text: '4 plan translations between English and Chinese a month' },
       { text: 'Unlimited pantry, shopping lists and expiry alerts' },

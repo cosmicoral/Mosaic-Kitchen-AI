@@ -9,6 +9,7 @@ import { useToast } from "../components/ui/Toast";
 import { useExpiringItems } from "../hooks/useExpiringItems";
 import { expiryTone, formatAmount, formatExpiryForLocale } from "../lib/pantryFormat";
 import { useLocale } from "../context/LocaleContext";
+import { displayIngredient } from "../lib/ingredientLexicon";
 
 const EXPIRY_WINDOW_DAYS = 7;
 
@@ -76,9 +77,9 @@ export function ExpiryAlertPage() {
                 >
                   <span className="item-icon">{item.name.slice(0, 2)}</span>
                   <span style={{ flex: 1 }}>
-                    <strong>{item.name}</strong>
+                    <strong>{displayIngredient(item.name, locale)}</strong>
                     <br />
-                    <span className="small muted">{formatAmount(item) || t("Quantity not set")}</span>
+                    <span className="small muted">{formatAmount(item, locale) || t("Quantity not set")}</span>
                   </span>
                   <Badge variant={expiryTone(item.expires_on)}>{formatExpiryForLocale(item.expires_on, locale)}</Badge>
                 </button>
@@ -96,7 +97,7 @@ export function ExpiryAlertPage() {
               <div className="list-row">
                 <span className="item-icon">{selected.name.slice(0, 2)}</span>
                 <span className="small muted">{t("Quantity")}</span>
-                <strong>{formatAmount(selected) || t("Not set")}</strong>
+                <strong>{formatAmount(selected, locale) || t("Not set")}</strong>
               </div>
               <div className="list-row">
                 <span />

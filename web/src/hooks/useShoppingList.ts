@@ -10,10 +10,13 @@ import {
   updateShoppingListItem,
 } from '../lib/shoppingList';
 import type { ShoppingListItem, ShoppingListItemInput } from '../types';
+import { useLocale } from '../context/LocaleContext';
 
 type Status = 'loading' | 'ready' | 'error';
 
 export function useShoppingList() {
+  const { locale } = useLocale();
+
   const [items, setItems] = useState<ShoppingListItem[]>([]);
   const [status, setStatus] = useState<Status>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +37,9 @@ export function useShoppingList() {
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+    // Same reason as useMealPlan: the item names come from the server in the
+    // reader's language, so the toggle has to refetch them.
+  }, [refresh, locale]);
 
   const generate = useCallback(async () => {
     setGenerating(true);

@@ -95,13 +95,24 @@ export async function findByIdForUser(id: string, userId: string): Promise<MealP
 }
 // Cached translations of a stored plan. Kept out of the plan row so the thing
 // the model actually produced is never overwritten by a translation of itself.
+export type TranslationScope = 'card' | 'full';
+
+// A 'full' translation contains everything a 'card' one does, so a request for
+// a card is answered by a full row when one exists. Ordering puts 'full' first
+// ('c' < 'f', hence DESC), which is why this is one query rather than two.
 export async function findTranslation(
   mealPlanId: string,
-  locale: SupportedLocale
+  locale: SupportedLocale,
+  scope: TranslationScope
 ): Promise<GeneratedMealPlan | null> {
+  const acceptable = scope === 'card' ? ['card', 'full'] : ['full'];
+
   const result = await pool.query<{ plan: GeneratedMealPlan }>(
-    'SELECT plan FROM meal_plan_translations WHERE meal_plan_id = $1 AND locale = $2',
-    [mealPlanId, locale]
+    `SELECT plan FROM meal_plan_translations
+      WHERE meal_plan_id = $1 AND locale = $2 AND scope = ANY($3)
+      ORDER BY scope DESC
+      LIMIT 1`,
+    [mealPlanId, locale, acceptable]
   );
   return result.rows[0]?.plan ?? null;
 }
@@ -109,15 +120,16 @@ export async function findTranslation(
 export async function saveTranslation(
   mealPlanId: string,
   locale: SupportedLocale,
+  scope: TranslationScope,
   plan: GeneratedMealPlan
 ): Promise<void> {
   // ON CONFLICT DO NOTHING, not DO UPDATE: two tabs opening the same plan at
   // once both translate, and the first one home is as good as the second.
   await pool.query(
-    `INSERT INTO meal_plan_translations (meal_plan_id, locale, plan)
-     VALUES ($1, $2, $3)
-     ON CONFLICT (meal_plan_id, locale) DO NOTHING`,
-    [mealPlanId, locale, plan]
+    `INSERT INTO meal_plan_translations (meal_plan_id, locale, scope, plan)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (meal_plan_id, locale, scope) DO NOTHING`,
+    [mealPlanId, locale, scope, plan]
   );
 }
 
