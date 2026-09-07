@@ -28,7 +28,7 @@ Each step must be finished before the next, because each one is a prerequisite f
 | 5 | `proxy_buffering off` for the SSE routes | **Without this the generation UI hangs.** nginx buffers the response by default and the stream arrives all at once at the end, which looks exactly like a broken feature |
 | 6 | systemd unit, `NODE_ENV=production`, run migrations | `trust proxy` and the secure-cookie flags key off `NODE_ENV` |
 | 7 | Deploy the frontend to Vercel, set `VITE_API_URL` | — |
-| 8 | Cross-site cookies: `SameSite=None; Secure`, `CORS_ORIGINS` set to the real origin | `app.<domain>` and `api.<domain>` are different sites to a browser. `SameSite=Lax` silently drops the session cookie on cross-site requests, and the symptom is a 401 on every call after login |
+| 8 | `CORS_ORIGINS` set to the real origin; leave `COOKIE_SAMESITE` unset | `app.<domain>` and `api.<domain>` are cross-**origin** but same-**site**, because SameSite is judged on the registrable domain, so `Lax` works and keeps the CSRF protection that `None` throws away. Set `COOKIE_SAMESITE=none` **only** for a frontend on a different registrable domain, such as a default `*.vercel.app` URL — and a custom subdomain is the better fix |
 | 9 | Add the production redirect URI in Google Cloud Console | OAuth fails closed on an unregistered URI |
 | 10 | Create the four **live** prices in Stripe — £7.99, £89.99, £12.99, £129.99 — and put their ids in the environment | Stripe prices are immutable. The test-mode ids do not exist in live mode, and the amounts changed after the unit economics were worked out |
 | 11 | Point the Stripe webhook at `api.<domain>`, take the **live** signing secret | The test-mode secret does not verify live events |
@@ -50,7 +50,10 @@ NODE_ENV=production
 APP_URL=https://app.<domain>
 API_ORIGIN=https://api.<domain>
 CORS_ORIGINS=https://app.<domain>
-COOKIE_SAMESITE=none
+# Leave unset when the app is on app.<domain>: same registrable domain means
+# Lax works, and Lax is safer. Set to 'none' only for a genuinely cross-site
+# frontend, such as a default *.vercel.app URL.
+COOKIE_SAMESITE=
 
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...        # the live endpoint's secret, not the CLI's

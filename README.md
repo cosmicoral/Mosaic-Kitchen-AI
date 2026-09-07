@@ -258,8 +258,8 @@ be corrected.*
 
 Written down deliberately. An honest list is more useful than a clean one.
 
-- **Not deployed.** Production cookie behaviour (`Secure`, `SameSite=None`),
-  CORS across two subdomains, and SSE through nginx have never been exercised
+- **Not deployed.** Production cookie behaviour (`Secure`, `SameSite`), CORS
+  across two subdomains, and SSE through nginx have never been exercised
   outside localhost
 - **No email verification, password reset or change-email.** All three need a
   provider sending from a verified domain. The forgot-password screen says so
@@ -356,7 +356,7 @@ reasons, each of which is also a production constraint that must be honoured:
 | Constraint | Why it matters |
 | --- | --- |
 | **`proxy_buffering off` on the SSE routes** | nginx buffers responses by default, so the whole stream would arrive at once at the end. The symptom is a generation UI that appears frozen — not an error, just nothing |
-| **HTTPS and cross-site cookies** | Cookies are `Secure` in production, so nothing authenticates over plain HTTP. `app.` and `api.` are different sites to a browser, so the session cookie needs `SameSite=None; Secure` or it is silently dropped and every request after login returns 401 |
+| **HTTPS and cookie scope** | Cookies are `Secure` in production, so nothing authenticates over plain HTTP. `SameSite` depends on where the frontend ends up: `app.<domain>` and `api.<domain>` share a registrable domain and are **same-site**, so `Lax` works and keeps its CSRF protection. Only a frontend on a genuinely different domain — a `*.vercel.app` URL calling `api.<domain>` — needs `SameSite=None`, and that is worth avoiding by putting the app on a subdomain |
 | **Stripe webhook raw body** | Signature verification needs the unparsed body, on a route mounted before `express.json()`. A platform that parses the body first breaks verification for every event |
 
 ---
