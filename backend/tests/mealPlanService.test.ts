@@ -154,6 +154,40 @@ describe('mealPlanService profile requirements', () => {
     assert.equal(result.attempts, 1);
     assert.equal(result.mealPlan.plan.days.flatMap((day) => day.meals).length, 7);
   });
+
+  test('never saves an English plan that still contains a Chinese unit after retrying', async () => {
+    const user = await createUserWithProfile();
+    const mixed = makeMealPlan([
+      'chinese',
+      'british',
+      'chinese',
+      'british',
+      'chinese',
+      'british',
+      'chinese',
+    ]);
+    mixed.days[0]!.meals[0]!.ingredients[0]!.unit = '克';
+    let calls = 0;
+
+    await assert.rejects(
+      () => mealPlanService.generate(user.id, async () => {
+        calls += 1;
+        return modelResult(mixed);
+      }, 'en'),
+      (error: unknown) => {
+        assert.ok(error instanceof AppError);
+        assert.equal(error.code, 'GENERATION_FAILED');
+        return true;
+      }
+    );
+
+    assert.equal(calls, 2);
+    const plans = await pool.query<{ count: string }>(
+      'SELECT COUNT(*) AS count FROM meal_plans WHERE user_id = $1',
+      [user.id]
+    );
+    assert.equal(Number(plans.rows[0]?.count ?? 0), 0);
+  });
 });
 
 describe('mealPlanService retry prompt', () => {

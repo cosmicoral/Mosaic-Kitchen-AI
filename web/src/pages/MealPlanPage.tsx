@@ -28,8 +28,10 @@ import {
 } from "../lib/mealPlanFormat";
 import { SkeletonList } from "../components/ui/Skeleton";
 import { useLocale } from "../context/LocaleContext";
-import { CUISINE_LABELS, substyleLabel } from "../lib/profileOptions";
+import { CUISINE_LABELS } from "../lib/profileOptions";
 import type { Cuisine } from "../types";
+import { displayIngredient, displayUnit } from "../lib/ingredientLexicon";
+import { generatedTextOrFallback } from "../lib/textLocale";
 
 export function MealPlanPage() {
   const navigate = useNavigate();
@@ -38,11 +40,12 @@ export function MealPlanPage() {
   const {
     plan, quota, status, error, refresh,
     generate, generating, generationError, stages, insights, finishing,
-    loadRecipeDetail,
+    loadRecipeDetail, detailLoaded, detailLoading, detailError,
   } = useMealPlan();
 
   const [openDay, setOpenDay] = useState<number | null>(0);
   const [openMeal, setOpenMeal] = useState<string | null>(null);
+  const [detailTarget, setDetailTarget] = useState<string | null>(null);
 
   // The spinner and the error card both live at the top of the page, but
   // Regenerate sits at the bottom next to the day list. Clicking it from down
@@ -66,6 +69,16 @@ export function MealPlanPage() {
 
   const record = plan;
   const generated = record?.plan;
+  const planSummary = generated
+    ? generatedTextOrFallback(
+        generated.summary,
+        locale,
+        t("Your meal plan is ready!")
+      )
+    : "";
+  const wasteTip = generated
+    ? generatedTextOrFallback(generated.waste_reduction_tip, locale)
+    : "";
 
   return (
     <main className="app-shell">
@@ -153,7 +166,7 @@ export function MealPlanPage() {
                 <Badge variant="dark">
                   <Sparkles size={14} /> {t("AI Summary")}
                 </Badge>
-                <h2 style={{ marginTop: 8 }}>{generated.summary}</h2>
+                <h2 style={{ marginTop: 8 }}>{planSummary}</h2>
                 <div className="choice-grid" style={{ marginTop: 12 }}>
                   <Badge variant="cream">{totalMeals(generated)} {t("meals")}</Badge>
                   <Badge variant="cream">{uniqueCuisines(generated).length} {t("cuisines")}</Badge>
@@ -180,11 +193,11 @@ export function MealPlanPage() {
                 </Card>
               </div>
 
-              {generated.waste_reduction_tip ? (
+              {wasteTip ? (
                 <Card variant="soft">
                   <span className="eyebrow">{t("Tip")}</span>
                   <p className="small" style={{ margin: 0 }}>
-                    {generated.waste_reduction_tip}
+                    {wasteTip}
                   </p>
                 </Card>
               ) : null}
@@ -245,21 +258,42 @@ export function MealPlanPage() {
                       <div className="day-meals">
                         {day.meals.map((meal) => {
                           const mealKey = `${day.day_index}-${meal.slot}`;
-                          const showRecipe = openMeal === mealKey;
+                          // A locale switch refetches the card first. Keep a
+                          // previously-open key from revealing the old,
+                          // untranslated detail underneath the new card.
+                          const showRecipe = openMeal === mealKey && detailLoaded;
+                          const cuisineLabel = t(
+                            CUISINE_LABELS[meal.cuisine as Cuisine] ?? meal.cuisine
+                          );
+                          const mealName = generatedTextOrFallback(
+                            meal.name,
+                            locale,
+                            cuisineLabel
+                          );
+                          const region = generatedTextOrFallback(meal.region, locale);
 
                           return (
                             <div className="daily-meal" key={mealKey}>
                               <Badge variant={SLOT_TONES[meal.slot]}>{t(SLOT_LABELS[meal.slot])}</Badge>{" "}
+                              {/*
+                                meal.region is free text the model wrote, in
+                                the plan's own language — "Jeolla", "Hunan".
+                                It is not a profile substyle key, so it was
+                                wrong to put it through substyleLabel: that
+                                looks up 'chinese:hunan' and, finding nothing
+                                for free text, returned the joined string
+                                verbatim. Every plan with a region has been
+                                rendering as "korean:全罗道" or "korean:Jeolla"
+                                since the field was added; the Chinese is only
+                                what made it obvious.
+                              */}
                               <span className="tiny muted">
-                                {t(
-                                  meal.region
-                                    ? substyleLabel(`${meal.cuisine}:${meal.region}`)
-                                    : (CUISINE_LABELS[meal.cuisine as Cuisine] ?? meal.cuisine)
-                                )}
+                                {cuisineLabel}
+                                {region ? ` · ${region}` : ""}
                               </span>
 
-                              <strong style={{ display: "block", marginTop: 6 }}>{meal.name}</strong>
-                              {meal.native_name && meal.native_name !== meal.name ? (
+                              <strong style={{ display: "block", marginTop: 6 }}>{mealName}</strong>
+                              {locale !== "en" && meal.native_name && meal.native_name !== meal.name ? (
                                 <span className="small muted">{meal.native_name}</span>
                               ) : null}
 
@@ -273,18 +307,39 @@ export function MealPlanPage() {
 
                               <button
                                 className="text-link small"
-                                onClick={() => {
-                                  // Opening a recipe is the first moment the
-                                  // cooking steps are worth translating. The
-                                  // hook only fetches once per plan.
-                                  if (!showRecipe) void loadRecipeDetail();
-                                  setOpenMeal(showRecipe ? null : mealKey);
+                                disabled={detailLoading}
+                                onClick={async () => {
+                                  if (showRecipe) {
+                                    setOpenMeal(null);
+                                    return;
+                                  }
+
+                                  // Do not reveal the stored detail while its
+                                  // translation is still in flight. That was
+                                  // the source of the mixed recipe flash in
+                                  // old plans.
+                                  setDetailTarget(mealKey);
+                                  const loaded = await loadRecipeDetail();
+                                  if (loaded) {
+                                    setOpenMeal(mealKey);
+                                    setDetailTarget(null);
+                                  }
                                 }}
                                 style={{ display: "block", marginTop: 6 }}
                                 type="button"
                               >
-                                {showRecipe ? t("Hide recipe") : t("Show recipe")}
+                                {detailLoading && detailTarget === mealKey
+                                  ? t("Loading recipe…")
+                                  : showRecipe
+                                    ? t("Hide recipe")
+                                    : t("Show recipe")}
                               </button>
+
+                              {detailError && detailTarget === mealKey ? (
+                                <span className="small muted" role="alert">
+                                  {t("Could not load this recipe in the selected language")}
+                                </span>
+                              ) : null}
 
                               {showRecipe ? (
                                 <div style={{ marginTop: 10 }}>
@@ -294,7 +349,8 @@ export function MealPlanPage() {
                                       <li key={ingredient.name}>
                                         <span className="small">
                                           {ingredient.quantity}
-                                          {ingredient.unit} {ingredient.name}
+                                          {displayUnit(ingredient.unit, locale)}{" "}
+                                          {displayIngredient(ingredient.name, locale)}
                                         </span>
                                         {/* Worth surfacing: it is the whole
                                             point of sending the pantry to the

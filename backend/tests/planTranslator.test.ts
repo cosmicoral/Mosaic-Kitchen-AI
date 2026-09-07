@@ -63,13 +63,24 @@ function stubCall(transform: (values: { i: number; text: string }[]) => { i: num
 test('the model never sees a cost, a cuisine or a day index', async () => {
   // This is the property that makes translating safe. If prices went to the
   // model, a translation could change what the household is told to spend.
+  //
+  // `region` used to be asserted here alongside them, on the reasoning that it
+  // was a structural field like `cuisine`. It is not, and the difference is
+  // sharper than it looks: `cuisine` is an enum drawn from the user's own
+  // list, so a translation that altered it could invent a preference they
+  // never expressed. `region` is free text the model wrote and the page
+  // renders above every dish — prose in a structural field's clothing. Holding
+  // it back did not protect anything; it just meant a stored Chinese plan
+  // opened in English kept saying 全罗道 for ever.
+  //
+  // What belongs in this test is data whose meaning would change if a model
+  // rewrote it. A label the model authored in the first place does not qualify.
   const { call, seen } = stubCall((values) => values.map((v) => ({ i: v.i, text: `EN:${v.text}` })));
   await translatePlan(samplePlan(), 'en', 'full', call as never);
 
   assert.ok(!seen.user.includes('89.6'), 'the total reached the prompt');
   assert.ok(!seen.user.includes('4.2'), 'a meal cost reached the prompt');
   assert.ok(!seen.user.includes('chinese'), 'a cuisine enum reached the prompt');
-  assert.ok(!seen.user.includes('hunan'), 'a region enum reached the prompt');
   assert.ok(!seen.user.includes('day_index'), 'structure reached the prompt');
 });
 
@@ -81,7 +92,8 @@ test('numbers and enums survive the translation untouched', async () => {
   assert.equal(plan.days[0]!.meals[0]!.estimated_cost_gbp, 4.2);
   assert.equal(plan.days[0]!.meals[0]!.minutes, 35);
   assert.equal(plan.days[0]!.meals[0]!.cuisine, 'chinese');
-  assert.equal(plan.days[0]!.meals[0]!.region, 'hunan');
+  // region is deliberately absent from this list now. It is translated, so it
+  // is not an untouched enum — see the note on the first test in this file.
   assert.equal(plan.days[0]!.meals[0]!.ingredients[0]!.quantity, 400);
   assert.equal(plan.days[0]!.meals[0]!.ingredients[0]!.from_pantry, true);
 });
@@ -112,6 +124,32 @@ test('every user-facing string is translated, including extras', async () => {
   assert.ok(plan.days[0]!.extras![0]!.name.startsWith('EN:'));
 });
 
+test('extra notes, ingredient names and units are translated too', async () => {
+  const original = samplePlan();
+  original.days[0]!.extras = [{
+    name: '桂花糯米藕',
+    native_name: '桂花糯米藕',
+    kind: 'dessert',
+    note: '冷藏后切片食用。',
+    estimated_cost_gbp: 1.5,
+    ingredients: [
+      { name: '莲藕', quantity: 1, unit: '个', from_pantry: false },
+    ],
+  }];
+
+  const { call } = stubCall((values) =>
+    values.map((value) => ({ i: value.i, text: `EN:${value.text}` }))
+  );
+  const result = await translatePlan(original, 'en', 'full', call as never);
+  const extra = result.plan.days[0]!.extras![0]!;
+
+  assert.ok(extra.name.startsWith('EN:'));
+  assert.ok(extra.note.startsWith('EN:'));
+  assert.equal(extra.ingredients[0]!.name, 'Lotus root');
+  assert.equal(extra.ingredients[0]!.unit, 'piece');
+  assert.equal(result.translated, result.total);
+});
+
 test('the original plan is not mutated', async () => {
   const original = samplePlan();
   const before = JSON.stringify(original);
@@ -133,10 +171,15 @@ test('a short answer translates what came back and leaves the rest alone', async
 
   const result = await translatePlan(samplePlan(), 'en', 'full', call as never);
 
-  // Three from the model plus the two the lexicon answered before any call.
-  assert.equal(result.translated, 5);
+  // Two from the lexicon before any call. The stub returns three items, but
+  // only the entries whose indices it echoes back are applied — and the two
+  // lexicon hits are never offered to it, so its three answers land on three
+  // of the nine remaining slots.
   assert.equal(result.fromLexicon, 2);
-  assert.equal(result.total, 8);
+  assert.equal(result.total, 11);
+  // Three applied from the model plus the two the lexicon answered. The
+  // remaining six keep their original text — the point of the indexed merge.
+  assert.equal(result.translated, 5);
   assert.ok(result.plan.summary.startsWith('EN:'));
   // Untranslated entries keep readable original text rather than being blanked.
   assert.equal(result.plan.days[0]!.extras![0]!.name, '玫瑰鲜花饼');
@@ -179,14 +222,16 @@ test('a blank translation leaves the original string in place', async () => {
 });
 
 test('the string count matches what the plan actually contains', () => {
-  // summary + tip + name + 2 steps + 2 ingredients + 1 extra
-  assert.equal(translatableStringCount(samplePlan()), 8);
+  // summary + tip + name + region + 2 steps + 2 ingredients + 2 units + 1 extra
+  assert.equal(translatableStringCount(samplePlan()), 11);
 });
 
 test('the card scope covers what a reader sees before opening anything', () => {
-  // summary + tip + dish name + extra name. No steps, no ingredients — those
-  // are the expensive two thirds and nobody has asked to read them yet.
-  assert.equal(translatableStringCount(samplePlan(), 'card'), 4);
+  // summary + tip + dish name + region + extra name. No steps, no ingredients
+  // and no units — those are the expensive two thirds and nobody has asked to
+  // read them yet. region joins the card tier because it is rendered beside the
+  // dish name, before anything is opened.
+  assert.equal(translatableStringCount(samplePlan(), 'card'), 5);
 });
 
 test('the card scope never sends a cooking step to the model', async () => {
@@ -196,7 +241,7 @@ test('the card scope never sends a cooking step to the model', async () => {
   const result = await translatePlan(samplePlan(), 'en', 'card', call as never);
 
   assert.ok(!seen.user.includes('把鱼蒸十二分钟'), 'a cooking step reached the prompt');
-  assert.equal(result.total, 4);
+  assert.equal(result.total, 5);
   // The steps are untouched, in the original language, waiting for someone to
   // open the recipe.
   assert.equal(result.plan.days[0]!.meals[0]!.steps[0], '把鱼蒸十二分钟。');

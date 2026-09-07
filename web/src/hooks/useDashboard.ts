@@ -26,6 +26,10 @@ export function useDashboard() {
   const refresh = useCallback(async () => {
     setStatus('loading');
     setError(null);
+    // The generated recommendation labels are locale-specific. Clear the old
+    // snapshot before refetching so a language switch never leaves the
+    // previous language visible under the loading skeleton.
+    setData(null);
     try {
       const [pantryItems, expiringItems, shoppingItems, latestPlan, quota] =
         await Promise.all([

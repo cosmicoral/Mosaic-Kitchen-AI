@@ -348,7 +348,7 @@ export const MODIFIER_ENTRIES: Modifier[] = [
   { zh: '丝', at: 'suffix', en: '{base}, shredded' },
   { zh: '鱼柳', at: 'suffix', en: '{base} fillet' },
   { zh: '柳', at: 'suffix', en: '{base} fillet' },
-  { zh: '肉', at: 'suffix', en: 'b' },
+  { zh: '肉', at: 'suffix', en: '{base}' },
   { zh: '粉', at: 'suffix', en: '{base} powder' },
   { zh: '干', at: 'suffix', en: 'Dried {base:lower}' },
 ];

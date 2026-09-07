@@ -1411,7 +1411,7 @@ const MODIFIERS: Modifier[] = [
   {
     "zh": "肉",
     "at": "suffix",
-    "en": "b"
+    "en": "{base}"
   },
   {
     "zh": "粉",

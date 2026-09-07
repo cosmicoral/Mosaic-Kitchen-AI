@@ -2,9 +2,10 @@ import { Check } from "lucide-react";
 import { Card } from "./ui/Card";
 import { ChefStage } from "./ChefStage";
 import type { GenerationVariant } from "../assets/meal-plan-generation";
-import { useLocale } from "../context/LocaleContext";
+import { useLocale, type Locale } from "../context/LocaleContext";
 import { GENERATION_STAGES, type InsightEvent, type StageEvent } from "../lib/mealPlanStream";
 import { CUISINE_LABELS, SUBSTYLE_LABELS } from "../lib/profileOptions";
+import { displayIngredient } from "../lib/ingredientLexicon";
 import type { Cuisine } from "../types";
 
 // Wording lives here, not in the API. The server sends stage identifiers and
@@ -36,7 +37,8 @@ const STAGE_LABELS: Record<GenerationVariant, Record<string, string>> = {
 function insightText(
   insight: InsightEvent,
   t: (key: string) => string,
-  variant: GenerationVariant
+  variant: GenerationVariant,
+  locale: Locale
 ): string | null {
   const { key, data } = insight;
 
@@ -47,10 +49,12 @@ function insightText(
       return `${data.count} ${t("ingredients already in your kitchen")}`;
     case "pantry_empty":
       return t("Your pantry is empty, so everything is on the shopping list");
-    case "expiry_soonest":
+    case "expiry_soonest": {
+      const name = displayIngredient(String(data.name ?? ''), locale);
       return Number(data.days) <= 0
-        ? `${data.name} — ${t("using it first")}`
-        : `${data.name} ${t("expires in")} ${data.days} ${t("days — using it first")}`;
+        ? `${name} — ${t("using it first")}`
+        : `${name} ${t("expires in")} ${data.days} ${t("days — using it first")}`;
+    }
     case "budget_target":
       return `${t("Keeping within")} £${Number(data.amount).toFixed(0)}`;
     case "culture_styles":
@@ -93,7 +97,7 @@ export function GenerationProgress({
   finished = false,
   variant = "weekly",
 }: Props) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
 
   const current = stages[stages.length - 1];
   const currentIndex = current
@@ -169,7 +173,7 @@ export function GenerationProgress({
       {insights.length > 0 ? (
         <div className="insight-chips mk-stagger">
           {insights.map((insight, index) => {
-            const text = insightText(insight, t, variant);
+            const text = insightText(insight, t, variant, locale);
             if (!text) return null;
             return (
               <span className="insight-chip" key={`${insight.key}-${index}`}>

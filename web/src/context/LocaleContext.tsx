@@ -99,6 +99,8 @@ const zh: Record<string, string> = {
   'meals': '餐', 'cuisines': '种菜系', 'from pantry': '来自食材库', 'Estimated cost': '预计费用',
   'Your budget': '你的预算', 'Already owned': '已有食材', 'Tip': '建议', 'Daily Meals': '每日餐食',
   'Regenerate': '重新生成', 'meal': '餐', 'Hide recipe': '收起食谱', 'Show recipe': '查看食谱',
+  'Loading recipe…': '正在加载食谱…',
+  'Could not load this recipe in the selected language': '无法以当前语言加载这份食谱',
   'Have it': '家中已有', 'Generate Shopping List': '生成购物清单',
   'Build Shopping List': '生成购物清单', 'Loading your shopping list…': '正在加载购物清单…',
   'Could not load your shopping list': '无法加载购物清单', 'Your shopping list is empty': '购物清单还是空的',

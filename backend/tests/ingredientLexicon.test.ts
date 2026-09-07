@@ -133,6 +133,11 @@ test('an exact match still wins over decomposition', () => {
   assert.equal(lookupIngredient('猪肉末', 'en'), 'Pork mince');
 });
 
+test('the meat suffix never collapses a known ingredient to a stray letter', () => {
+  assert.equal(lookupIngredient('鱼肉', 'en'), 'Fish');
+  assert.notEqual(lookupIngredient('鱼肉', 'en'), 'b');
+});
+
 test('units translate both ways', () => {
   assert.equal(lookupUnit('克', 'en'), 'g');
   assert.equal(lookupUnit('个', 'en'), 'piece');

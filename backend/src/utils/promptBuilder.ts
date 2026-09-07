@@ -1,5 +1,6 @@
 import type { PantryItem, UserProfile } from '../types/index.ts';
 import type { SupportedLocale } from './locale.ts';
+import { lookupIngredient, lookupUnit } from '../services/ingredientLexicon.ts';
 
 const PORTION_WEIGHTS = {
   adults: 1, teenagers: 1.2, children: 0.6, toddlers: 0.4,
@@ -155,10 +156,32 @@ function sample<T>(items: readonly T[], count: number): T[] {
   return picked;
 }
 
+const EAST_ASIAN_SCRIPT = /[぀-ヿ㐀-䶿一-鿿豈-﫿가-힯]+/g;
+
+function guidanceForLocale(value: string, locale: SupportedLocale): string {
+  if (locale === 'zh') return value;
+  return value
+    .replace(EAST_ASIAN_SCRIPT, '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function ingredientForPrompt(value: string, locale: SupportedLocale): string {
+  return lookupIngredient(value, locale) ?? value;
+}
+
+function unitForPrompt(value: string, locale: SupportedLocale): string {
+  return lookupUnit(value, locale) ?? value;
+}
+
 // Turns 'chinese:sichuan' into the label the prompt wants. Falls back to the
 // slug rather than dropping the region, because an unlabelled "hakka" still
 // steers the model correctly.
-const SUBSTYLE_LABELS: Record<string, string> = {
+// Exported so a test can check every whitelisted substyle has one. A missing
+// label is silent: the prompt falls back to the slug, which still produces a
+// plausible plan and never reports anything.
+export const SUBSTYLE_LABELS: Record<string, string> = {
   sichuan: 'Sichuan', cantonese: 'Cantonese', hunan: 'Hunan',
   jiangnan: 'Jiangnan and Shanghai', northern: 'Northern', dongbei: 'Dongbei',
   fujian: 'Fujian', yunnan: 'Yunnan', xinjiang: 'Xinjiang', hakka: 'Hakka',
@@ -166,8 +189,11 @@ const SUBSTYLE_LABELS: Record<string, string> = {
   hokkaido: 'Hokkaido style', okinawa: 'Okinawan',
   washoku: 'Home-style washoku', izakaya: 'Izakaya dishes', ramen: 'Ramen',
   sushi: 'Sushi and seafood', yakitori: 'Yakitori and grilled dishes',
-  seoul: 'Seoul and Gyeonggi', jeolla: 'Jeolla', gyeongsang: 'Gyeongsang',
-  gangwon: 'Gangwon', jeju: 'Jeju',
+  'home-korean': 'Home-style Korean', bbq: 'Korean BBQ',
+  'soups-stews': 'Soups and stews', bibimbap: 'Bibimbap and rice dishes',
+  'korean-noodles': 'Noodles', 'street-food': 'Street food',
+  'royal-court': 'Royal court cuisine', temple: 'Temple vegetarian cuisine',
+  jeolla: 'Jeolla style', jeju: 'Jeju style',
   punjabi: 'Punjabi', gujarati: 'Gujarati', bengali: 'Bengali', tamil: 'Tamil',
   kerala: 'Kerala', maharashtrian: 'Maharashtrian', rajasthani: 'Rajasthani',
   hyderabadi: 'Hyderabadi', sindhi: 'Karachi and Sindhi', pashtun: 'Pashtun',
@@ -203,7 +229,8 @@ function describeCuisines(
   cuisines: readonly string[],
   meals: number,
   recentDishes: readonly string[],
-  cuisineSubstyles: readonly string[] = []
+  cuisineSubstyles: readonly string[] = [],
+  locale: SupportedLocale = 'en'
 ): string {
   if (cuisines.length === 0) return 'No cuisine preference stated.';
 
@@ -230,7 +257,8 @@ function describeCuisines(
           ? chosen
           : sample(profile.substyles, Math.min(3, profile.substyles.length));
 
-      const techniques = sample(profile.techniques, Math.min(3, profile.techniques.length));
+      const techniques = sample(profile.techniques, Math.min(3, profile.techniques.length))
+        .map((technique) => guidanceForLocale(technique, locale));
 
       // A preference signal, not a constraint. The previous wording was "Only
       // cook from", which is the vocabulary of the allergen rules — and those
@@ -307,7 +335,10 @@ const NUTRITION_GUIDANCE: Record<string, string> = {
     'deep-fried, and go easy on very rich or heavy dishes.',
 };
 
-function describeFlavour(profile: UserProfile): string {
+function describeFlavour(
+  profile: UserProfile,
+  locale: SupportedLocale = 'en'
+): string {
   const lines: string[] = [];
 
   if (profile.nutrition_focus.length > 0) {
@@ -327,7 +358,9 @@ function describeFlavour(profile: UserProfile): string {
   }
 
   if (profile.flavour_notes.length > 0) {
-    const labels = profile.flavour_notes.map((note) => FLAVOUR_LABELS[note] ?? note);
+    const labels = profile.flavour_notes.map((note) =>
+      guidanceForLocale(FLAVOUR_LABELS[note] ?? note, locale)
+    );
     lines.push(`Lean into: ${labels.join(', ')}.`);
   }
 
@@ -400,7 +433,10 @@ Give every extra its ingredients so they reach the shopping list, and include th
 ${frequency}${sugarOverride}`;
 }
 
-function describePantry(items: PantryItem[]): string {
+function describePantry(
+  items: PantryItem[],
+  locale: SupportedLocale = 'en'
+): string {
   if (items.length === 0) {
     return 'The pantry is empty. Assume everything has to be bought.';
   }
@@ -412,12 +448,14 @@ function describePantry(items: PantryItem[]): string {
   });
   return sorted
     .map((item) => {
+      const name = ingredientForPrompt(item.name, locale);
+      const unit = item.unit ? unitForPrompt(item.unit, locale) : null;
       const amount =
-        item.quantity && item.unit
-          ? ` (${Number(item.quantity)}${item.unit})`
+        item.quantity && unit
+          ? ` (${Number(item.quantity)}${unit})`
           : item.quantity ? ` (${Number(item.quantity)})` : '';
       const expiry = item.expires_on ? `, use by ${item.expires_on}` : '';
-      return `- ${item.name}${amount}${expiry}`;
+      return `- ${name}${amount}${expiry}`;
     })
     .join('\n');
 }
@@ -471,24 +509,28 @@ export function buildPantryCookPrompt(
 
   const avoid =
     profile.avoid_ingredients.length > 0
-      ? `MUST NOT APPEAR ANYWHERE: ${profile.avoid_ingredients.join(', ')}`
+      ? `MUST NOT APPEAR ANYWHERE: ${profile.avoid_ingredients
+          .map((name) => ingredientForPrompt(name, locale))
+          .join(', ')}`
       : 'No ingredient restrictions.';
 
   const languageInstruction =
     locale === 'zh'
-      ? 'OUTPUT LANGUAGE\nUse natural Simplified Chinese for every user-facing value. Preserve authentic dish names in native_name. Keep JSON keys and schema enum values in English.'
-      : 'OUTPUT LANGUAGE\nUse British English for user-facing values. Some ingredient names below are written in Chinese; translate them into English rather than copying them through. Preserve authentic dish names in native_name.';
+      ? 'OUTPUT LANGUAGE\nUse natural Simplified Chinese for every user-facing value: summaries, dish names, region labels, ingredient names, measurement units, cooking steps, extra notes and tips. Preserve authentic dish names in native_name. Keep JSON keys and schema enum values in English.'
+      : 'OUTPUT LANGUAGE\nUse British English for every user-facing value: summaries, dish names, region labels, ingredient names, measurement units, cooking steps, extra notes and tips. Some source ingredients and regions below are written in Chinese; translate them rather than copying them through. Preserve authentic dish names only in native_name.';
 
   const mustUse = selected
     .map((item) => {
+      const name = ingredientForPrompt(item.name, locale);
+      const unit = item.unit ? unitForPrompt(item.unit, locale) : null;
       const amount =
-        item.quantity && item.unit
-          ? ` (${Number(item.quantity)}${item.unit})`
+        item.quantity && unit
+          ? ` (${Number(item.quantity)}${unit})`
           : item.quantity
             ? ` (${Number(item.quantity)})`
             : '';
       const expiry = item.expires_on ? `, use by ${item.expires_on}` : '';
-      return `- ${item.name}${amount}${expiry}`;
+      return `- ${name}${amount}${expiry}`;
     })
     .join('\n');
 
@@ -517,10 +559,10 @@ Cook each dish for ${servings} servings.
 ${avoid}
 
 CUISINES
-${describeCuisines(profile.cuisines, dishes, recentDishes, profile.cuisine_substyles)}
+${describeCuisines(profile.cuisines, dishes, recentDishes, profile.cuisine_substyles, locale)}
 
 FLAVOUR
-${describeFlavour(profile)}
+${describeFlavour(profile, locale)}
 
 TIME
 ${profile.cooking_style ? 'Keep to the household\'s usual cooking time.' : 'No strong preference.'}
@@ -551,14 +593,16 @@ export function buildMealPlanPrompt(
 
   const avoid =
     profile.avoid_ingredients.length > 0
-      ? `MUST NOT APPEAR ANYWHERE: ${profile.avoid_ingredients.join(', ')}`
+      ? `MUST NOT APPEAR ANYWHERE: ${profile.avoid_ingredients
+          .map((name) => ingredientForPrompt(name, locale))
+          .join(', ')}`
       : 'No ingredient restrictions.';
 
   const languageInstruction = locale === 'zh'
     ? `OUTPUT LANGUAGE
-Use natural Simplified Chinese for every user-facing value, including summary, meal names, ingredient names, steps and tips. Preserve authentic dish names in native_name. Keep JSON keys and schema enum values in English.`
+Use natural Simplified Chinese for every user-facing value, including summaries, dish and extra names, region labels, ingredient names, measurement units, steps, extra notes and tips. Preserve authentic dish names in native_name. Keep JSON keys and schema enum values in English.`
     : `OUTPUT LANGUAGE
-Use British English for user-facing values. Some ingredient and region names below are written in Chinese; translate them into English rather than copying them through. Preserve authentic dish names in native_name.`;
+Use British English for every user-facing value, including summaries, dish and extra names, region labels, ingredient names, measurement units, steps, extra notes and tips. Some source ingredients and regions below are written in Chinese; translate them rather than copying them through. Preserve authentic dish names only in native_name.`;
 
   return `${languageInstruction}
 
@@ -571,10 +615,10 @@ Cook each recipe for ${servings} servings.
 ${avoid}
 
 CUISINES — THIS IS THE POINT OF THE PRODUCT
-${describeCuisines(profile.cuisines, profile.meals_per_week, recentDishes, profile.cuisine_substyles)}
+${describeCuisines(profile.cuisines, profile.meals_per_week, recentDishes, profile.cuisine_substyles, locale)}
 
 FLAVOUR
-${describeFlavour(profile)}
+${describeFlavour(profile, locale)}
 
 FRUIT, SNACKS AND DESSERT
 ${describeExtras(profile)}
@@ -589,7 +633,7 @@ WHAT MATTERS MOST
 ${profile.priorities.length > 0 ? profile.priorities.join(', ') : 'balanced'}
 
 ALREADY IN THE KITCHEN
-${describePantry(pantry)}
+${describePantry(pantry, locale)}
 
 Mark every ingredient the household already has with from_pantry: true.
 Spread the meals across days, starting at day_index 0.

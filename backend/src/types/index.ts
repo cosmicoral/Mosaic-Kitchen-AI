@@ -120,8 +120,25 @@ export type Cuisine = (typeof CUISINES)[number];
 // not tell 'northern' Chinese from 'northern' Vietnamese apart.
 export const CUISINE_SUBSTYLES = {
   chinese: ['sichuan', 'cantonese', 'hunan', 'jiangnan', 'northern', 'dongbei', 'fujian', 'yunnan', 'xinjiang', 'hakka'],
-  japanese: ['kanto', 'kansai', 'kyushu', 'hokkaido', 'tohoku', 'okinawa'],
-  korean: ['seoul', 'jeolla', 'gyeongsang', 'gangwon', 'jeju'],
+  // Japanese and Korean mix places with formats on purpose. "Kanto" is a real
+  // distinction and so is "ramen", and a household is at least as likely to
+  // reach for the second. Forcing both onto a map was the old model's mistake.
+  //
+  // This list is the one place the taxonomy revision missed. The picker, its
+  // labels and the prompt were all updated; this — the validation whitelist —
+  // was not, so every new style was offered in the interface and refused by the
+  // API with "cuisine_substyles contains an unknown value". The failure was
+  // loud, which is the only reason it was ever found; a whitelist that had
+  // silently dropped the values instead would have looked like the model
+  // ignoring a preference.
+  japanese: [
+    'kanto', 'kansai', 'kyushu', 'hokkaido', 'okinawa',
+    'washoku', 'izakaya', 'ramen', 'sushi', 'yakitori',
+  ],
+  korean: [
+    'home-korean', 'bbq', 'soups-stews', 'bibimbap', 'korean-noodles',
+    'street-food', 'royal-court', 'temple', 'jeolla', 'jeju',
+  ],
   indian: ['punjabi', 'gujarati', 'bengali', 'tamil', 'kerala', 'maharashtrian', 'rajasthani', 'hyderabadi'],
   pakistani: ['punjabi', 'sindhi', 'pashtun', 'kashmiri'],
   'middle-eastern': ['levantine', 'iraqi', 'persian', 'egyptian', 'yemeni', 'palestinian'],

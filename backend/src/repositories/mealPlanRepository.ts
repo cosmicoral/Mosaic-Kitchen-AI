@@ -123,12 +123,14 @@ export async function saveTranslation(
   scope: TranslationScope,
   plan: GeneratedMealPlan
 ): Promise<void> {
-  // ON CONFLICT DO NOTHING, not DO UPDATE: two tabs opening the same plan at
-  // once both translate, and the first one home is as good as the second.
+  // Replace an existing row when it is stale. Older translations were cached
+  // before region and unit were part of the translated field set, so keeping
+  // the first row forever also kept the mixed-language bug forever.
   await pool.query(
     `INSERT INTO meal_plan_translations (meal_plan_id, locale, scope, plan)
      VALUES ($1, $2, $3, $4)
-     ON CONFLICT (meal_plan_id, locale, scope) DO NOTHING`,
+     ON CONFLICT (meal_plan_id, locale, scope)
+     DO UPDATE SET plan = EXCLUDED.plan, created_at = now()`,
     [mealPlanId, locale, scope, plan]
   );
 }

@@ -100,8 +100,8 @@ export interface GenerateResult {
 
 export function localizedSystemPrompt(locale: SupportedLocale): string {
   const languageRule = locale === 'zh'
-    ? 'LANGUAGE: Write summary, dish names, ingredient names, cooking steps and the waste-reduction tip in Simplified Chinese. Keep native_name in the dish\'s authentic original script. JSON keys and enum values must remain exactly as defined by the schema.'
-    : 'LANGUAGE: Write all user-facing content in British English — summary, dish names, ingredient names, cooking steps and the tip. Some ingredient and region names below are given to you in Chinese; translate them into English in your answer rather than copying them through. The single exception is native_name, which stays in the dish\'s authentic original script.';
+    ? 'LANGUAGE: Write every user-facing value in Simplified Chinese, including summaries, dish and extra names, region labels, ingredient names, measurement units, cooking steps, extra notes and the waste-reduction tip. Keep native_name in the dish\'s authentic original script. JSON keys and enum values must remain exactly as defined by the schema.'
+    : 'LANGUAGE: Write every user-facing value in British English, including summaries, dish and extra names, region labels, ingredient names, measurement units, cooking steps, extra notes and the waste-reduction tip. Some source ingredients and regions below are written in Chinese; translate them rather than copying them through. The single exception is native_name, which stays in the dish\'s authentic original script.';
   return `${MEAL_PLAN_SYSTEM_PROMPT}\n\n${languageRule}`;
 }
 
@@ -529,28 +529,6 @@ export async function generate(
       break;
     }
 
-    const onlyLanguageLeft =
-      languageIssue !== null &&
-      violations.length === 0 &&
-      cuisineIssues.length === 0 &&
-      mealCountIssue === null &&
-      arithmeticIssue === null &&
-      budgetIssue === null;
-
-    // Out of attempts and the only complaint is the language: take it. An
-    // allergen or a doubled budget is a reason to show nothing; a Chinese dish
-    // name in an English plan is a reason to be slightly annoyed. Throwing
-    // here would spend the user's quota and hand back an error instead of a
-    // perfectly safe week of dinners.
-    if (onlyLanguageLeft && attempts >= maxAttempts) {
-      console.warn(
-        `Accepting a plan in the wrong language after ${attempts} attempts:`,
-        languageIssue
-      );
-      plan = generation.plan;
-      break;
-    }
-
     // The one stage worth naming a reason for. Without it a rejected first
     // attempt is thirty unexplained extra seconds; with it the user watches
     // the safety check do the thing they are paying for.
@@ -763,20 +741,6 @@ export async function generateFromPantry(
       break;
     }
 
-    // Same judgement as the weekly flow: language gives way, safety does not.
-    const onlyLanguageLeft =
-      languageIssue !== null && violations.length === 0 && mealCountIssue === null &&
-      arithmeticIssue === null;
-
-    if (onlyLanguageLeft && attempts >= maxAttempts) {
-      console.warn(
-        `Accepting dishes in the wrong language after ${attempts} attempts:`,
-        languageIssue
-      );
-      plan = generation.plan;
-      break;
-    }
-
     onStage({
       stage: 'building_meals',
       attempt: attempts + 1,
@@ -905,25 +869,35 @@ export async function readInLocale(
   // only when someone actually asks to read a recipe.
   scope: mealPlanRepository.TranslationScope = 'card'
 ): Promise<GeneratedMealPlan> {
-  if (row.locale === locale) return row.plan;
+  // Do not trust the locale column on its own. Older generation code accepted
+  // a plan after the final retry even when one field was still in the wrong
+  // language, so rows labelled "en" can contain 克 or 全罗道. Those rows need
+  // the same repair path as an ordinary cross-language read.
+  const sourceViolation = findLanguageViolation(row.plan, locale, scope);
+  if (row.locale === locale && !sourceViolation) return row.plan;
 
   // Cache first, and the cache is not metered. Re-reading a plan you have
   // already had translated costs nothing, so it must not cost a credit either.
   const cached = await mealPlanRepository.findTranslation(row.id, locale, scope);
-  if (cached) return cached;
+  const cachedViolation = cached ? findLanguageViolation(cached, locale, scope) : null;
+  if (cached && !cachedViolation) return cached;
+
+  // A same-locale repair or a stale cached translation fixes our old output;
+  // it is not a new translation the user requested and must not be blocked by
+  // or consume their monthly translation allowance.
+  const repairing = row.locale === locale || cached !== null;
 
   const tier = await billingService.getTier(row.user_id);
   const limits = entitlementsFor(tier);
-  const used = await aiUsageRepository.countSuccessfulThisMonth(
-    row.user_id,
-    'plan-translate'
-  );
+  const used = repairing
+    ? 0
+    : await aiUsageRepository.countSuccessfulThisMonth(row.user_id, 'plan-translate');
 
   // Over the allowance, the plan is shown in the language it was written in.
   // Deliberately not an error: the reader still gets their meal plan, in a
   // language they chose it in once. Blocking the page over a translation
   // budget would take away the thing they came for.
-  if (used >= limits.planTranslationsPerMonth) {
+  if (!repairing && used >= limits.planTranslationsPerMonth) {
     console.warn(
       `User ${row.user_id} is over the ${tier} translation allowance ` +
         `(${used}/${limits.planTranslationsPerMonth}); showing plan ${row.id} in ${row.locale}.`
@@ -961,15 +935,22 @@ export async function readInLocale(
       locale,
       effectiveScope
     );
-    if (alreadyCached) return alreadyCached;
+    if (
+      alreadyCached &&
+      findLanguageViolation(alreadyCached, locale, effectiveScope) === null
+    ) {
+      return alreadyCached;
+    }
   }
 
   try {
     const result = await translatePlan(row.plan, locale, effectiveScope);
-    const complete = result.translated === result.total;
+    const complete =
+      result.translated === result.total &&
+      findLanguageViolation(result.plan, locale, effectiveScope) === null;
 
     await aiUsageRepository.record(row.user_id, {
-      feature: 'plan-translate',
+      feature: repairing ? 'plan-repair' : 'plan-translate',
       model: result.model,
       promptTokens: result.promptTokens,
       completionTokens: result.completionTokens,

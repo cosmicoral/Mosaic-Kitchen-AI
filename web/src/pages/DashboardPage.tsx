@@ -24,6 +24,8 @@ import { CUISINE_LABELS } from "../lib/profileOptions";
 import type { Cuisine } from "../types";
 import { SkeletonList } from "../components/ui/Skeleton";
 import { useLocale } from "../context/LocaleContext";
+import { displayIngredient } from "../lib/ingredientLexicon";
+import { generatedTextOrFallback, labelMonogram } from "../lib/textLocale";
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -256,25 +258,29 @@ export function DashboardPage() {
           <div className="form-grid">
             {/* Was a div with a chevron on it — an arrow that looks like a
                 link and does nothing is worse than no arrow. */}
-            {recommendedMeals.map((meal) => (
-              <button
+            {recommendedMeals.map((meal) => {
+              const cuisineLabel = t(CUISINE_LABELS[meal.cuisine as Cuisine] ?? meal.cuisine);
+              const mealName = generatedTextOrFallback(meal.name, locale, cuisineLabel);
+              const iconSource = generatedTextOrFallback(meal.region, locale, cuisineLabel);
+
+              return <button
                 className="meal-row"
                 key={meal.name}
                 onClick={() => navigate("/meal-plan")}
                 style={{ border: "none", background: "none", cursor: "pointer", textAlign: "left", width: "100%" }}
                 type="button"
               >
-                <span className="meal-icon">{meal.region?.slice(0, 2) ?? meal.name.slice(0, 2)}</span>
+                <span className="meal-icon">{labelMonogram(iconSource)}</span>
                 <span>
-                  <strong>{meal.name}</strong>
+                  <strong>{mealName}</strong>
                   <br />
                   <span className="small muted">
-                    {meal.minutes} {t("minutes")} · {t(CUISINE_LABELS[meal.cuisine as Cuisine] ?? meal.cuisine)}
+                    {meal.minutes} {t("minutes")} · {cuisineLabel}
                   </span>
                 </span>
                 <ChevronRight color="var(--color-primary-strong)" size={18} />
-              </button>
-            ))}
+              </button>;
+            })}
             {status === "ready" && recommendedMeals.length === 0 ? (
               <p className="small muted">{t("Generate a meal plan to see recommendations here.")}</p>
             ) : null}
@@ -291,8 +297,8 @@ export function DashboardPage() {
           <div className="expiry-list" style={{ marginTop: 12 }}>
             {(data?.expiringItems ?? []).slice(0, 3).map((item) => (
               <div className="expiry-row" key={item.id}>
-                <span className="item-icon">{item.name.slice(0, 2)}</span>
-                <strong>{item.name}</strong>
+                <span className="item-icon">{labelMonogram(displayIngredient(item.name, locale))}</span>
+                <strong>{displayIngredient(item.name, locale)}</strong>
                 <Badge variant={expiryTone(item.expires_on)}>{formatExpiryForLocale(item.expires_on, locale)}</Badge>
               </div>
             ))}

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import type { GeneratedMealPlan } from '../schemas/mealPlan.ts';
 import type { SupportedLocale } from '../utils/locale.ts';
-import { lookupIngredient } from './ingredientLexicon.ts';
+import { lookupIngredient, lookupUnit } from './ingredientLexicon.ts';
 import { generateStructured } from './openai.ts';
 
 // A plan is written once, in the language it was generated in, and then lives
@@ -11,10 +11,17 @@ import { generateStructured } from './openai.ts';
 //
 // The safety property that matters: only strings the household reads are sent
 // to the model. estimated_cost_gbp, estimated_total_gbp, minutes, day_index,
-// cuisine, region and from_pantry never enter the prompt and are copied across
+// cuisine and from_pantry never enter the prompt and are copied across
 // untouched. A translation therefore cannot turn £89.60 into something else,
 // cannot invent a cuisine outside the user's list, and cannot quietly change
 // what the shopping list is built from.
+//
+// `region` used to be in that list and should not have been. It is not a
+// number or an enum — it is free text the model writes and the reader sees
+// above every dish, so a stored Chinese plan opened in English showed 全罗道
+// under an English recipe. `unit` had the same problem for the same reason:
+// both are prose wearing a structural field's clothing. They are translated
+// now, and the ones genuinely above are the ones that are genuinely data.
 
 // native_name is not in here, deliberately. It holds the dish's name in its
 // own script — 剁椒鱼头 stays 剁椒鱼头 in an English plan. Translating it would
@@ -27,9 +34,15 @@ export type TranslationScope = 'card' | 'full';
 
 type Slot = {
   tier: 'card' | 'detail';
-  // Ingredient names go through the lexicon first; everything else is prose
-  // and can only come from a model.
-  lexical?: boolean;
+  // Consulted before the model, when there is a table that can answer.
+  // Ingredient names and units both have one; everything else is prose and can
+  // only come from a model.
+  //
+  // A function rather than a boolean, because there are now two tables and a
+  // flag could only ever mean "use the ingredient one". Units are the better
+  // case of the two: there are twenty-two of them, they repeat on every line of
+  // every recipe, and 克 is g whatever the dish is.
+  lexicon?: (value: string, target: SupportedLocale) => string | null;
   get(plan: GeneratedMealPlan): string;
   set(plan: GeneratedMealPlan, value: string): void;
 };
@@ -65,6 +78,17 @@ function slots(plan: GeneratedMealPlan, scope: TranslationScope): Slot[] {
         },
       });
 
+      // Card tier: it is rendered next to the dish name, before anything is
+      // opened, so leaving it for the detail pass would show a Chinese label
+      // over an English dish on the summary view.
+      found.push({
+        tier: 'card',
+        get: (p) => p.days[d]!.meals[m]!.region,
+        set: (p, v) => {
+          p.days[d]!.meals[m]!.region = v;
+        },
+      });
+
       meal.steps.forEach((_, s) => {
         found.push({
           tier: 'detail',
@@ -78,10 +102,19 @@ function slots(plan: GeneratedMealPlan, scope: TranslationScope): Slot[] {
       meal.ingredients.forEach((_, i) => {
         found.push({
           tier: 'detail',
-          lexical: true,
+          lexicon: lookupIngredient,
           get: (p) => p.days[d]!.meals[m]!.ingredients[i]!.name,
           set: (p, v) => {
             p.days[d]!.meals[m]!.ingredients[i]!.name = v;
+          },
+        });
+
+        found.push({
+          tier: 'detail',
+          lexicon: lookupUnit,
+          get: (p) => p.days[d]!.meals[m]!.ingredients[i]!.unit,
+          set: (p, v) => {
+            p.days[d]!.meals[m]!.ingredients[i]!.unit = v;
           },
         });
       });
@@ -94,6 +127,36 @@ function slots(plan: GeneratedMealPlan, scope: TranslationScope): Slot[] {
         set: (p, v) => {
           p.days[d]!.extras![e]!.name = v;
         },
+      });
+
+      const extra = day.extras![e]!;
+      if (typeof extra.note === 'string' && extra.note.trim() !== '') {
+        found.push({
+          tier: 'detail',
+          get: (p) => p.days[d]!.extras![e]!.note,
+          set: (p, v) => {
+            p.days[d]!.extras![e]!.note = v;
+          },
+        });
+      }
+
+      (extra.ingredients ?? []).forEach((_, i) => {
+        found.push({
+          tier: 'detail',
+          lexicon: lookupIngredient,
+          get: (p) => p.days[d]!.extras![e]!.ingredients[i]!.name,
+          set: (p, v) => {
+            p.days[d]!.extras![e]!.ingredients[i]!.name = v;
+          },
+        });
+        found.push({
+          tier: 'detail',
+          lexicon: lookupUnit,
+          get: (p) => p.days[d]!.extras![e]!.ingredients[i]!.unit,
+          set: (p, v) => {
+            p.days[d]!.extras![e]!.ingredients[i]!.unit = v;
+          },
+        });
       });
     });
   });
@@ -161,8 +224,8 @@ export async function translatePlan(
   fields.forEach((slot, index) => {
     const current = slot.get(translated);
 
-    if (slot.lexical) {
-      const known = lookupIngredient(current, target);
+    if (slot.lexicon) {
+      const known = slot.lexicon(current, target);
       if (known) {
         slot.set(translated, known);
         applied += 1;
@@ -179,7 +242,7 @@ export async function translatePlan(
     'The user gives you numbered strings from a meal plan: dish names, cooking steps, ingredient names, a summary and a waste tip.',
     `Return one item per input, each with the same "i" it was given and "text" set to the ${LANGUAGE_NAME[target]} version.`,
     'Translate meaning, not words: use the name a cook in that language would actually use for the dish, and the ordinary supermarket name for each ingredient.',
-    'Keep numbers, quantities and units exactly as they appear.',
+    'Keep numbers and quantities exactly as they appear. Translate written measurement-unit labels into the target language (for example, 克 to g and 汤匙 to tbsp).',
     'If a string is already in the target language, return it unchanged.',
   ].join('\n');
 

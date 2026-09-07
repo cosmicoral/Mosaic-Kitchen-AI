@@ -8,6 +8,7 @@ export type AiFeature =
   | 'meal-plan'
   | 'pantry-cook'
   | 'plan-translate'
+  | 'plan-repair'
   | 'vision-scan'
   // Glossing ingredient names was calling the model and recording nothing at
   // all, which made it invisible to both the per-user quota and the whole-

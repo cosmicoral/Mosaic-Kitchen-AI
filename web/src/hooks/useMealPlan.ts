@@ -8,6 +8,7 @@ import {
 } from '../lib/mealPlanStream';
 import type { MealPlanQuota, MealPlanRecord } from '../types';
 import { useLocale } from '../context/LocaleContext';
+import { generatedPlanMismatchesLocale } from '../lib/textLocale';
 
 type MealPlanStatus = 'loading' | 'ready' | 'error';
 
@@ -41,31 +42,51 @@ export function useMealPlan() {
   // Whether the recipe text has been fetched in the reader's language yet.
   // One request per plan, the first time a recipe is opened.
   const [detailLoaded, setDetailLoaded] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   const loadRecipeDetail = useCallback(async () => {
-    if (detailLoaded) return;
-    setDetailLoaded(true);
+    if (detailLoaded) return true;
+    setDetailLoading(true);
+    setDetailError(null);
 
     try {
       const full = await fetchLatestMealPlan('full');
-      if (full) setPlan(full);
-    } catch {
-      // Silent on purpose. The steps are already on screen in the language the
-      // plan was written in; an error card over a translation nobody asked for
-      // by name would be noise, and the retry is simply opening it again.
-      setDetailLoaded(false);
+      if (!full || generatedPlanMismatchesLocale(full.plan, locale, 'full')) {
+        setDetailError('Could not load this recipe in the selected language');
+        return false;
+      }
+
+      setPlan(full);
+      setDetailLoaded(true);
+      return true;
+    } catch (caught) {
+      setDetailError(
+        caught instanceof Error
+          ? caught.message
+          : 'Could not load this recipe in the selected language'
+      );
+      return false;
+    } finally {
+      setDetailLoading(false);
     }
-  }, [detailLoaded]);
+  }, [detailLoaded, locale]);
 
   const refresh = useCallback(async () => {
     setStatus('loading');
     setError(null);
+    // Do not leave the previous locale's plan mounted while the translated
+    // card is loading. In particular, an already-open recipe would otherwise
+    // remain visible in Chinese underneath an English loading state.
+    setPlan(null);
+    setDetailLoaded(false);
+    setDetailLoading(false);
+    setDetailError(null);
     try {
       // Both are needed before the page can render anything useful, and they
       // do not depend on each other, so they go out together.
       const [latest, currentQuota] = await Promise.all([fetchLatestMealPlan(), fetchQuota()]);
       setPlan(latest);
-      setDetailLoaded(false);
       setQuota(currentQuota);
       setStatus('ready');
     } catch (caught) {
@@ -112,6 +133,8 @@ export function useMealPlan() {
       setFinishing(true);
       await new Promise((resolve) => setTimeout(resolve, 800));
       setPlan(created);
+      setDetailLoaded(false);
+      setDetailError(null);
       // Refetched rather than decremented locally: the server decides what
       // counts, and a retry inside one request could consume differently.
       setQuota(await fetchQuota());
@@ -131,6 +154,6 @@ export function useMealPlan() {
   return {
     plan, quota, status, error, refresh,
     generate, generating, generationError, stages, insights, finishing,
-    loadRecipeDetail,
+    loadRecipeDetail, detailLoaded, detailLoading, detailError,
   };
 }

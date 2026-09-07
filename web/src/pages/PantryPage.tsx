@@ -14,11 +14,13 @@ import { GenerationProgress } from "../components/GenerationProgress";
 import { usePantry } from "../hooks/usePantry";
 import { MAX_SELECTION, usePantryCook } from "../hooks/usePantryCook";
 import { daysUntil, expiryTone, formatAmount, formatExpiryForLocale } from "../lib/pantryFormat";
-import { PANTRY_CATEGORIES, type PantryCategory, type PantryItem } from "../types";
+import { PANTRY_CATEGORIES, type Cuisine, type PantryCategory, type PantryItem } from "../types";
 import { SkeletonList } from "../components/ui/Skeleton";
 import { useLocale } from "../context/LocaleContext";
 import { displayIngredient } from "../lib/ingredientLexicon";
 import { useIngredientGloss } from "../hooks/useIngredientGloss";
+import { CUISINE_LABELS } from "../lib/profileOptions";
+import { generatedTextOrFallback } from "../lib/textLocale";
 
 const CATEGORY_LABELS: Record<PantryCategory, string> = {
   vegetables: "Vegetables",
@@ -420,7 +422,7 @@ export function PantryPage() {
                 .map((meal) => (
                   <Card key={meal.name}>
                     <strong>{meal.name}</strong>
-                    {meal.native_name ? (
+                    {locale !== "en" && meal.native_name ? (
                       <>
                         {" "}
                         <span className="small muted">{meal.native_name}</span>
@@ -428,7 +430,12 @@ export function PantryPage() {
                     ) : null}
                     <br />
                     <span className="small muted">
-                      {meal.minutes} {t("minutes")} · {meal.region ?? meal.cuisine}
+                      {meal.minutes} {t("minutes")} ·{" "}
+                      {generatedTextOrFallback(
+                        meal.region,
+                        locale,
+                        t(CUISINE_LABELS[meal.cuisine as Cuisine] ?? meal.cuisine)
+                      )}
                     </span>
                     <ul className="check-list" style={{ marginTop: 10 }}>
                       {meal.steps.map((step, index) => (
