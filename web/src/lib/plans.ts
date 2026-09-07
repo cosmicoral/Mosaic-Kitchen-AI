@@ -8,7 +8,11 @@ export interface PlanFeature {
   // which lines they can use today and which they are waiting for — an
   // unmarked promise of a feature that does not exist is what refunds and
   // chargebacks are made of.
-  soon?: boolean;
+  // Not "coming soon" — that says only that it is absent. Photographing a
+  // fridge is a phone action, so this lives in the iOS app rather than in a
+  // browser, and saying so tells the reader whether waiting for it is
+  // relevant to them.
+  ios?: boolean;
 }
 
 export interface PlanCopy {
@@ -29,16 +33,16 @@ export const PLAN_COPY: PlanCopy[] = [
   {
     tier: 'free',
     name: 'Free',
-    tagline: 'Enough to cook from, for one person.',
+    tagline: 'Enough to see whether it cooks the way you do.',
     price: { month: '£0', year: '£0' },
     cadence: { month: 'forever', year: 'forever' },
     features: [
       { text: '1 household member' },
-      { text: '6 AI meal plans a month' },
-      { text: '4 cook-from-your-pantry suggestions a month' },
-      { text: '3 plan translations between English and Chinese a month' },
+      { text: '2 AI meal plans a month' },
+      { text: 'Up to 7 meals per plan' },
+      { text: '3 cook-from-your-pantry suggestions a month' },
+      { text: '2 plan translations between English and Chinese a month' },
       { text: 'Unlimited pantry, shopping lists and expiry alerts' },
-      { text: '2 camera scans a month', soon: true },
     ],
     cta: 'Start free',
   },
@@ -54,7 +58,7 @@ export const PLAN_COPY: PlanCopy[] = [
       { text: 'Up to 14 meals per plan' },
       { text: '30 cook-from-your-pantry suggestions a month' },
       { text: '20 plan translations between English and Chinese a month' },
-      { text: '30 camera scans a month', soon: true },
+      { text: '30 camera scans a month', ios: true },
     ],
     cta: 'Choose Plus',
   },
@@ -70,7 +74,7 @@ export const PLAN_COPY: PlanCopy[] = [
       { text: 'Up to 21 meals per plan — breakfast, lunch and dinner' },
       { text: '100 cook-from-your-pantry suggestions a month' },
       { text: '60 plan translations between English and Chinese a month' },
-      { text: '150 camera scans a month', soon: true },
+      { text: '150 camera scans a month', ios: true },
     ],
     cta: 'Choose Pro',
   },

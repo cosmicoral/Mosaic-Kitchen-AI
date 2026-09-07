@@ -1,5 +1,5 @@
-import { act, render } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { act, cleanup, render } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LocaleProvider, getStoredLocale, useLocale } from "./LocaleContext";
 
 // The bug this exists for: apiFetch reads the stored locale to build the
@@ -21,6 +21,13 @@ describe("locale storage", () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
+
+  // Explicit, because automatic cleanup only happens when the globals option
+  // is on and this project does not turn it on. Without it the first test's
+  // provider was still mounted during the second, which failed on "found
+  // multiple elements with the role button" — a message that says nothing
+  // about locales and sent me looking in the wrong file.
+  afterEach(cleanup);
 
   it("is written before any effect can observe the change", () => {
     const { getByRole } = render(

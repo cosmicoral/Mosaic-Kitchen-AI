@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import {
   allowedPriceIds,
@@ -7,6 +9,15 @@ import {
   isKnownPriceId,
   tierFor,
 } from '../src/services/entitlements.ts';
+import { worstCaseMonthlyCostGbp } from '../src/services/costModel.ts';
+
+// The business constraint the free tier is sized against, written down once so
+// the assertions below are checking a stated decision rather than each other.
+// Not in costModel: that module answers "what does this cost", and this is
+// "what are we willing to spend", which is a different kind of fact and one
+// that changes for reasons that have nothing to do with token prices.
+const FREE_USERS_PLANNED_FOR = 500;
+const FREE_TIER_ANNUAL_BUDGET_GBP = 200;
 
 const PRICE_ENV_KEYS = [
   'STRIPE_PRICE_PLUS_MONTHLY',
@@ -117,37 +128,84 @@ describe('entitlementsFor', () => {
   test('the free tier is usable rather than a token', () => {
     const free = entitlementsFor('free');
 
-    // The floor that matters is a habit, not a number. Somebody has to be able
-    // to plan a week, every week, or they never find out whether the product
-    // is worth paying for — so one plan a week is the real constraint and the
-    // rest only need to be non-zero.
+    // This test previously asserted four plans a month, on the reasoning that
+    // somebody has to be able to plan a week, every week, or they never form
+    // the habit that makes them consider paying. That was a real argument and
+    // it lost to a larger one: six plans put 500 free accounts at £205 a year
+    // against a £200 budget, so the tier as written was a promise that could
+    // not be kept. A free tier that is generous and unaffordable is not
+    // generous, it is temporary.
     //
-    // The earlier version of this test hard-coded three scans and five pantry
-    // cooks as floors. Those were the values at the time, not reasons, and
-    // they failed the moment the free tier was trimmed on the basis of unit
-    // economics that had not been worked out when they were written.
+    // What replaced the habit argument is a trial argument: two plans is
+    // enough to see a week of dinners that respect a halal restriction and a
+    // Sichuan preference, which is the thing somebody is actually evaluating.
+    // Recording the change here rather than editing 4 down to 2, because the
+    // number is the conclusion and the reason is the part worth keeping.
     assert.ok(
-      free.mealPlansPerMonth >= 4,
-      `${free.mealPlansPerMonth} plans a month is under one a week`
+      free.mealPlansPerMonth >= 2,
+      `${free.mealPlansPerMonth} plans is not enough to judge the product by`
     );
+    assert.ok(free.maxMealsPerPlan >= 7, 'a plan should cover at least a week of dinners');
     assert.ok(free.pantryCooksPerMonth > 0);
     assert.ok(free.planTranslationsPerMonth > 0);
   });
 
-  test('the free tier stays inside the spend the business can absorb', () => {
-    // The numbers the pricing was built on: roughly half a penny for a weekly
-    // plan, a fifth of that for a pantry cook, and under a penny for a scan.
-    // Deliberately rounded up. A thousand free accounts all at their ceiling
-    // must not cost more than £100 in a month.
-    const free = entitlementsFor('free');
-    const worstCaseGbp =
-      free.mealPlansPerMonth * 0.005 +
-      free.pantryCooksPerMonth * 0.002 +
-      free.scansPerMonth * 0.005;
+  test('the free tier fits the budget it is given, at the size it is planned for', () => {
+    // The constraint in the business's own terms: 500 free accounts, every one
+    // of them at their ceiling, for under £200 a year.
+    //
+    // The earlier version of this test hard-coded its own unit costs — half a
+    // penny a plan, a fifth of that a pantry cook — which meant the entitlement
+    // table was being checked against numbers retyped next to it rather than
+    // against the cost model. The two could drift apart silently, and a longer
+    // prompt would have made the model more expensive while leaving this test
+    // green. It reads costModel now, so a prompt change moves both.
+    const perUserMonthly = worstCaseMonthlyCostGbp('free');
+    const yearlyFor500 = perUserMonthly * FREE_USERS_PLANNED_FOR * 12;
 
     assert.ok(
-      worstCaseGbp * 1000 <= 100,
-      `1000 free users at their limits would cost £${(worstCaseGbp * 1000).toFixed(2)}`
+      yearlyFor500 <= FREE_TIER_ANNUAL_BUDGET_GBP,
+      `${FREE_USERS_PLANNED_FOR} free users at their limits would cost ` +
+        `£${yearlyFor500.toFixed(0)}/year against a £${FREE_TIER_ANNUAL_BUDGET_GBP} budget ` +
+        `(£${perUserMonthly.toFixed(4)} each per month)`
+    );
+  });
+
+  test('the free tier is not merely scraping the budget', () => {
+    // Passing at £199 would be arithmetically true and operationally useless:
+    // the unit costs here are estimates from token shapes, not measurements,
+    // and a real prompt that comes in 20% heavier than modelled should not put
+    // the business over. Asserting a third of the budget in headroom is what
+    // makes the difference between a number that has been checked and a number
+    // that has been chosen.
+    const yearlyFor500 =
+      worstCaseMonthlyCostGbp('free') * FREE_USERS_PLANNED_FOR * 12;
+
+    assert.ok(
+      yearlyFor500 <= FREE_TIER_ANNUAL_BUDGET_GBP * 0.67,
+      `£${yearlyFor500.toFixed(0)}/year leaves too little room for the cost estimates to be wrong`
+    );
+  });
+
+  test('a free plan cannot be made bigger than the tier allows', () => {
+    // maxMealsPerPlan was advertised on the pricing page and enforced nowhere:
+    // meals_per_week was validated only against a global maximum of 21, so a
+    // free account could set 21 in the profile editor and triple the token
+    // cost of every plan it generated. Every number above assumes the
+    // advertised shape, so this is the assertion that the shape is real.
+    const source = readFileSync(
+      join(import.meta.dirname, '..', 'src', 'services', 'mealPlanService.ts'),
+      'utf8'
+    );
+
+    assert.match(
+      source,
+      /capMealsToTier\(\s*rawProfile,\s*limits\.maxMealsPerPlan\s*\)/,
+      'generate() no longer clamps the profile to the tier meal cap'
+    );
+    assert.ok(
+      !/buildMealPlanPrompt\(\s*rawProfile/.test(source),
+      'the prompt is being built from the unclamped profile'
     );
   });
 

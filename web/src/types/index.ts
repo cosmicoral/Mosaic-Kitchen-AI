@@ -226,10 +226,19 @@ export const TIERS = ['free', 'plus', 'pro'] as const;
 export type Tier = (typeof TIERS)[number];
 export type PaidTier = Exclude<Tier, 'free'>;
 
+// Mirrors the backend's Entitlements. It was missing pantryCooksPerMonth and
+// planTranslationsPerMonth — the API had been sending both for as long as they
+// have existed, and nothing noticed, because a narrower type over a wider
+// object is perfectly valid TypeScript. The cost was not a crash but a blind
+// spot: the subscription page could not show two allowances that can run out,
+// so the first a user heard of their translation limit was the moment it
+// stopped translating.
 export interface Entitlements {
   householdMembers: number;
   mealPlansPerMonth: number;
   maxMealsPerPlan: number;
+  pantryCooksPerMonth: number;
+  planTranslationsPerMonth: number;
   scansPerMonth: number;
 }
 

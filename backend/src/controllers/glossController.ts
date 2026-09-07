@@ -16,7 +16,8 @@ export async function gloss(req: Request, res: Response) {
   try {
     const glosses = await glossService.glossIngredients(
       names as string[],
-      readLocale(req.headers['accept-language'])
+      readLocale(req.headers['accept-language']),
+      req.user.id
     );
     return res.status(200).json({ glosses });
   } catch (error) {

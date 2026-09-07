@@ -1,7 +1,10 @@
 import { z } from 'zod';
+import * as aiUsageRepository from '../repositories/aiUsageRepository.ts';
 import * as glossRepository from '../repositories/glossRepository.ts';
+import * as billingService from './billingService.ts';
 import { lookupIngredient } from './ingredientLexicon.ts';
 import { generateStructured } from './openai.ts';
+import { userSpendBand } from './spendGuard.ts';
 import type { SupportedLocale } from '../utils/locale.ts';
 
 // A short translation shown *underneath* an ingredient name, never in place of
@@ -17,6 +20,19 @@ import type { SupportedLocale } from '../utils/locale.ts';
 // The cache is global rather than per user because the answer does not vary by
 // who asked, and paying for 生抽 once rather than once per household is the
 // entire point.
+//
+// It is not, however, free, and for a while it was worse than that: it made a
+// model call and recorded nothing, so the spend never appeared in ai_usage and
+// therefore never appeared in either the per-user band or the whole-product
+// ceiling. The cost was small — most names never reach tier 3 — but it was the
+// bad kind of small: unmeasured, and the one line that a loop of random
+// strings could have grown without anything noticing.
+//
+// It is metered but not rationed. There is no glossesPerMonth in entitlements
+// and there should not be: this is an accessibility annotation, and a reader
+// who has chosen English and is over an invisible gloss quota gets a shopping
+// list of characters they cannot read. The bound is the per-account spend
+// ceiling, which only bites when something has gone wrong.
 
 const MAX_NAMES = 60;
 
@@ -34,7 +50,8 @@ export interface Gloss {
 
 export async function glossIngredients(
   names: readonly string[],
-  target: SupportedLocale
+  target: SupportedLocale,
+  userId: string
 ): Promise<Gloss[]> {
   // Deduplicated before anything else: a shopping list repeats 大蒜 across
   // several meals, and paying once per row rather than once per distinct name
@@ -70,7 +87,19 @@ export async function glossIngredients(
 
   if (stillUnresolved.length === 0) return results;
 
-  const fresh = await askModel(stillUnresolved, target);
+  // Everything above this line is free, so the ceiling is read here rather
+  // than at the top of the function: an account over its limit still gets the
+  // lexicon and the shared cache, which between them answer most names. Only
+  // the part that costs money stops.
+  const tier = await billingService.getTier(userId);
+  if ((await userSpendBand(userId, tier)) === 'blocked') {
+    console.warn(
+      `Skipping ${stillUnresolved.length} model gloss(es) for user ${userId}: over the spend ceiling.`
+    );
+    return results;
+  }
+
+  const fresh = await askModel(stillUnresolved, target, userId);
   for (const [name, gloss] of fresh) {
     results.push({ source: name, gloss, via: 'model' });
   }
@@ -82,9 +111,39 @@ function normalise(value: string): string {
   return value.trim().toLowerCase();
 }
 
+interface UsageShape {
+  model: string;
+  promptTokens: number;
+  completionTokens: number;
+  costUsd: number;
+}
+
+// Never allowed to fail the request. A gloss is decoration on a page that is
+// already correct without it, so an unavailable database on the accounting
+// path must not take away a shopping list that was rendering fine.
+async function recordUsage(
+  userId: string,
+  usage: UsageShape,
+  succeeded: boolean
+): Promise<void> {
+  try {
+    await aiUsageRepository.record(userId, {
+      feature: 'ingredient-gloss',
+      model: usage.model,
+      promptTokens: usage.promptTokens,
+      completionTokens: usage.completionTokens,
+      costUsd: usage.costUsd,
+      succeeded,
+    });
+  } catch (error) {
+    console.error('Could not record ingredient-gloss usage:', error);
+  }
+}
+
 async function askModel(
   names: readonly string[],
   target: SupportedLocale,
+  userId: string,
   call: typeof generateStructured = generateStructured
 ): Promise<Map<string, string>> {
   const language = target === 'en' ? 'British English' : 'Simplified Chinese';
@@ -108,8 +167,17 @@ async function askModel(
     // language; an error card over a missing annotation would be worse than
     // the annotation being absent.
     console.error(`Could not gloss ${names.length} ingredient(s) into ${target}:`, error);
+
+    // Recorded even so. A failed call is exactly the case a spend ceiling
+    // exists for — a loop that never succeeds bills every time round — and a
+    // guard that only sees successes is blind to precisely that. The cost is
+    // zero here because the exception carries no usage figures; the row is
+    // still worth writing, because the count of failures is the signal.
+    await recordUsage(userId, { model: 'unknown', promptTokens: 0, completionTokens: 0, costUsd: 0 }, false);
     return new Map();
   }
+
+  await recordUsage(userId, result, true);
 
   const resolved = new Map<string, string>();
   const toCache: Array<{ source: string; gloss: string }> = [];

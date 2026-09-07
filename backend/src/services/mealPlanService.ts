@@ -38,7 +38,11 @@ import { findViolations } from './ingredientSafety.ts';
 import type { SafetyViolation } from './ingredientSafety.ts';
 import * as billingService from './billingService.ts';
 import { entitlementsFor } from './entitlements.ts';
-import { assertFreeTierSpendAvailable } from './spendGuard.ts';
+import {
+  assertFreeTierSpendAvailable,
+  assertNotBlocked,
+  userSpendBand,
+} from './spendGuard.ts';
 import { generateMealPlan as callModel } from './openai.ts';
 import type { SupportedLocale } from '../utils/locale.ts';
 
@@ -55,6 +59,30 @@ const MAX_ATTEMPTS = 2;
 // couple of months of plans, small enough that the list never crowds out the
 // rest of the prompt.
 const RECENT_DISH_MEMORY = 40;
+
+// The same list for an account past its soft spend ceiling. Chosen as the
+// largest input-token saving that the reader cannot see: the plan still avoids
+// everything from the last fortnight, so the only difference is that a dish
+// from six weeks ago may come round again a little sooner than it otherwise
+// would have.
+const DEGRADED_DISH_MEMORY = 10;
+
+/**
+ * The profile as the tier allows it to be used.
+ *
+ * Returns the same object when nothing needs clamping, so the common path
+ * allocates nothing and a diff of the two is meaningful.
+ */
+function capMealsToTier(profile: UserProfile, maxMeals: number): UserProfile {
+  if (profile.meals_per_week <= maxMeals) return profile;
+
+  console.warn(
+    `Capping a plan for user ${profile.user_id} from ${profile.meals_per_week} ` +
+      `meals to ${maxMeals}: the profile asks for more than the tier allows.`
+  );
+
+  return { ...profile, meals_per_week: maxMeals };
+}
 
 function today(): string {
   const now = new Date();
@@ -311,10 +339,10 @@ export async function generate(
   onInsight: InsightReporter = noopInsight
 ): Promise<GenerateResult> {
   onStage({ stage: 'analysing_profile', attempt: 1 });
-  const profile =
+  const rawProfile =
     await profileRepository.findByUserId(userId);
 
-  if (!profile || profile.cuisines.length === 0) {
+  if (!rawProfile || rawProfile.cuisines.length === 0) {
     throw new AppError(
       'Choose at least one cuisine before generating a plan',
       'PROFILE_REQUIRED'
@@ -328,6 +356,12 @@ export async function generate(
   // Checked before the per-user quota so the whole-product ceiling wins: a
   // user inside their own allowance still cannot push total spend past it.
   if (tier === 'free') await assertFreeTierSpendAvailable();
+
+  // The second axis: what this account has actually cost, rather than how many
+  // times it has asked. Read before the count so a runaway account is stopped
+  // even while it still has requests left on paper.
+  const band = await userSpendBand(userId, tier);
+  assertNotBlocked(band, tier);
 
   const used =
     await aiUsageRepository.countSuccessfulThisMonth(
@@ -351,6 +385,19 @@ export async function generate(
   const pantry =
     await pantryRepository.findAllByUser(userId);
 
+  // The tier's meal cap, applied here rather than at profile-save time, and
+  // applied to a copy so the stored profile is never rewritten behind the
+  // user's back. Everything downstream — the prompt, the cuisine spread, the
+  // meal-count check — reads this object, so there is no path that sees the
+  // uncapped number.
+  //
+  // This was a genuine hole: meals_per_week was validated only against a
+  // global maximum of 21, so a free account could set 21 in the profile
+  // editor and triple the token cost of every plan while the pricing page
+  // said "up to 7". The cost model assumed the advertised shape; the server
+  // never checked it.
+  const profile = capMealsToTier(rawProfile, limits.maxMealsPerPlan);
+
   reportRequestInsights(profile, pantry, onInsight);
 
   // This schema is built for the current user. If the user selected cuisines,
@@ -358,10 +405,15 @@ export async function generate(
   const schema =
     buildMealPlanSchema(profile.cuisines);
 
-  // Capped at 40: enough to cover a couple of months of plans, small enough
-  // that the list never crowds out the rest of the prompt.
-  const recentDishes =
-    await mealPlanRepository.findRecentDishNames(userId, RECENT_DISH_MEMORY);
+  // Normally 40 — enough to cover a couple of months of plans, small enough
+  // that the list never crowds out the rest of the prompt. A degraded account
+  // gets a shorter memory, which is the one lever here that saves real input
+  // tokens without changing what the user receives: the plan may repeat a dish
+  // from six weeks ago slightly sooner. That is the whole cost of it.
+  const recentDishes = await mealPlanRepository.findRecentDishNames(
+    userId,
+    band === 'normal' ? RECENT_DISH_MEMORY : DEGRADED_DISH_MEMORY
+  );
 
   const systemPrompt = localizedSystemPrompt(locale);
   let userPrompt =
@@ -370,8 +422,16 @@ export async function generate(
   let plan: GeneratedMealPlan | null = null;
   let attempts = 0;
 
+  // A retry doubles the cost of a generation. For an account that is already
+  // past its soft ceiling that is the largest single saving available, and it
+  // is safe to take: the retry loop is a quality mechanism, not a safety one.
+  // The allergen and cuisine checks below still run, and a plan that fails
+  // them is still refused — the account simply does not get a second attempt
+  // at producing a clean one.
+  const maxAttempts = band === 'normal' ? MAX_ATTEMPTS : 1;
+
   while (
-    attempts < MAX_ATTEMPTS &&
+    attempts < maxAttempts &&
     plan === null
   ) {
     attempts += 1;
@@ -482,7 +542,7 @@ export async function generate(
     // name in an English plan is a reason to be slightly annoyed. Throwing
     // here would spend the user's quota and hand back an error instead of a
     // perfectly safe week of dinners.
-    if (onlyLanguageLeft && attempts >= MAX_ATTEMPTS) {
+    if (onlyLanguageLeft && attempts >= maxAttempts) {
       console.warn(
         `Accepting a plan in the wrong language after ${attempts} attempts:`,
         languageIssue
@@ -591,6 +651,9 @@ export async function generateFromPantry(
   // into the weekly plan allowance and vice versa.
   if (tier === 'free') await assertFreeTierSpendAvailable();
 
+  const band = await userSpendBand(userId, tier);
+  assertNotBlocked(band, tier);
+
   const used = await aiUsageRepository.countSuccessfulThisMonth(userId, 'pantry-cook');
   if (used >= limits.pantryCooksPerMonth) {
     throw new AppError(
@@ -635,17 +698,20 @@ export async function generateFromPantry(
   const schema = buildMealPlanSchema(profile.cuisines);
   const recentDishes = await mealPlanRepository.findRecentDishNames(
     userId,
-    RECENT_DISH_MEMORY
+    band === 'normal' ? RECENT_DISH_MEMORY : DEGRADED_DISH_MEMORY
   );
 
+  // No meal cap here: this flow produces three dishes from a chosen handful of
+  // ingredients regardless of tier, so maxMealsPerPlan has nothing to bind.
   const dishes = Math.min(PANTRY_COOK_DISHES, Math.max(1, selected.length));
   const systemPrompt = localizedSystemPrompt(locale);
   let userPrompt = buildPantryCookPrompt(profile, selected, dishes, locale, recentDishes);
 
   let plan: GeneratedMealPlan | null = null;
   let attempts = 0;
+  const maxAttempts = band === 'normal' ? MAX_ATTEMPTS : 1;
 
-  while (attempts < MAX_ATTEMPTS && plan === null) {
+  while (attempts < maxAttempts && plan === null) {
     attempts += 1;
     onStage({ stage: 'building_meals', attempt: attempts });
 
@@ -702,7 +768,7 @@ export async function generateFromPantry(
       languageIssue !== null && violations.length === 0 && mealCountIssue === null &&
       arithmeticIssue === null;
 
-    if (onlyLanguageLeft && attempts >= MAX_ATTEMPTS) {
+    if (onlyLanguageLeft && attempts >= maxAttempts) {
       console.warn(
         `Accepting dishes in the wrong language after ${attempts} attempts:`,
         languageIssue
@@ -875,8 +941,31 @@ export async function readInLocale(
     }
   }
 
+  // The per-account ceiling, applied the same soft way as everything else on
+  // this path: blocked means the plan comes back in its original language,
+  // which is what the reader had before translation existed. Nothing on this
+  // path throws — a budget is not a reason to replace someone's dinner with an
+  // error page.
+  const band = await userSpendBand(row.user_id, tier);
+  if (band === 'blocked') return row.plan;
+
+  // Degraded accounts get the card scope even when the full one was asked for.
+  // The saving is real — cooking steps are about two thirds of the tokens in a
+  // plan — and the reader still gets the summary, the tip and every dish name
+  // in their own language. Cached separately under 'card', so nothing here
+  // poisons the full translation a normal month would produce.
+  const effectiveScope = band === 'degraded' ? 'card' : scope;
+  if (effectiveScope !== scope) {
+    const alreadyCached = await mealPlanRepository.findTranslation(
+      row.id,
+      locale,
+      effectiveScope
+    );
+    if (alreadyCached) return alreadyCached;
+  }
+
   try {
-    const result = await translatePlan(row.plan, locale, scope);
+    const result = await translatePlan(row.plan, locale, effectiveScope);
     const complete = result.translated === result.total;
 
     await aiUsageRepository.record(row.user_id, {
@@ -892,20 +981,35 @@ export async function readInLocale(
       // Loud, because the symptom otherwise is a page that just looks like the
       // language toggle does nothing.
       console.warn(
-        `Plan ${row.id} translated ${result.translated}/${result.total} ${scope} strings into ${locale}.`
+        `Plan ${row.id} translated ${result.translated}/${result.total} ` +
+          `${effectiveScope} strings into ${locale}.`
       );
     }
 
     // Only a complete translation is cached. A partial one cached is a
     // half-Chinese page that never retries, which is worse than paying for a
     // second attempt on the next page load.
+    //
+    // Cached under the scope actually produced, not the scope requested. A
+    // degraded card translation stored as 'full' would be a permanent lie: the
+    // account recovers next month, asks for the full text, and is handed the
+    // cached card version forever with no way to tell that the cooking steps
+    // were never translated.
     if (complete) {
-      await mealPlanRepository.saveTranslation(row.id, locale, scope, result.plan);
+      await mealPlanRepository.saveTranslation(
+        row.id,
+        locale,
+        effectiveScope,
+        result.plan
+      );
     }
 
     return result.plan;
   } catch (error) {
-    console.error(`Could not translate plan ${row.id} into ${locale} (${scope}):`, error);
+    console.error(
+      `Could not translate plan ${row.id} into ${locale} (${effectiveScope}):`,
+      error
+    );
     return row.plan;
   }
 }

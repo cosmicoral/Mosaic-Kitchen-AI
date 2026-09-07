@@ -38,7 +38,7 @@ Server-Sent Events
 | **Knowledge layer (RAG-ready)** | pgvector tables with an HNSW index and scoped retrieval SQL, plus a deterministic grocery-availability catalogue. Built to stop plans suggesting ingredients that cannot be bought locally. **Schema only — the corpus is empty and generation does not consult it.** See [`docs/rag.md`](docs/rag.md) |
 | **Media handling** | Avatar uploads decoded and re-encoded through sharp to 256px WebP, stored in Cloudflare R2. Re-encoding is what strips EXIF, and EXIF on a phone photo contains GPS coordinates |
 | **i18n enforcement** | A lint over the source finds strings that would render in English while the app is in Chinese, in all four ways they can hide. It has caught 100+ gaps that page-by-page review missed |
-| **Tests** | 219 backend, 13 frontend, plus the locale lint. Five tests read source rather than exercising behaviour, to check that code, SQL and sales copy agree |
+| **Tests** | 267 backend, 18 frontend, plus the locale lint. Eight test files read source rather than exercising behaviour, to check that code, SQL, sales copy and the documentation all agree |
 
 ---
 
@@ -213,11 +213,11 @@ and an empty table is easier to argue about than one already filled in wrongly.
 | Monthly | £0 | £7.99 | £12.99 |
 | Yearly | £0 | £89.99 | £129.99 |
 | Household members | 1 | 2 | 6 |
-| Meal plans / month | 6 | 10 | 30 |
+| Meal plans / month | 2 | 10 | 30 |
 | Meals per plan | 7 | 14 | 21 |
-| Cook-from-pantry / month | 4 | 30 | 100 |
-| Plan translations / month | 3 | 20 | 60 |
-| Camera scans / month | — *(not built)* | — *(not built)* | — *(not built)* |
+| Cook-from-pantry / month | 3 | 30 | 100 |
+| Plan translations / month | 2 | 20 | 60 |
+| Camera scans / month | — | 30 *(iOS app)* | 150 *(iOS app)* |
 
 The allowances are decided against `services/costModel.ts`, which models the
 whole cost of a subscriber rather than only the AI, and is read by tests. The
@@ -226,18 +226,85 @@ four costs, in the order they actually matter:
 | Cost | Plus, per subscriber per month | Note |
 | --- | --- | --- |
 | VAT | £1.33 once registered | Compulsory above £90,000 turnover. UK consumer prices are shown VAT-inclusive, so a sixth of the sticker price was never yours |
-| Free-tier subsidy | £0.65 | At a 1-in-20 conversion rate every paying subscriber carries nineteen free accounts |
 | Stripe | £0.32 | 1.5% + £0.20 on a UK standard card. The fixed 20p is why one yearly charge is twelve times cheaper to collect than twelve monthly ones |
+| Free-tier subsidy | £0.30 | At a 1-in-20 conversion rate every paying subscriber carries nineteen free accounts |
 | AI | £0.14 | The smallest term, and the only one the first version of this model contained |
 
 Net profit per subscriber per month, after all four plus infrastructure:
 
 | Plan | Before VAT registration | After | Target |
 | --- | --- | --- | --- |
-| Plus monthly | £6.76 | £5.43 | £5 |
-| Plus yearly | £6.46 | £5.21 | £4 |
-| Pro monthly | £11.37 | £9.21 | £5 |
-| Pro yearly | £9.43 | £7.62 | £4 |
+| Plus monthly | £7.11 | £5.78 | £5 |
+| Plus yearly | £6.81 | £5.56 | £4 |
+| Pro monthly | £11.72 | £9.55 | £5 |
+| Pro yearly | £9.78 | £7.97 | £4 |
+
+### Sizing the free tier against a budget
+
+The free tier was set to a target rather than to a feeling: **500 free accounts
+must cost under £200 a year.** That is £0.033 per account per month. The
+previous allowance — six plans, four pantry cooks, three translations, two
+scans — came to £0.0342, or £205 a year. Over the line, by a margin small
+enough that nothing would have reported it before the invoice did. The current
+numbers cost **£0.0158**, about **£95 a year for 500 accounts**, which leaves
+room for the token estimates to be wrong by a third without breaching the
+budget.
+
+Three things had to be true for that figure to mean anything:
+
+**The advertised meal cap had to be enforced.** `maxMealsPerPlan` appeared in
+the entitlement table and on the pricing page and was checked nowhere:
+`meals_per_week` was validated only against a global maximum of 21, so a free
+account could set 21 in the profile editor and triple the token cost of every
+plan while the page said "up to 7". It is now clamped at generation — not at
+profile save, because a profile is written once and read for months, and a Pro
+user who sets 21 and later downgrades would otherwise keep generating 21-meal
+plans on the free tier for ever.
+
+**Every model call had to be recorded.** `POST /api/gloss` — the English
+annotation under an ingredient name the interface cannot translate — called the
+model and wrote nothing to `ai_usage`, so it appeared in no quota and in no
+spend total. The cost was small; the problem was that it was unmeasured, and a
+ceiling cannot bound a spend it cannot see. It is now metered under an
+`ingredient-gloss` feature key. It is deliberately *not* rationed: it is an
+accessibility annotation, and a reader over an invisible gloss quota gets a
+shopping list of characters they cannot read.
+
+**Free-tier scans went to zero, not one.** The vision feature does not exist,
+so any number costs nothing today — which is exactly why it should be zero. A
+`1` left in the table is a standing instruction to start spending on the day the
+iOS app ships, given by somebody who is not in the room.
+
+### Two ceilings, because counting requests is not measuring money
+
+Quotas bound how many times an account asks. They do not bound what those asks
+cost: a plan for six people with a full pantry and a retry is several times the
+call that a plan for one person is. `config/aiBudget.ts` adds the second axis,
+in three bands, all configurable:
+
+| Band | Env var | Free default | Behaviour |
+| --- | --- | --- | --- |
+| Target | `FREE_AI_COST_TARGET_GBP` | £0.025 | Nothing. A reporting line below the budget |
+| Soft cap | `FREE_AI_COST_SOFT_CAP_GBP` | £0.03 | Degrade: shorter do-not-repeat list, one generation attempt instead of two, card-scope translation instead of full |
+| Hard cap | `FREE_AI_COST_HARD_CAP_GBP` | £0.05 | Refuse further generation |
+
+`PAID_AI_COST_*` exist too, set an order of magnitude higher: a Plus subscriber
+costs £0.14 of AI against £7.99 of revenue, so a ceiling tight enough to protect
+a budget could only ever hurt somebody who has paid. For them this is a runaway
+detector, not a ration.
+
+Degrading is quality, never safety — the allergen and cuisine post-checks run
+unchanged, and a plan that fails them is still refused. And **no cost figure
+reaches the user**: what the reader is told is that they have reached this
+month's limit, which is what it is from where they are standing. A test asserts
+that no `AppError` in `spendGuard.ts` mentions pounds, tokens or caps.
+
+Allowances reset on the **calendar month** (`date_trunc('month', now())`), not
+on the Stripe billing anniversary — one boundary for paid and free accounts
+alike, no subscription lookup needed to compute it, and nothing that can
+disagree with itself. Left unchanged deliberately: a boundary that moved later
+would hand every account a second allowance in the gap, and nothing would
+report it.
 
 Yearly is held to a lower target on purpose: twelve months of cash up front, no
 mid-year churn and one Stripe fee instead of twelve are worth real money that a
@@ -264,8 +331,12 @@ Written down deliberately. An honest list is more useful than a clean one.
 - **No email verification, password reset or change-email.** All three need a
   provider sending from a verified domain. The forgot-password screen says so
   instead of pretending to send anything
-- **Camera scanning does not exist.** The quota field and the pricing row are
-  there; the feature is labelled "coming soon" and is not sold as available
+- **Camera scanning is deferred to the iOS app, and the app is not written.**
+  The quota and the pricing row exist; the interface labels it "iOS app" rather
+  than "coming soon", because photographing a shelf is something you do
+  standing in front of it with a phone in your hand — a browser is the wrong
+  place for it, so this is a decision rather than a backlog item. Nobody is
+  charged for it today
 - **The knowledge layer is scaffolding.** Schema, index and SQL are built and
   tested; the corpus is empty and generation does not read it. Nothing yet
   stops a plan suggesting an ingredient that is hard to buy in the UK — that is
@@ -382,16 +453,15 @@ Consumption and Waste: A Case Study of Middle-Class Consumers in Kunming
 
 ## Roadmap
 
-- **Next** — deploy; self-service password reset; camera scanning, so the
-  "coming soon" labels can come off
+- **Next** — deploy; self-service password reset
 - **Then** — expiry-driven waste-reduction flow (discard / use fresh /
   preserve), shelf-life estimation wired into the pantry
 - **Later** — populate the knowledge layer, in that order: the UK grocery
   catalogue first, because it pays off without any retrieval at all (a
   post-generation availability check beside the allergen one), and only then
-  the regional cooking corpus and embeddings. A SwiftUI client on the same API.
-  Retailer integration last, because it depends on a data source that does not
-  currently exist publicly
+  the regional cooking corpus and embeddings. A SwiftUI client on the same API,
+  which is also where camera scanning lands. Retailer integration last, because
+  it depends on a data source that does not currently exist publicly
 
 ---
 

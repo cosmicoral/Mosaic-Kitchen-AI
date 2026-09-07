@@ -4,7 +4,17 @@ import pool from '../db/pool.ts';
 // migrations. tests/aiUsageFeatures.test.ts compares the two, because adding a
 // key here without widening the constraint is a failure that only shows up
 // after a model call has already been paid for.
-export type AiFeature = 'meal-plan' | 'pantry-cook' | 'plan-translate' | 'vision-scan';
+export type AiFeature =
+  | 'meal-plan'
+  | 'pantry-cook'
+  | 'plan-translate'
+  | 'vision-scan'
+  // Glossing ingredient names was calling the model and recording nothing at
+  // all, which made it invisible to both the per-user quota and the whole-
+  // product spend ceiling. Not a large cost — most names are answered from the
+  // lexicon or the shared cache — but an unmeasured one, and a ceiling that
+  // cannot see a spend cannot bound it.
+  | 'ingredient-gloss';
 
 export interface UsageRecord {
   feature: AiFeature;
@@ -40,6 +50,23 @@ export async function totalCostUsdThisMonth(): Promise<number> {
     `SELECT COALESCE(SUM(cost_usd), 0) AS total
        FROM ai_usage
       WHERE created_at >= date_trunc('month', now())`
+  );
+  return Number(result.rows[0]?.total ?? 0);
+}
+
+// One account's spend this month, across every feature, in USD.
+//
+// Failures included, and for the same reason the global total includes them: a
+// retry loop that fails every time still bills. Counting only successes would
+// make the runaway case — the only case this exists to catch — the one case it
+// could not see.
+export async function costUsdThisMonthForUser(userId: string): Promise<number> {
+  const result = await pool.query<{ total: string | null }>(
+    `SELECT COALESCE(SUM(cost_usd), 0) AS total
+       FROM ai_usage
+      WHERE user_id = $1
+        AND created_at >= date_trunc('month', now())`,
+    [userId]
   );
   return Number(result.rows[0]?.total ?? 0);
 }

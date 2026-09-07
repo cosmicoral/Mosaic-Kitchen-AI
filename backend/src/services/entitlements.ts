@@ -4,6 +4,19 @@ export type Tier = (typeof TIERS)[number];
 export interface Entitlements {
   householdMembers: number;
   mealPlansPerMonth: number;
+  // Enforced at generation, by clamping the profile's meals_per_week down to
+  // this number — not validated when the profile is saved.
+  //
+  // Saving-time validation was the obvious place and it is the wrong one. A
+  // profile is written once and read for months, so a Pro user who sets 21
+  // meals and later downgrades would keep generating 21-meal plans on the free
+  // tier forever, having passed the only check that ever ran. Clamping at
+  // generation reads the tier at the moment the money is spent, which is the
+  // only moment the answer is current.
+  //
+  // Clamped rather than rejected, for the same reason: the downgraded user
+  // gets a seven-meal plan instead of an error telling them to go and edit a
+  // setting they do not remember choosing.
   maxMealsPerPlan: number;
   // Cooking from what is already in the kitchen gets its own, far more
   // generous allowance. It costs about a third of a weekly plan, and it is the
@@ -29,24 +42,35 @@ export interface Entitlements {
 // them would cost a user something and save us nothing, while removing the
 // two features most likely to make someone open the app daily.
 const ENTITLEMENTS: Record<Tier, Entitlements> = {
-  // Roughly two weekly plans a week. Counted monthly because that is the
-  // period the billing runs on, and a weekly counter would reset mid-cycle.
-  // Trimmed from eight plans to six when the unit economics were worked out
-  // properly for the first time.
+  // Sized against an absolute budget rather than against a feeling of
+  // generosity: 500 free accounts must cost under £200 a year, which is
+  // £0.033 per account per month. At six plans the worst case was £0.0342 —
+  // over the line, by a margin small enough that nobody would have noticed
+  // until the bill arrived. These numbers land at £0.0158, about £95 a year
+  // for 500 accounts, which leaves room for the cost per call to drift
+  // upwards without the budget being breached.
   //
-  // The free tier is not free to run: at a 1-in-20 conversion rate every
-  // paying subscriber carries nineteen free accounts. At eight plans that was
-  // £0.86 a month per paying user — larger than the entire AI cost of serving
-  // the paying user themselves, and it was not in the pricing maths at all.
-  // Six plans is still more than one a week, which is the cadence the product
-  // is for, and brings the carried cost to £0.65.
+  // Two plans is the number that hurts, and it is deliberate. The free tier
+  // exists to show someone that the planner understands their kitchen, not to
+  // feed them indefinitely: two plans is enough to see a week of dinners that
+  // respect a halal restriction and a Sichuan preference, and not enough to
+  // live on. Pantry cooks are held at three rather than cut to match, because
+  // they cost a third of a plan and they are the feature that stops food being
+  // thrown away — the one thing worth subsidising.
+  //
+  // Scans are zero, not one. The vision feature does not exist yet, so any
+  // number here costs nothing today and the choice looks free — which is
+  // exactly why it should be zero. A 1 sitting in this table is a standing
+  // instruction to start spending on the day the iOS app ships, made by
+  // somebody who is not in the room. Raising it is a decision; leaving it is
+  // not.
   free: {
     householdMembers: 1,
-    mealPlansPerMonth: 6,
+    mealPlansPerMonth: 2,
     maxMealsPerPlan: 7,
-    pantryCooksPerMonth: 4,
-    planTranslationsPerMonth: 3,
-    scansPerMonth: 2,
+    pantryCooksPerMonth: 3,
+    planTranslationsPerMonth: 2,
+    scansPerMonth: 0,
   },
   // Not cut to pay for translation, because the arithmetic does not ask for
   // it: a Plus account using every allowance costs £0.12 of AI against £6.99

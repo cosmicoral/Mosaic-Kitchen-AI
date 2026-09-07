@@ -1,4 +1,4 @@
-import { Camera, Clock, ScanLine } from "lucide-react";
+import { Camera, Smartphone, ScanLine } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { aiScanMascot } from "../assets/mascots";
 import { TopNav } from "../components/navigation/TopNav";
@@ -27,7 +27,7 @@ export function AIVisionPage() {
             <div className="brand-row">
               <MascotAvatar size="md" src={aiScanMascot} />
               <span>
-                <Badge variant="cream">{t("Coming soon")}</Badge>
+                <Badge variant="cream">{t("iOS app")}</Badge>
                 <h2 style={{ margin: "8px 0 4px" }}>{t("AI Food Vision")}</h2>
                 <p className="small">
                   {t(
@@ -40,13 +40,13 @@ export function AIVisionPage() {
 
           <Card className="section">
             <div className="brand-row">
-              <Clock size={18} />
+              <Smartphone size={18} />
               <span>
-                <strong>{t("Not available yet")}</strong>
+                <strong>{t("Coming with the iOS app")}</strong>
                 <br />
                 <span className="small muted">
                   {t(
-                    "We are building this now. Until it ships, add pantry items by hand — everything else works from there."
+                    "Photographing a shelf is something you do standing in front of it, with a phone in your hand — so this belongs in the mobile app rather than the browser. Add pantry items by hand for now; everything else works from there."
                   )}
                 </span>
               </span>

@@ -170,6 +170,14 @@ const zh: Record<string, string> = {
     '食材库、购物清单和到期提醒在所有方案(包括免费)都不限次。',
   'Pantry, shopping lists and expiry alerts are unlimited on every plan.':
     '食材库、购物清单和到期提醒在所有方案都不限次。',
+  'Lines marked iOS app need the mobile app, which is not released yet. Cancel any time.':
+    '标注「iOS 应用」的功能需要手机端,尚未发布。可随时取消。',
+  'iOS app': 'iOS 应用',
+  'Coming with the iOS app': '将随 iOS 应用推出',
+  'Photographing a shelf is something you do standing in front of it, with a phone in your hand — so this belongs in the mobile app rather than the browser. Add pantry items by hand for now; everything else works from there.':
+    '拍货架是你站在冰箱前、手里拿着手机时做的事,所以这个功能属于手机应用而不是浏览器。现在请手动添加食材,其余功能都能照常使用。',
+  'Photographing a fridge is something you do with a phone, so this lives in the iOS app.':
+    '拍冰箱是手机上的动作,所以这个功能放在 iOS 应用里。',
   'Lines marked Coming soon are not available yet. Cancel any time.':
     '标注「即将推出」的功能尚未上线。可随时取消。',
   'Cancel any time. Prices include VAT where it applies.':
@@ -214,10 +222,16 @@ const zh: Record<string, string> = {
 
   // Accessibility label, read aloud rather than displayed.
   'Primary navigation': '主导航',
-  '6 AI meal plans a month': '每月 6 份 AI 餐单',
-  '4 cook-from-your-pantry suggestions a month': '每月 4 次「用现有食材做菜」',
-  '3 plan translations between English and Chinese a month': '每月 3 次餐单中英互译',
-  '2 camera scans a month': '每月 2 次相机扫描',
+  // The free tier's own lines. Kept here rather than merged into the block of
+  // plan-card strings below because these four are the ones that move when the
+  // free allowance is retuned, and they should be easy to find when it is.
+  '2 AI meal plans a month': '每月 2 份 AI 餐单',
+  'Up to 7 meals per plan': '每份餐单最多 7 餐',
+  '3 cook-from-your-pantry suggestions a month': '每月 3 次「用现有食材做菜」',
+  '2 plan translations between English and Chinese a month': '每月 2 次餐单中英互译',
+  // Allowance rows on the subscription page.
+  'Cook from your pantry': '用现有食材做菜',
+  'Plan translations': '餐单翻译',
   'Profile picture': '头像',
   'Square images work best. We resize to 256px and strip location data from the file.':
     '方形图片效果最好。我们会缩到 256px,并去掉文件里的位置信息。',
@@ -247,7 +261,7 @@ const zh: Record<string, string> = {
   // Plan cards. These reach the interface as t(plan.tagline) and t(feature.text)
   // — a variable, not a literal — so the literal scan never saw them and the
   // whole pricing table shipped in English.
-  'Enough to cook from, for one person.': '一个人也够用,足以撑起一日三餐。',
+  'Enough to see whether it cooks the way you do.': '足够看出它做的菜合不合你的口味。',
   'For two people cooking together.': '适合两个人一起做饭。',
   'For a full household, three meals a day.': '适合全家人,一日三餐。',
   'Start free': '免费开始',

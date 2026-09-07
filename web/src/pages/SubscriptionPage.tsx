@@ -151,17 +151,30 @@ export function SubscriptionPage() {
             <Card className="section">
               <span className="eyebrow">{t("This month")}</span>
               <div className="form-grid" style={{ marginTop: 10 }}>
-                {[
-                  [t("Household members"), billing.entitlements.householdMembers],
-                  [t("AI meal plans"), billing.entitlements.mealPlansPerMonth],
-                  [t("Meals per plan"), billing.entitlements.maxMealsPerPlan],
-                  [t("Camera scans"), billing.entitlements.scansPerMonth],
-                ].map(([label, value]) => (
-                  <div className="check-item" key={String(label)}>
-                    <span className="small muted">{label}</span>
-                    <strong>{value}</strong>
-                  </div>
-                ))}
+                {(
+                  [
+                    [t("Household members"), billing.entitlements.householdMembers],
+                    [t("AI meal plans"), billing.entitlements.mealPlansPerMonth],
+                    [t("Meals per plan"), billing.entitlements.maxMealsPerPlan],
+                    // The two that were missing. Both are metered and both can
+                    // run out, so leaving them off this card meant the only
+                    // place a user learned their translation allowance existed
+                    // was the moment it stopped working.
+                    [t("Cook from your pantry"), billing.entitlements.pantryCooksPerMonth],
+                    [t("Plan translations"), billing.entitlements.planTranslationsPerMonth],
+                    [t("Camera scans"), billing.entitlements.scansPerMonth],
+                  ] as Array<[string, number]>
+                )
+                  // A zero allowance is not an allowance, and a row reading
+                  // "Camera scans 0" describes a feature that does not exist
+                  // yet as though it were something the plan withholds.
+                  .filter(([, value]) => value > 0)
+                  .map(([label, value]) => (
+                    <div className="check-item" key={label}>
+                      <span className="small muted">{label}</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
               </div>
               <p className="small muted" style={{ marginTop: 12 }}>
                 {t("Pantry, shopping lists and expiry alerts are unlimited on every plan.")}
