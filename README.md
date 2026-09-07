@@ -16,8 +16,9 @@ feature that does not exist; the [known gaps](#known-gaps) are listed as
 plainly as the features.
 
 **Stack** — React + TypeScript (Vite) · Node 24 + Express + TypeScript with
-native type stripping, no build step · PostgreSQL (Neon) via raw `pg` ·
-OpenAI structured outputs · Stripe · Server-Sent Events
+native type stripping, no build step · PostgreSQL (Neon) via raw `pg`, with
+pgvector · OpenAI structured outputs · Stripe · Cloudflare R2 ·
+Server-Sent Events
 
 ---
 
@@ -33,8 +34,10 @@ OpenAI structured outputs · Stripe · Server-Sent Events
 | **SSE streaming** | Five real generation stages streamed over `fetch` + `ReadableStream`. No invented progress percentage |
 | **Bilingual content** | Plans generated in the reader's language; stored plans translated on demand and cached, with a 220-entry ingredient lexicon answering most strings before any model call |
 | **Usage and cost metering** | Every call recorded in `ai_usage` including failures and retries, per-user monthly quotas, and a global spend ceiling that only ever refuses free accounts |
-| **RAG-ready schema** | pgvector tables, HNSW index, scoped retrieval SQL and a grocery-availability catalogue (region + store class). **Schema only — the corpus is empty, nothing is indexed, and generation does not consult it.** See [`docs/rag.md`](docs/rag.md) |
-| **Tests** | 209 backend, 13 frontend, plus a locale-coverage lint. Three tests read source to check that code and SQL agree |
+| **Knowledge layer (RAG-ready)** | pgvector tables with an HNSW index and scoped retrieval SQL, plus a deterministic grocery-availability catalogue. Built to stop plans suggesting ingredients that cannot be bought locally. **Schema only — the corpus is empty and generation does not consult it.** See [`docs/rag.md`](docs/rag.md) |
+| **Media handling** | Avatar uploads decoded and re-encoded through sharp to 256px WebP, stored in Cloudflare R2. Re-encoding is what strips EXIF, and EXIF on a phone photo contains GPS coordinates |
+| **i18n enforcement** | A lint over the source finds strings that would render in English while the app is in Chinese, in all four ways they can hide. It has caught 100+ gaps that page-by-page review missed |
+| **Tests** | 219 backend, 13 frontend, plus the locale lint. Five tests read source rather than exercising behaviour, to check that code, SQL and sales copy agree |
 
 ---
 
@@ -54,16 +57,19 @@ flowchart LR
     end
 
     subgraph external [External]
-        DB[(PostgreSQL<br/>Neon)]
+        DB[("PostgreSQL + pgvector<br/>Neon")]
         AI[OpenAI<br/>structured outputs]
         Stripe[Stripe<br/>Checkout · webhooks]
+        R2[Cloudflare R2<br/>avatars]
     end
 
     UI -->|"HTTP + session cookie"| R
     UI -->|"SSE: generation stages"| C
+    UI -.->|"reads avatars directly"| R2
     R --> C --> S --> Rep --> DB
     S --> AI
     S --> Stripe
+    S --> R2
     Stripe -->|"webhook, raw body"| R
 ```
 
@@ -92,6 +98,9 @@ storage rules and the testing strategy.
 | AI output | Structured output + programmatic post-check | Prompt instructions alone | A schema constrains shape, not truth. Allergen exclusions are a safety property, so they are verified in code after the model has answered, and a violation triggers a retry that names the specific dish |
 | Translation | Lookup table first, model for the rest | Model for everything | Ingredient names are over half the strings and repeat endlessly. Garlic is garlic — a lookup is cheaper *and* more consistent than a model |
 | Grocery availability | Deterministic table lookup | Vector similarity | "Can this be bought in Sheffield?" is a fact with a yes/no answer. Nearest-neighbour returns the most similar thing, which is the wrong shape of answer for a shopping list. Retrieval is reserved for the questions that are genuinely about similarity: substitutions and regional cooking knowledge |
+| Vector store | pgvector inside the existing Neon database | A dedicated vector database | One datastore, one backup, one consistency story. Retrieval can be constrained by the same `WHERE` clause that reads the household's cuisines — an external service would need that filter shipped to it, or would rank first and filter after |
+| Avatar storage | Cloudflare R2 | S3 | Egress is free. Avatars are read far more often than written, and S3's per-GB egress is the line item that grows with traffic while the storage cost stays trivial either way |
+| Uploaded images | Decode and re-encode | Store as received | Re-encoding is the only thing that reliably strips EXIF, and a phone photo carries GPS. It also neutralises a file that is valid as two formats at once, because the output is rebuilt from pixels rather than relabelled |
 | Ingredient matching | Exact match only | Fuzzy or substring | Substring matching resolves 青椒炒肉丝 to "green pepper". A shopping list that sends someone home with the wrong vegetable is worse than one in the wrong language |
 
 ---
@@ -134,7 +143,64 @@ holds, with tick state, manual additions and undo on delete.
 
 **Bilingual** — English and Simplified Chinese throughout, including generated
 content. The interface language is a user setting sent on every request; stored
-plans are translated on demand and cached.
+plans are translated on demand and cached. A 220-entry ingredient lexicon
+answers most names for free, with prefix/suffix decomposition so 带骨鸡腿
+resolves to "bone-in chicken thigh" without adding a row per combination.
+Pantry and shopping-list rows are the user's own data and are never rewritten —
+a name they typed stays as they typed it, with a translation shown underneath.
+
+**Profile pictures** — optional; the leopard-cat mascot is the default and most
+people will keep it. Uploads are resized to 256px WebP and stored in R2 under a
+random key. Deleting an account deletes the object too, because erasure is not
+satisfied by removing a row and leaving the face on a public bucket.
+
+---
+
+## The knowledge layer, and the problem it exists for
+
+**The failure it addresses:** a planner that knows Yunnanese cooking will
+happily suggest fresh 香椿 or live grass carp to a household in Sheffield. The
+dish is authentic and the plan is unusable, and no amount of prompting fixes it
+— the model has no idea what a British supermarket stocks.
+
+The obvious framing is "RAG over a recipe corpus". That hides the fact that
+there are **two different questions** here, and only one of them is about
+similarity:
+
+| Question | Nature | Mechanism |
+| --- | --- | --- |
+| Can this be bought where the household shops? | A fact, with a yes/no answer | Deterministic table lookup |
+| What could replace it, and what do people in Hunan actually cook? | Similarity and context | Vector retrieval |
+
+Answering the first with vector search returns "here is something similar",
+which is not an answer to "is this on a shelf in Sheffield". So availability is
+a catalogue — ingredient, region, store class, substitutions — checked after
+generation in the same layer as the allergen and budget rules. Retrieval is
+reserved for the questions that genuinely are about similarity.
+
+Two design points worth stating, because both are easy to get backwards:
+
+- **Store class, not retailer.** Tesco's range changes weekly and there is no
+  public stock API, so a per-retailer table would be stale the day after it was
+  written. "Mainstream supermarket, Asian grocer, or online" is stable, is the
+  question a shopper actually has, and lets a list separate the weekly shop
+  from the special trip
+- **Availability fails open.** An ingredient the catalogue has never heard of
+  is permitted, which is the *opposite* of the allergen check. An unrecognised
+  allergen must fail closed because the cost of being wrong is somebody's
+  health; an unrecognised vegetable fails open because the cost is an awkward
+  shopping trip — and an empty catalogue rejecting every plan would be a
+  half-built feature taking a working one down with it
+
+**Current state: schema only.** The tables, the HNSW index and the scoped
+retrieval SQL exist and are tested. The corpus is empty, no embedding job has
+run, `RETRIEVAL_ENABLED` defaults to off, and a test asserts that neither
+`mealPlanService` nor `promptBuilder` references any of it — so the claim that
+generation behaves identically with it on or off is checked rather than
+promised. It was landed early because the shape of the data is the hard part,
+and an empty table is easier to argue about than one already filled in wrongly.
+
+→ [`docs/rag.md`](docs/rag.md) for the schema and the order to turn it on in.
 
 ---
 
@@ -150,11 +216,14 @@ Written down deliberately. An honest list is more useful than a clean one.
   instead of pretending to send anything
 - **Camera scanning does not exist.** The quota field and the pricing row are
   there; the feature is labelled "coming soon" and is not sold as available
-- **RAG is scaffolding only.** The pgvector schema, the retrieval SQL and the
-  grocery catalogue exist and are tested, but the corpus is empty, no embedding
-  job has been run, and `RETRIEVAL_ENABLED` defaults to off. Generation behaves
-  identically with it on or off. Variety currently comes from style rotation
-  and a 40-dish do-not-repeat list
+- **The knowledge layer is scaffolding.** Schema, index and SQL are built and
+  tested; the corpus is empty and generation does not read it. Nothing yet
+  stops a plan suggesting an ingredient that is hard to buy in the UK — that is
+  the problem the catalogue is *for*, not one it currently solves. Variety
+  today comes from style rotation and a 40-dish do-not-repeat list
+- **Avatar uploads are unverified in production.** The R2 path has only been
+  exercised against the filesystem fallback used in development; the bucket,
+  the credentials and the public domain are part of deployment
 - **No mobile app and no grocery integrations.** Both are roadmap items
 - **Expiry dates are user-entered.** A shelf-life lookup table exists but is
   not yet wired into the pantry write path
@@ -177,7 +246,8 @@ git clone https://github.com/cosmicoral/Mosaic-Kitchen-AI.git
 
 cd Mosaic-Kitchen-AI/backend
 npm install
-cp .env.example .env          # fill in DATABASE_URL and OPENAI_API_KEY
+cp .env.example .env          # DATABASE_URL and OPENAI_API_KEY are the only
+                              # two that must be filled in
 npm run migrate:up
 npm run dev
 
@@ -187,8 +257,14 @@ cp .env.example .env          # VITE_API_URL, defaults to http://localhost:3000
 npm run dev
 ```
 
-Google sign-in and Stripe are optional locally: without their environment
-variables the app runs with email/password auth and everyone on the free tier.
+Everything else is optional locally and degrades honestly rather than breaking:
+
+| Unset | What happens |
+| --- | --- |
+| Google OAuth | Email/password sign-in only; the Google button is not shown |
+| Stripe | Everyone resolves to the free tier |
+| Cloudflare R2 | Avatar uploads land in `backend/.uploads/` and are served from `/uploads` — no Cloudflare account needed to run the app |
+| `RETRIEVAL_ENABLED` | Off, which is also the production default |
 
 ### Tests
 
@@ -209,6 +285,7 @@ npm test
 | `npm test` | Full suite |
 | `npm run migrate:create -- <name>` | Scaffold a `.sql` migration |
 | `npm run generate:lexicon` | Regenerate the client's copy of the ingredient table |
+| `npm run check:locale` *(in `web/`)* | Fail if any string would render in English while the app is in Chinese |
 | `npm run cleanup:sessions` | Delete expired sessions (intended as a daily cron) |
 
 ---
@@ -259,10 +336,12 @@ Consumption and Waste: A Case Study of Middle-Class Consumers in Kunming
   "coming soon" labels can come off
 - **Then** — expiry-driven waste-reduction flow (discard / use fresh /
   preserve), shelf-life estimation wired into the pantry
-- **Later** — populate the knowledge base: a UK grocery-availability catalogue
-  first, so plans stop suggesting ingredients nobody can buy, then regional
-  cooking documents; a SwiftUI client on the same API; retailer integration,
-  which depends on a data source that does not currently exist publicly
+- **Later** — populate the knowledge layer, in that order: the UK grocery
+  catalogue first, because it pays off without any retrieval at all (a
+  post-generation availability check beside the allergen one), and only then
+  the regional cooking corpus and embeddings. A SwiftUI client on the same API.
+  Retailer integration last, because it depends on a data source that does not
+  currently exist publicly
 
 ---
 
