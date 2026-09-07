@@ -31,18 +31,22 @@ export interface Entitlements {
 const ENTITLEMENTS: Record<Tier, Entitlements> = {
   // Roughly two weekly plans a week. Counted monthly because that is the
   // period the billing runs on, and a weekly counter would reset mid-cycle.
-  // Eight plans briefly became six to pay for four translations, when a
-  // translation cost more than the generation it translated. Lazy scoping and
-  // the ingredient lexicon cut that by about a third, which buys the two plans
-  // back at the same headroom: eight plans plus four translations is £0.045 a
-  // month worst case, and the £100 ceiling still sits beyond 2,200 users.
+  // Trimmed from eight plans to six when the unit economics were worked out
+  // properly for the first time.
+  //
+  // The free tier is not free to run: at a 1-in-20 conversion rate every
+  // paying subscriber carries nineteen free accounts. At eight plans that was
+  // £0.86 a month per paying user — larger than the entire AI cost of serving
+  // the paying user themselves, and it was not in the pricing maths at all.
+  // Six plans is still more than one a week, which is the cadence the product
+  // is for, and brings the carried cost to £0.65.
   free: {
     householdMembers: 1,
-    mealPlansPerMonth: 8,
+    mealPlansPerMonth: 6,
     maxMealsPerPlan: 7,
-    pantryCooksPerMonth: 5,
-    planTranslationsPerMonth: 4,
-    scansPerMonth: 3,
+    pantryCooksPerMonth: 4,
+    planTranslationsPerMonth: 3,
+    scansPerMonth: 2,
   },
   // Not cut to pay for translation, because the arithmetic does not ask for
   // it: a Plus account using every allowance costs £0.12 of AI against £6.99

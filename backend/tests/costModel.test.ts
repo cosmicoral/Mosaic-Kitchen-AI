@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { COST_GBP, worstCaseMonthlyCostGbp } from '../src/services/costModel.ts';
+import {
+  COST_GBP,
+  DEFAULT_ASSUMPTIONS,
+  MONTHLY_TARGET_GBP,
+  PLANS,
+  YEARLY_TARGET_GBP,
+  netProfitPerMonthGbp,
+  worstCaseMonthlyCostGbp,
+  type PlanEconomics,
+} from '../src/services/costModel.ts';
 import { TIERS, entitlementsFor } from '../src/services/entitlements.ts';
 
 // The free tier is a promise made with somebody else's money. These tests are
@@ -97,5 +106,85 @@ test('allowances increase with tier', () => {
   ] as const) {
     assert.ok(plus[key] > free[key], `plus.${key} is not above free`);
     assert.ok(pro[key] > plus[key], `pro.${key} is not above plus`);
+  }
+});
+
+// --- Unit economics --------------------------------------------------------
+//
+// The £5 target was previously checked against AI cost alone, which passed
+// comfortably and meant almost nothing: Stripe and VAT are each larger than
+// the AI bill, and neither was in the calculation. These assert the target
+// against everything.
+
+test('every plan clears its net profit target, before VAT registration', () => {
+  for (const [name, plan] of Object.entries(PLANS)) {
+    const target = plan.months === 12 ? YEARLY_TARGET_GBP : MONTHLY_TARGET_GBP;
+    const net = netProfitPerMonthGbp(plan);
+
+    assert.ok(
+      net >= target,
+      `${name} nets £${net.toFixed(2)}/month against a £${target} target`
+    );
+  }
+});
+
+test('every plan still clears its target once VAT registration bites', () => {
+  // Compulsory above £90,000 turnover, and a sixth of the sticker price stops
+  // being yours overnight. A price that only works below the threshold is a
+  // price that breaks on the day the business starts going well.
+  const vat = { ...DEFAULT_ASSUMPTIONS, vatRegistered: true };
+
+  for (const [name, plan] of Object.entries(PLANS)) {
+    const target = plan.months === 12 ? YEARLY_TARGET_GBP : MONTHLY_TARGET_GBP;
+    const net = netProfitPerMonthGbp(plan, vat);
+
+    assert.ok(
+      net >= target,
+      `${name} nets £${net.toFixed(2)}/month VAT-registered, against £${target}`
+    );
+  }
+});
+
+test('the targets survive a poor conversion rate', () => {
+  // One in fifty rather than one in twenty. Free-tier cost is the term that
+  // grows when growth is going badly, which is exactly when the margin is
+  // needed.
+  const poor = { ...DEFAULT_ASSUMPTIONS, freeUsersPerPaying: 49, vatRegistered: true };
+
+  for (const [name, plan] of Object.entries(PLANS)) {
+    const net = netProfitPerMonthGbp(plan, poor);
+    assert.ok(
+      net > 0,
+      `${name} loses £${Math.abs(net).toFixed(2)}/month at a 1-in-50 conversion rate`
+    );
+  }
+});
+
+test('the first handful of subscribers are not loss-making', () => {
+  // Fixed infrastructure spread over ten people rather than a hundred. If the
+  // first ten customers cost money, the plan needs a bigger cushion or cheaper
+  // hosting — and it is better to know that before the VPS is bought.
+  const tiny = { ...DEFAULT_ASSUMPTIONS, payingUsers: 10 };
+
+  for (const [name, plan] of Object.entries(PLANS)) {
+    const net = netProfitPerMonthGbp(plan, tiny);
+    assert.ok(net > 0, `${name} loses money at ten subscribers: £${net.toFixed(2)}`);
+  }
+});
+
+test('a yearly plan is a real discount on its monthly equivalent', () => {
+  // Otherwise the tier exists only on the pricing page. Anything under about
+  // 10% and nobody prepays a year for it.
+  const pairs: Array<[PlanEconomics, PlanEconomics]> = [
+    [PLANS.plusYearly!, PLANS.plusMonthly!],
+    [PLANS.proYearly!, PLANS.proMonthly!],
+  ];
+
+  for (const [yearly, monthly] of pairs) {
+    const discount = 1 - yearly.chargeGbp / 12 / monthly.chargeGbp;
+    assert.ok(
+      discount > 0.05,
+      `a ${(discount * 100).toFixed(0)}% yearly discount is not worth prepaying for`
+    );
   }
 });

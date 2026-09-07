@@ -214,6 +214,10 @@ const zh: Record<string, string> = {
 
   // Accessibility label, read aloud rather than displayed.
   'Primary navigation': '主导航',
+  '6 AI meal plans a month': '每月 6 份 AI 餐单',
+  '4 cook-from-your-pantry suggestions a month': '每月 4 次「用现有食材做菜」',
+  '3 plan translations between English and Chinese a month': '每月 3 次餐单中英互译',
+  '2 camera scans a month': '每月 2 次相机扫描',
   'Profile picture': '头像',
   'Square images work best. We resize to 256px and strip location data from the file.':
     '方形图片效果最好。我们会缩到 256px,并去掉文件里的位置信息。',
@@ -284,7 +288,6 @@ const zh: Record<string, string> = {
   'Save money': '省钱', 'Eat healthier': '吃得更健康', 'Reduce food waste': '减少食物浪费',
   'Email': '邮箱',
 
-  '6 AI meal plans a month': '每月 6 份 AI 餐单',
   '5 cook-from-your-pantry suggestions a month': '每月 5 次「用现有食材做菜」',
   '30 cook-from-your-pantry suggestions a month': '每月 30 次「用现有食材做菜」',
   '100 cook-from-your-pantry suggestions a month': '每月 100 次「用现有食材做菜」',

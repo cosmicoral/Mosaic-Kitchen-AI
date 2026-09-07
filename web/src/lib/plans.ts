@@ -34,11 +34,11 @@ export const PLAN_COPY: PlanCopy[] = [
     cadence: { month: 'forever', year: 'forever' },
     features: [
       { text: '1 household member' },
-      { text: '8 AI meal plans a month' },
-      { text: '5 cook-from-your-pantry suggestions a month' },
-      { text: '4 plan translations between English and Chinese a month' },
+      { text: '6 AI meal plans a month' },
+      { text: '4 cook-from-your-pantry suggestions a month' },
+      { text: '3 plan translations between English and Chinese a month' },
       { text: 'Unlimited pantry, shopping lists and expiry alerts' },
-      { text: '3 camera scans a month', soon: true },
+      { text: '2 camera scans a month', soon: true },
     ],
     cta: 'Start free',
   },
@@ -46,7 +46,7 @@ export const PLAN_COPY: PlanCopy[] = [
     tier: 'plus',
     name: 'Plus',
     tagline: 'For two people cooking together.',
-    price: { month: '£6.99', year: '£69.99' },
+    price: { month: '£7.99', year: '£89.99' },
     cadence: { month: 'per month', year: 'per year' },
     features: [
       { text: '2 household members, each with their own restrictions' },
@@ -62,7 +62,7 @@ export const PLAN_COPY: PlanCopy[] = [
     tier: 'pro',
     name: 'Pro',
     tagline: 'For a full household, three meals a day.',
-    price: { month: '£11.99', year: '£119.99' },
+    price: { month: '£12.99', year: '£129.99' },
     cadence: { month: 'per month', year: 'per year' },
     features: [
       { text: '6 household members' },

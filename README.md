@@ -34,6 +34,7 @@ Server-Sent Events
 | **SSE streaming** | Five real generation stages streamed over `fetch` + `ReadableStream`. No invented progress percentage |
 | **Bilingual content** | Plans generated in the reader's language; stored plans translated on demand and cached, with a 220-entry ingredient lexicon answering most strings before any model call |
 | **Usage and cost metering** | Every call recorded in `ai_usage` including failures and retries, per-user monthly quotas, and a global spend ceiling that only ever refuses free accounts |
+| **Unit economics in code** | Stripe fees, VAT and the free-tier subsidy modelled alongside AI cost, with tests asserting each plan clears its net-profit target — including after VAT registration and at a poor conversion rate |
 | **Knowledge layer (RAG-ready)** | pgvector tables with an HNSW index and scoped retrieval SQL, plus a deterministic grocery-availability catalogue. Built to stop plans suggesting ingredients that cannot be bought locally. **Schema only — the corpus is empty and generation does not consult it.** See [`docs/rag.md`](docs/rag.md) |
 | **Media handling** | Avatar uploads decoded and re-encoded through sharp to 256px WebP, stored in Cloudflare R2. Re-encoding is what strips EXIF, and EXIF on a phone photo contains GPS coordinates |
 | **i18n enforcement** | A lint over the source finds strings that would render in English while the app is in Chinese, in all four ways they can hide. It has caught 100+ gaps that page-by-page review missed |
@@ -101,6 +102,7 @@ storage rules and the testing strategy.
 | Vector store | pgvector inside the existing Neon database | A dedicated vector database | One datastore, one backup, one consistency story. Retrieval can be constrained by the same `WHERE` clause that reads the household's cuisines — an external service would need that filter shipped to it, or would rank first and filter after |
 | Avatar storage | Cloudflare R2 | S3 | Egress is free. Avatars are read far more often than written, and S3's per-GB egress is the line item that grows with traffic while the storage cost stays trivial either way |
 | Uploaded images | Decode and re-encode | Store as received | Re-encoding is the only thing that reliably strips EXIF, and a phone photo carries GPS. It also neutralises a file that is valid as two formats at once, because the output is rebuilt from pixels rather than relabelled |
+| Pricing model | Full unit economics in `costModel.ts`, asserted by tests | Revenue minus AI cost | AI is the smallest term. A Plus subscriber's AI cost is under half their Stripe fee and about a twelfth of the VAT, so a price set on AI cost alone is set on the least significant number in the calculation |
 | Ingredient matching | Exact match only | Fuzzy or substring | Substring matching resolves 青椒炒肉丝 to "green pepper". A shopping list that sends someone home with the wrong vegetable is worse than one in the wrong language |
 
 ---
@@ -201,6 +203,54 @@ promised. It was landed early because the shape of the data is the hard part,
 and an empty table is easier to argue about than one already filled in wrongly.
 
 → [`docs/rag.md`](docs/rag.md) for the schema and the order to turn it on in.
+
+---
+
+## Pricing and unit economics
+
+| | Free | Plus | Pro |
+| --- | --- | --- | --- |
+| Monthly | £0 | £7.99 | £12.99 |
+| Yearly | £0 | £89.99 | £129.99 |
+| Household members | 1 | 2 | 6 |
+| Meal plans / month | 6 | 10 | 30 |
+| Meals per plan | 7 | 14 | 21 |
+| Cook-from-pantry / month | 4 | 30 | 100 |
+| Plan translations / month | 3 | 20 | 60 |
+| Camera scans / month | — *(not built)* | — *(not built)* | — *(not built)* |
+
+The allowances are decided against `services/costModel.ts`, which models the
+whole cost of a subscriber rather than only the AI, and is read by tests. The
+four costs, in the order they actually matter:
+
+| Cost | Plus, per subscriber per month | Note |
+| --- | --- | --- |
+| VAT | £1.33 once registered | Compulsory above £90,000 turnover. UK consumer prices are shown VAT-inclusive, so a sixth of the sticker price was never yours |
+| Free-tier subsidy | £0.65 | At a 1-in-20 conversion rate every paying subscriber carries nineteen free accounts |
+| Stripe | £0.32 | 1.5% + £0.20 on a UK standard card. The fixed 20p is why one yearly charge is twelve times cheaper to collect than twelve monthly ones |
+| AI | £0.14 | The smallest term, and the only one the first version of this model contained |
+
+Net profit per subscriber per month, after all four plus infrastructure:
+
+| Plan | Before VAT registration | After | Target |
+| --- | --- | --- | --- |
+| Plus monthly | £6.76 | £5.43 | £5 |
+| Plus yearly | £6.46 | £5.21 | £4 |
+| Pro monthly | £11.37 | £9.21 | £5 |
+| Pro yearly | £9.43 | £7.62 | £4 |
+
+Yearly is held to a lower target on purpose: twelve months of cash up front, no
+mid-year churn and one Stripe fee instead of twelve are worth real money that a
+per-month profit figure does not capture.
+
+Tests assert every plan clears its target **after** VAT registration, at a
+1-in-50 conversion rate, and with fixed infrastructure spread over only ten
+subscribers — because a price that only works when things are going well is a
+price that breaks on the day they start to.
+
+*Rates are external facts, not advice: Stripe UK standard card fees and the UK
+VAT threshold are written into the model so the assumption is visible and can
+be corrected.*
 
 ---
 
