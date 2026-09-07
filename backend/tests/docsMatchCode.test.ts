@@ -137,3 +137,26 @@ describe('the cost figures quoted in the docs', () => {
     }
   });
 });
+
+describe('deployment routes match the application', () => {
+  test('the Stripe webhook path in the runbook is the mounted route', () => {
+    const app = readFileSync(join(repo, 'backend', 'src', 'app.ts'), 'utf8');
+    const checks = readFileSync(join(repo, 'docs', 'pre-deploy-checks.md'), 'utf8');
+    const deployment = readFileSync(join(repo, 'docs', 'deployment.md'), 'utf8');
+    const route = '/api/stripe/webhook';
+
+    assert.match(app, new RegExp(route.replaceAll('/', '\\/')));
+    assert.ok(
+      checks.includes(route),
+      `pre-deploy checks do not use the mounted Stripe webhook route ${route}`
+    );
+    assert.ok(
+      deployment.includes(route),
+      `deployment guide does not name the production Stripe webhook route ${route}`
+    );
+    assert.ok(
+      !checks.includes('/api/billing/webhook'),
+      'pre-deploy checks still contain the old, unmounted Stripe webhook route'
+    );
+  });
+});

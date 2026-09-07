@@ -31,7 +31,7 @@ Each step must be finished before the next, because each one is a prerequisite f
 | 8 | `CORS_ORIGINS` set to the real origin; leave `COOKIE_SAMESITE` unset | `app.<domain>` and `api.<domain>` are cross-**origin** but same-**site**, because SameSite is judged on the registrable domain, so `Lax` works and keeps the CSRF protection that `None` throws away. Set `COOKIE_SAMESITE=none` **only** for a frontend on a different registrable domain, such as a default `*.vercel.app` URL — and a custom subdomain is the better fix |
 | 9 | Add the production redirect URI in Google Cloud Console | OAuth fails closed on an unregistered URI |
 | 10 | Create the four **live** prices in Stripe — £7.99, £89.99, £12.99, £129.99 — and put their ids in the environment | Stripe prices are immutable. The test-mode ids do not exist in live mode, and the amounts changed after the unit economics were worked out |
-| 11 | Point the Stripe webhook at `api.<domain>`, take the **live** signing secret | The test-mode secret does not verify live events |
+| 11 | Point the Stripe webhook at `https://api.<domain>/api/stripe/webhook`, take the **live** signing secret | The test-mode secret does not verify live events |
 | 12 | Verify end to end against production: sign in, generate, checkout, cancel | Everything above has only ever been exercised on localhost |
 
 ## nginx, the parts that are not boilerplate

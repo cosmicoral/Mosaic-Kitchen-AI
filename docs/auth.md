@@ -153,7 +153,7 @@ Two deliberate choices:
 with an expiry in 1970 (the standard way to instruct a browser to drop a
 cookie; HTTP has no explicit delete).
 
-**Cleanup** — `scripts/cleanup-sessions.js` removes expired rows. They are
+**Cleanup** — `scripts/cleanup-sessions.ts` removes expired rows. They are
 already unusable thanks to the SQL filter; this only stops unbounded growth.
 Intended to run as a daily cron.
 
@@ -163,7 +163,7 @@ Intended to run as a daily cron.
 {
   httpOnly: true,
   secure:   isProduction,
-  sameSite: isProduction ? 'none' : 'lax',
+  sameSite: isProduction && COOKIE_SAMESITE === 'none' ? 'none' : 'lax',
   maxAge:   30 days,
   path:     '/',
 }
@@ -258,14 +258,15 @@ second round trip.
 
 ## Deployment checklist
 
-- `NODE_ENV=production` — enables `secure` cookies, `sameSite: 'none'`, and
-  `trust proxy`.
+- `NODE_ENV=production` — enables `secure` cookies and `trust proxy`.
+- Leave `COOKIE_SAMESITE` unset for `app.example.com` + `api.example.com`;
+  set it to `none` only when the frontend is on a different registrable domain.
 - `CORS_ORIGINS` — the real frontend origin(s).
 - `trust proxy` is required behind Railway/Render/Fly/nginx. Without it every
   request appears to originate from the proxy and one visitor exhausts the rate
   limit for everyone.
 - Switch `DATABASE_URL` to Neon's **pooled** connection string.
-- Schedule `scripts/cleanup-sessions.js` daily.
+- Schedule `scripts/cleanup-sessions.ts` daily.
 
 ## Known gaps
 

@@ -36,7 +36,7 @@ Never exercised once, in any mode.
 
 | # | Do | Expect |
 | --- | --- | --- |
-| B1 | `stripe listen --forward-to localhost:3000/api/billing/webhook`, put the printed `whsec_…` in `.env`, restart | CLI reports a connection |
+| B1 | `stripe listen --forward-to localhost:3000/api/stripe/webhook`, put the printed `whsec_…` in `.env`, restart | CLI reports a connection |
 | B2 | Check out Plus monthly with card `4242 4242 4242 4242` | Redirect back to the app; tier becomes `plus` |
 | B3 | Look at the `stripe_events` table | The event id is recorded |
 | B4 | `stripe events resend <event_id>` | Tier unchanged, **no duplicate row**. This is the idempotency guard doing its job |
