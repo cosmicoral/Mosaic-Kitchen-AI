@@ -34,7 +34,8 @@ test('a repaired translation replaces a stale mixed-language cache row', async (
     avoid_ingredients: [],
     priorities: [],
     cooking_style: null,
-    postcode: null,
+    data_consent_at: new Date(),
+    data_consent_version: 'test',
   } as unknown as UserProfile;
 
   const source = makeMealPlan(['korean']);

@@ -1,6 +1,6 @@
-import { Check, MapPin, Sparkles, Wallet } from "lucide-react";
+import { Check, Sparkles, Wallet } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { TopNav } from "../components/navigation/TopNav";
 import { Badge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
@@ -28,7 +28,6 @@ export function OnboardingGoalsPage() {
   const [budgetText, setBudgetText] = useState(
     draft.weekly_budget === null ? "" : String(draft.weekly_budget)
   );
-  const [postcodeText, setPostcodeText] = useState(draft.postcode ?? "");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -70,10 +69,6 @@ export function OnboardingGoalsPage() {
     update({ weekly_budget: trimmed === "" ? null : Number(trimmed) });
   }
 
-  function commitPostcode(value: string) {
-    setPostcodeText(value);
-    update({ postcode: value.trim() === "" ? null : value.trim() });
-  }
 
   return (
     <main className="app-shell">
@@ -135,15 +130,6 @@ export function OnboardingGoalsPage() {
                 type="number"
                 value={budgetText}
               />
-              <Input
-                helper="Only used later to show prices and shops near you. Optional."
-                icon={<MapPin size={16} />}
-                label={t("Postcode (optional)")}
-                maxLength={8}
-                onChange={(event) => commitPostcode(event.target.value)}
-                placeholder="SW1A 1AA"
-                value={postcodeText}
-              />
             </div>
           </Card>
 
@@ -170,6 +156,40 @@ export function OnboardingGoalsPage() {
             </div>
           </Card>
 
+          {/*
+            UK GDPR Article 9(2)(a). What this screen has just collected —
+            allergies, low-salt or low-sugar needs, and a cuisine list that
+            beside a religious exclusion implies a belief — is special category
+            data, which may not be processed at all without explicit consent.
+
+            Deliberately its own checkbox rather than a line inside a terms
+            acceptance. "Explicit" means specific and affirmative: a consent
+            bundled with eight other things is not evidence that anyone agreed
+            to this one. Unticked on arrival, for the same reason.
+          */}
+          <Card className="section" variant="soft">
+            <label className="check-item" style={{ alignItems: "flex-start", cursor: "pointer" }}>
+              <input
+                checked={draft.data_consent}
+                onChange={(event) => update({ data_consent: event.target.checked })}
+                style={{ marginTop: 3 }}
+                type="checkbox"
+              />
+              <span className="small" style={{ marginLeft: 10 }}>
+                {t(
+                  "I agree to Mosaic Kitchen using my dietary requirements, allergies and food preferences to generate meal plans for me."
+                )}
+                <br />
+                <span className="muted">
+                  {t(
+                    "This information can reveal health conditions and religious beliefs, so we ask separately. You can withdraw it at any time by deleting your profile."
+                  )}{" "}
+                  <Link to="/privacy">{t("How we handle your data")}</Link>
+                </span>
+              </span>
+            </label>
+          </Card>
+
           {error ? (
             <p className="small" role="alert" style={{ color: "var(--danger, #c0392b)", marginTop: 10 }}>
               {error}
@@ -177,7 +197,19 @@ export function OnboardingGoalsPage() {
           ) : null}
 
           <div className="footer-actions">
-            <Button disabled={submitting} fullWidth icon={<Check size={17} />} type="submit">
+            {/*
+              Disabled without consent, rather than letting the request go and
+              bounce back with CONSENT_REQUIRED. The server check stays — it is
+              the one that actually enforces this — but a form that visibly
+              cannot be submitted explains itself better than an error message
+              appearing after a page-length scroll back up.
+            */}
+            <Button
+              disabled={submitting || !draft.data_consent}
+              fullWidth
+              icon={<Check size={17} />}
+              type="submit"
+            >
               {submitting ? t("Saving…") : t("Finish setup")}
             </Button>
           </div>

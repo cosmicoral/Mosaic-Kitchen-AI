@@ -430,18 +430,6 @@ export function ProfilePage() {
                       type="number"
                       value={draft.weekly_budget ?? ""}
                     />
-                    <Input
-                      helper="Used later to show shops and prices near you."
-                      label={t("Postcode")}
-                      maxLength={8}
-                      onChange={(event) =>
-                        updateDraft({
-                          postcode: event.target.value.trim() === "" ? null : event.target.value,
-                        })
-                      }
-                      placeholder="SW1A 1AA"
-                      value={draft.postcode ?? ""}
-                    />
                   </div>
                 ) : (
                   <div className="summary-list">
@@ -454,10 +442,6 @@ export function ProfilePage() {
                       <strong>
                         {profile.weekly_budget ? `£${Number(profile.weekly_budget).toFixed(2)}` : t("Not set")}
                       </strong>
-                    </div>
-                    <div className="summary-row">
-                      <span className="small muted">{t("Postcode")}</span>
-                      <strong>{profile.postcode ?? t("Not set")}</strong>
                     </div>
                     <div className="summary-row">
                       <span className="small muted">{t("Cooking style")}</span>

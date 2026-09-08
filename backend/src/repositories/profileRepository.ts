@@ -4,7 +4,8 @@ import type { UserProfile, UserProfileInput } from '../types/index.ts';
 const COLUMNS = `user_id, adults, teenagers, children, toddlers, household_size,
                  meals_per_week, weekly_budget, cuisines, cuisine_substyles,
                  seasoning_intensity, flavour_notes, low_salt, low_sugar,
-                 nutrition_focus, include_extras, extras_frequency, avoid_ingredients, priorities, cooking_style, postcode,
+                 nutrition_focus, include_extras, extras_frequency, avoid_ingredients, priorities, cooking_style,
+                 data_consent_at, data_consent_version,
                  created_at, updated_at`;
 
 export async function findByUserId(userId: string): Promise<UserProfile | null> {
@@ -28,9 +29,10 @@ export async function upsert(
        meals_per_week, weekly_budget, cuisines, cuisine_substyles,
        seasoning_intensity, flavour_notes, low_salt, low_sugar,
        nutrition_focus, include_extras, extras_frequency,
-       avoid_ingredients, priorities, cooking_style, postcode
+       avoid_ingredients, priorities, cooking_style,
+       data_consent_at, data_consent_version
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
      ON CONFLICT (user_id) DO UPDATE SET
        adults              = EXCLUDED.adults,
        teenagers           = EXCLUDED.teenagers,
@@ -50,7 +52,8 @@ export async function upsert(
        avoid_ingredients   = EXCLUDED.avoid_ingredients,
        priorities          = EXCLUDED.priorities,
        cooking_style       = EXCLUDED.cooking_style,
-       postcode            = EXCLUDED.postcode,
+       data_consent_at      = EXCLUDED.data_consent_at,
+       data_consent_version = EXCLUDED.data_consent_version,
        updated_at          = now()
      RETURNING ${COLUMNS}`,
     [
@@ -73,7 +76,8 @@ export async function upsert(
       input.avoid_ingredients,
       input.priorities,
       input.cooking_style,
-      input.postcode,
+      input.data_consent_at,
+      input.data_consent_version,
     ]
   );
 

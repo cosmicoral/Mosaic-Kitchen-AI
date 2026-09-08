@@ -30,7 +30,8 @@ const PROFILE: UserProfile = {
   avoid_ingredients: ['peanut'],
   priorities: ['cultural-authenticity'],
   cooking_style: 'balanced',
-  postcode: null,
+  data_consent_at: new Date(),
+    data_consent_version: 'test',
   created_at: new Date('2026-01-01T00:00:00Z'),
   updated_at: new Date('2026-01-01T00:00:00Z'),
 };

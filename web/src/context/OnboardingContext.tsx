@@ -31,7 +31,7 @@ const EMPTY_DRAFT: UserProfileInput = {
   avoid_ingredients: [],
   priorities: [],
   cooking_style: null,
-  postcode: null,
+  data_consent: false,
 };
 
 function readStoredDraft(): UserProfileInput {

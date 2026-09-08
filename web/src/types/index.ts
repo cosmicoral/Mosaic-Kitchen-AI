@@ -126,7 +126,7 @@ export interface UserProfile {
   avoid_ingredients: string[];
   priorities: Priority[];
   cooking_style: CookingStyle | null;
-  postcode: string | null;
+  data_consent_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -150,7 +150,7 @@ export interface UserProfileInput {
   avoid_ingredients: string[];
   priorities: Priority[];
   cooking_style: CookingStyle | null;
-  postcode: string | null;
+  data_consent: boolean;
 }
 
 export const MEAL_SLOTS = ['breakfast', 'lunch', 'dinner'] as const;

@@ -37,7 +37,8 @@ describe('Chinese meal-plan prompts', () => {
       low_salt: false, low_sugar: false, nutrition_focus: [],
       include_extras: [], extras_frequency: 'some',
       avoid_ingredients: ['花生'], priorities: ['budget'],
-      cooking_style: 'quick', postcode: null,
+      cooking_style: 'quick', data_consent_at: new Date(),
+    data_consent_version: 'test',
       created_at: new Date(), updated_at: new Date(),
     };
 
@@ -58,7 +59,8 @@ describe('English meal-plan prompts', () => {
     low_salt: false, low_sugar: false, nutrition_focus: [],
     include_extras: [], extras_frequency: 'some',
     avoid_ingredients: ['花生'], priorities: ['budget'],
-    cooking_style: 'quick', postcode: null,
+    cooking_style: 'quick', data_consent_at: new Date(),
+    data_consent_version: 'test',
     created_at: new Date(), updated_at: new Date(),
   } as UserProfile;
 

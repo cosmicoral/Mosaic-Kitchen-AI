@@ -15,7 +15,8 @@ const VALID_PROFILE = {
   avoid_ingredients: [],
   priorities: ['cultural-authenticity'],
   cooking_style: 'balanced',
-  postcode: null,
+  data_consent_at: new Date(),
+    data_consent_version: 'test',
 };
 
 describe('profileService cuisine validation', () => {

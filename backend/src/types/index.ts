@@ -60,6 +60,11 @@ export type AppErrorCode =
     | 'BILLING_ERROR'
     | 'ALREADY_SUBSCRIBED'
     | 'OAUTH_ERROR'
+    // Distinct from VALIDATION_ERROR on purpose. A missing consent is not a
+    // malformed field, and the interface has to respond to it differently:
+    // scroll to a checkbox and explain why it is there, rather than show a
+    // red message under an input.
+    | 'CONSENT_REQUIRED'
     | 'PASSWORD_LOGIN_UNAVAILABLE';
 
 export class AppError extends Error {
@@ -236,7 +241,8 @@ export interface UserProfile {
   avoid_ingredients: string[];
   priorities: Priority[];
   cooking_style: CookingStyle | null;
-  postcode: string | null;
+  data_consent_at: Date | null;
+  data_consent_version: string | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -260,5 +266,6 @@ export interface UserProfileInput {
   avoid_ingredients: string[];
   priorities: Priority[];
   cooking_style: CookingStyle | null;
-  postcode: string | null;
+  data_consent_at: Date;
+  data_consent_version: string;
 }

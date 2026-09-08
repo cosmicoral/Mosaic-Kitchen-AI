@@ -234,6 +234,14 @@ const zh: Record<string, string> = {
   // Allowance rows on the subscription page.
   'Cook from your pantry': '用现有食材做菜',
   'Plan translations': '餐单翻译',
+  // Article 9 consent. Translated rather than left in English on purpose:
+  // consent is only valid if it is informed, and a Chinese-speaking user
+  // cannot be informed by an English sentence they skim past.
+  'I agree to Mosaic Kitchen using my dietary requirements, allergies and food preferences to generate meal plans for me.':
+    '我同意 Mosaic Kitchen 使用我的饮食需求、过敏信息和口味偏好来为我生成餐单。',
+  'This information can reveal health conditions and religious beliefs, so we ask separately. You can withdraw it at any time by deleting your profile.':
+    '这些信息可能反映健康状况和宗教信仰,所以我们单独征求你的同意。你可以随时删除档案来撤回。',
+  'How we handle your data': '我们如何处理你的数据',
   'Profile picture': '头像',
   'Square images work best. We resize to 256px and strip location data from the file.':
     '方形图片效果最好。我们会缩到 256px,并去掉文件里的位置信息。',

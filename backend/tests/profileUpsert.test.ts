@@ -34,7 +34,8 @@ const UPDATABLE_COLUMNS = [
   'avoid_ingredients',
   'priorities',
   'cooking_style',
-  'postcode',
+  'data_consent_at',
+  'data_consent_version',
 ];
 
 describe('profile upsert SQL', () => {

@@ -37,6 +37,10 @@ export function profileToInput(profile: UserProfile): UserProfileInput {
     avoid_ingredients: profile.avoid_ingredients,
     priorities: profile.priorities,
     cooking_style: profile.cooking_style,
-    postcode: profile.postcode,
+    // A stored timestamp means consent was given and is still on record, so an
+    // existing profile arrives in the editor already ticked. The server reads
+    // the stored value rather than this one — a client asserting `true` proves
+    // nothing — so this is purely so the box reflects reality.
+    data_consent: profile.data_consent_at !== null,
   };
 }

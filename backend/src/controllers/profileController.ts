@@ -6,6 +6,16 @@ function handleError(error: unknown, res: Response, context: string) {
   if (error instanceof AppError && error.code === 'VALIDATION_ERROR') {
     return res.status(400).json({ error: error.message });
   }
+
+  // Also a 400 — the request cannot be fulfilled as sent — but the code
+  // travels so the interface can point at the consent checkbox rather than
+  // hunting for a bad field that does not exist. Without a distinguishable
+  // code this would surface as a generic validation error against no input,
+  // which is the sort of thing people report as "it just won't save".
+  if (error instanceof AppError && error.code === 'CONSENT_REQUIRED') {
+    return res.status(400).json({ error: error.message, code: error.code });
+  }
+
   console.error(`${context}:`, error);
   return res.status(500).json({ error: 'Internal server error' });
 }

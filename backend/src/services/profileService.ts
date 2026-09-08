@@ -30,10 +30,15 @@ const MAX_BUDGET = 10_000;
 const MAX_AVOID_ITEMS = 30;
 const MAX_AVOID_LENGTH = 50;
 
-// Loose on purpose. UK postcodes have many valid shapes and a strict regex
-// tends to reject real ones; this catches obvious rubbish and leaves proper
-// verification to a lookup service if that is ever added.
-const POSTCODE_PATTERN = /^[A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2}$/;
+/**
+ * The version of the privacy notice this consent wording belongs to.
+ *
+ * Stored alongside the timestamp because a notice gets revised, and consent
+ * given under one version is not evidence of consent to a later one. Bump this
+ * whenever the notice changes materially, and the code above can then tell a
+ * stale consent from a current one instead of treating every non-NULL as good.
+ */
+export const CONSENT_VERSION = '2026-09';
 
 function invalid(message: string): AppError {
   return new AppError(message, 'VALIDATION_ERROR');
@@ -174,19 +179,38 @@ function parseBoolean(value: unknown, field: string): boolean {
   return value;
 }
 
-function parsePostcode(value: unknown): string | null {
-  if (value === undefined || value === null || value === '') return null;
-  if (typeof value !== 'string') throw invalid('postcode must be a string');
+/**
+ * UK GDPR Article 9(2)(a) explicit consent.
+ *
+ * This profile carries special category data whichever way it is filled in:
+ * `avoid_ingredients` holds allergies, `low_salt` / `low_sugar` /
+ * `nutrition_focus` are health requirements, and a cuisine list beside a
+ * religious exclusion reveals belief. Article 9 prohibits processing all of
+ * that unless an exemption applies, and explicit consent is the only one
+ * available to a product like this.
+ *
+ * So the check is on saving the profile at all, not on the individual fields.
+ * Gating per-field would be worse in both directions: it would let somebody
+ * build a profile that reveals a religion through cuisines alone without ever
+ * being asked, and it would make the consent question appear and disappear as
+ * they typed.
+ *
+ * Returns the timestamp to store. Refusing rather than silently saving without
+ * consent is the point — a profile saved unlawfully is harder to undo than a
+ * form that would not submit.
+ */
+function parseConsent(value: unknown, existing: Date | null): Date {
+  if (value === true) return new Date();
 
-  // Normalise before validating so "sw1a1aa" and "SW1A 1AA" are treated the
-  // same, and so the stored form is always canonical.
-  const compact = value.replace(/\s+/g, '').toUpperCase();
-  if (!POSTCODE_PATTERN.test(compact)) {
-    throw invalid('postcode does not look like a UK postcode');
-  }
+  // Already given, and not being withdrawn. The form does not have to send it
+  // again on every edit — re-asking someone who has already said yes is how
+  // consent turns into a nuisance click that means nothing.
+  if (value === undefined && existing) return existing;
 
-  // Canonical UK format puts a space before the final three characters.
-  return `${compact.slice(0, -3)} ${compact.slice(-3)}`;
+  throw new AppError(
+    'Please agree to us using your dietary information before saving your profile',
+    'CONSENT_REQUIRED'
+  );
 }
 
 function parseMealsPerWeek(value: unknown): number {
@@ -226,6 +250,16 @@ export async function saveProfile(userId: string, body: unknown): Promise<UserPr
     throw invalid('Your household needs at least one person');
   }
 
+  // Read only once the request is known to be well-formed. The first version
+  // of this fetched it at the top of the function, which meant a malformed
+  // body cost a database round trip before being rejected — and broke the test
+  // asserting that a profile with no cuisine is refused *before* the database
+  // is touched at all. Cheap checks first is the ordering that keeps that true.
+  //
+  // Needed here so that somebody who has already consented is not asked again
+  // on every edit.
+  const existing = await profileRepository.findByUserId(userId);
+
   const input: UserProfileInput = {
     adults,
     teenagers,
@@ -257,7 +291,12 @@ export async function saveProfile(userId: string, body: unknown): Promise<UserPr
     avoid_ingredients: parseAvoidIngredients(record.avoid_ingredients),
     priorities: parseFromList<Priority>(record.priorities, PRIORITIES, 'priorities'),
     cooking_style: parseCookingStyle(record.cooking_style),
-    postcode: parsePostcode(record.postcode),
+
+    // Read from storage, never from the request: whether consent was given
+    // before is a fact about the database, and a client that could assert it
+    // would be a client that could bypass the check entirely.
+    data_consent_at: parseConsent(record.data_consent, existing?.data_consent_at ?? null),
+    data_consent_version: CONSENT_VERSION,
   };
 
   return profileRepository.upsert(userId, input);
