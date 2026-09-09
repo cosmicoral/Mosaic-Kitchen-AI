@@ -91,9 +91,21 @@ export async function createPortalSession(userId: string): Promise<string> {
   const customerId = await userRepository.findStripeCustomerId(userId);
   if (!customerId) throw new AppError('No billing account yet', 'NOT_FOUND');
 
+  // The portal configuration is account-level, and this account carries more
+  // than one product. Left unset, every product shares the Default config —
+  // which is survivable for cancellation and invoice settings, and is not
+  // survivable for the terms and privacy links: those are per-product, and one
+  // configuration can only hold one pair. A user cancelling a meal-planning
+  // subscription must not be shown another product's privacy notice.
+  //
+  // Optional so that nothing changes until a second configuration exists.
+  // Unset behaves exactly as before.
+  const configuration = process.env.STRIPE_PORTAL_CONFIGURATION_ID;
+
   const session = await stripe().billingPortal.sessions.create({
     customer: customerId,
     return_url: `${appUrl()}/subscription`,
+    ...(configuration ? { configuration } : {}),
   });
   return session.url;
 }
