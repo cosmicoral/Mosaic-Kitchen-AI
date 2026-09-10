@@ -128,6 +128,34 @@ export function tierFor(status: string | null, stripePriceId: string | null): Ti
   return priceTiers()[stripePriceId] ?? 'free';
 }
 
+/**
+ * A subscription row that claims to be live but names a price we cannot
+ * resolve — so we know the account has *something* and cannot say what.
+ *
+ * This is not the same as being on the free tier, and treating it as such is
+ * what produced the bug this function exists to name. `tierFor` answers
+ * "unknown price" with 'free', which is the right direction to fail on
+ * entitlements and the wrong thing to *display*: the subscription page showed
+ * "Free · Active · Renews 4 October" — three statements from one row that
+ * cannot all be true — while checkout refused the upgrade because a different
+ * function, asking only whether a row existed, said the account was already
+ * subscribed. Two functions, one question, opposite answers, and a page
+ * confidently reporting the wrong one.
+ *
+ * The real cause was mundane: switching Stripe from test mode to live left a
+ * row holding a test-mode price id, which the live price allowlist does not
+ * contain. It will happen again — a renamed price, an env var lost in a
+ * redeploy, a second Stripe account — so it gets a name rather than a fix.
+ */
+export function isUnreadableSubscription(
+  status: string | null,
+  stripePriceId: string | null
+): boolean {
+  if (!status || !stripePriceId) return false;
+  if (!ENTITLED_STATUSES.has(status)) return false;
+  return !isKnownPriceId(stripePriceId);
+}
+
 export function entitlementsFor(tier: Tier): Entitlements {
   return ENTITLEMENTS[tier];
 }

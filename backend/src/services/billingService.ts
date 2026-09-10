@@ -2,7 +2,13 @@ import * as subscriptionRepository from '../repositories/subscriptionRepository.
 import * as userRepository from '../repositories/userRepository.ts';
 import * as waiverRepository from '../repositories/waiverRepository.ts';
 import { stripe, webhookSecret } from './stripe.ts';
-import { entitlementsFor, isKnownPriceId, tierFor } from './entitlements.ts';
+import {
+  allowedPriceIds,
+  entitlementsFor,
+  isKnownPriceId,
+  isUnreadableSubscription,
+  tierFor,
+} from './entitlements.ts';
 import { AppError } from '../types/index.ts';
 import type { Entitlements, Tier } from './entitlements.ts';
 import type Stripe from 'stripe';
@@ -32,6 +38,10 @@ export interface BillingStatus {
   status: string | null;
   current_period_end: Date | null;
   cancel_at_period_end: boolean;
+  // True when the account holds a subscription we cannot interpret. The tier
+  // is still 'free' — entitlements have to fail closed — but the interface
+  // must not present that as a considered answer, because it is not one.
+  unreadable: boolean;
 }
 
 export async function getStatus(userId: string): Promise<BillingStatus> {
@@ -41,12 +51,31 @@ export async function getStatus(userId: string): Promise<BillingStatus> {
     subscription?.stripe_price_id ?? null
   );
 
+  const unreadable = isUnreadableSubscription(
+    subscription?.status ?? null,
+    subscription?.stripe_price_id ?? null
+  );
+
+  if (unreadable) {
+    console.error(
+      `User ${userId} holds subscription ${subscription!.stripe_subscription_id} ` +
+        `with price ${subscription!.stripe_price_id}, which is not in the ` +
+        `configured price list. Serving free-tier entitlements. Either the ` +
+        `STRIPE_PRICE_* variables are wrong for this Stripe mode, or this row ` +
+        `is left over from a different one.`
+    );
+  }
+
   return {
     tier,
     entitlements: entitlementsFor(tier),
     status: subscription?.status ?? null,
-    current_period_end: subscription?.current_period_end ?? null,
+    // Withheld when the row cannot be read. A renewal date under the word
+    // "Free" is the detail that made this bug look like a cosmetic oddity for
+    // as long as it did.
+    current_period_end: unreadable ? null : subscription?.current_period_end ?? null,
     cancel_at_period_end: subscription?.cancel_at_period_end ?? false,
+    unreadable,
   };
 }
 
@@ -100,9 +129,31 @@ export async function createCheckoutSession(
   }
 
   const existing = await subscriptionRepository.findActiveByUser(userId);
+
   if (existing) {
-    // Sending them through Checkout again would create a second subscription
-    // and bill them twice. Changing plans is the customer portal's job.
+    // Still a refusal, and still for the original reason: a second Checkout
+    // would create a second subscription and bill the customer twice, and we
+    // cannot rule out that this row is a real one whose price id merely fell
+    // out of the configuration. Failing towards "do not take money" is right.
+    //
+    // What changed is that it no longer refuses in the same words. Telling
+    // somebody they already have a subscription, on a page that has just told
+    // them they are on the free plan, sends them to look for a subscription
+    // that appears not to exist. The message now matches what the subscription
+    // page will be saying, and the log carries the ids needed to resolve it.
+    if (isUnreadableSubscription(existing.status, existing.stripe_price_id)) {
+      console.error(
+        `Refused checkout for user ${userId}: existing subscription ` +
+          `${existing.stripe_subscription_id} has price ${existing.stripe_price_id}, ` +
+          `which is not in the configured price list. Configured: ` +
+          `${allowedPriceIds().join(', ') || '(none)'}`
+      );
+      throw new AppError(
+        'We cannot read your current subscription, so we have not started a new one. Please contact us and we will sort it out.',
+        'SUBSCRIPTION_UNREADABLE'
+      );
+    }
+
     throw new AppError('You already have a subscription', 'ALREADY_SUBSCRIBED');
   }
 

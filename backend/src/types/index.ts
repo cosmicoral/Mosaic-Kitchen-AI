@@ -69,6 +69,11 @@ export type AppErrorCode =
     // CONSENT_REQUIRED because it is a different checkbox on a different page
     // for a different statute, and the frontend has to point at the right one.
     | 'WAIVER_REQUIRED'
+    // The account holds a subscription whose price is not in the configured
+    // list, so we can neither serve it nor safely replace it. Distinct from
+    // ALREADY_SUBSCRIBED because the customer cannot act on that one: they
+    // would go looking for a subscription the interface says they do not have.
+    | 'SUBSCRIPTION_UNREADABLE'
     | 'PASSWORD_LOGIN_UNAVAILABLE';
 
 export class AppError extends Error {

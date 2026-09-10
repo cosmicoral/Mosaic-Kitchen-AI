@@ -43,6 +43,11 @@ const zh: Record<string, string> = {
   // words are all that differ.
   'I agree to the': '我同意', 'and': '和',
   'Terms of Service': '服务条款', 'Privacy Notice': '隐私声明',
+  'Unknown': '无法确定',
+  'We cannot read your subscription right now, so we are showing free-plan limits. Nothing has been charged. Please contact us and we will fix it.':
+    '我们目前无法读取你的订阅状态，因此暂时按免费方案的额度显示。没有产生任何扣款。请联系我们，我们会尽快处理。',
+  'We cannot read your current subscription, so we have not started a new one. Please contact us and we will sort it out.':
+    '我们无法读取你当前的订阅，因此没有为你开通新的订阅。请联系我们，我们会处理好。',
   'Included in Free Account': '免费账户包含', 'Free': '免费', 'Inventory management': '库存管理',
   'English and Chinese support': '中英文支持',
   'Email Address': '电子邮箱', 'Password': '密码', 'Confirm Password': '确认密码',

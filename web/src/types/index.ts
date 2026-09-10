@@ -262,6 +262,11 @@ export interface BillingStatus {
   status: string | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
+  // Set when the account holds a subscription whose price the server cannot
+  // resolve. `tier` is 'free' in that case because entitlements fail closed —
+  // but showing "Free" without this flag is how the interface came to
+  // contradict the checkout endpoint.
+  unreadable: boolean;
 }
 
 export interface ShoppingListItem {

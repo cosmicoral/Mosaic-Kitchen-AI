@@ -8,6 +8,7 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { useToast } from "../components/ui/Toast";
 import { useLocale } from "../context/LocaleContext";
+import { PRIVACY_EMAIL } from "../content/privacy";
 import { useBilling } from "../hooks/useBilling";
 import { openBillingPortal } from "../lib/billing";
 import { PLAN_COPY, TIER_LABELS } from "../lib/plans";
@@ -121,16 +122,33 @@ export function SubscriptionPage() {
               <div className="premium-strip">
                 <div>
                   <span className="eyebrow">{t("Current plan")}</span>
-                  <h2 style={{ margin: "4px 0" }}>{t(TIER_LABELS[billing.tier])}</h2>
+                  <h2 style={{ margin: "4px 0" }}>
+                    {/* An unreadable subscription is not a free one, and this
+                        heading is where the difference has to show. It read
+                        "Free" for an account the server would not let upgrade,
+                        which sent the reader to the pricing page to be refused
+                        by a message about a subscription this card had just
+                        denied having. */}
+                    {billing.unreadable ? t("Unknown") : t(TIER_LABELS[billing.tier])}
+                  </h2>
                 </div>
-                {billing.status ? (
+                {billing.status && !billing.unreadable ? (
                   <Badge variant={billing.status === "past_due" ? "cream" : "green"}>
                     {t(STATUS_LABELS[billing.status] ?? billing.status)}
                   </Badge>
                 ) : null}
               </div>
 
-              {copy ? <p className="small muted">{t(copy.tagline)}</p> : null}
+              {billing.unreadable ? (
+                <p className="small" role="alert">
+                  {t(
+                    "We cannot read your subscription right now, so we are showing free-plan limits. Nothing has been charged. Please contact us and we will fix it."
+                  )}{" "}
+                  <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a>
+                </p>
+              ) : copy ? (
+                <p className="small muted">{t(copy.tagline)}</p>
+              ) : null}
 
               {renewsOn ? (
                 <div className="list-row">
