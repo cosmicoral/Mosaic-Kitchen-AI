@@ -48,7 +48,18 @@ app.use(
       if (!origin || allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      return callback(new Error('Not allowed by CORS'));
+
+      // The origin goes in the message, and it is the whole point of this
+      // line. "Not allowed by CORS" plus a stack trace through the cors
+      // package tells you what happened and withholds the only fact you need
+      // to fix it — which origin, and what the allowlist actually contains at
+      // runtime. Both are printed because a mismatch is usually a trailing
+      // slash, a www, or a Vercel preview URL nobody thought to add.
+      console.warn(
+        `Refused a cross-origin request from ${origin}. ` +
+          `CORS_ORIGINS currently allows: ${allowedOrigins.join(', ') || '(nothing)'}`
+      );
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true,
   })
