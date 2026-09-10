@@ -70,6 +70,13 @@ Article 9 processing is **prohibited by default**. The only realistic exemption 
 | Google | OAuth identifier, for users who sign in that way | United States |
 | Vercel | Serves the frontend; request metadata and IP addresses | — |
 | Hetzner | The VPS the API runs on. **Every request passes through it** | **Helsinki, Finland** |
+| Zoho | Mail for `privacy@` and `support@gethenfieldlabs.com` | EU data centre |
+
+### The mailbox is a processor too
+
+`privacy@gethenfieldlabs.com` is the address published in the notice for subject access requests, rectification and complaints. Which means the mail provider holds, by design, the most sensitive correspondence this controller will ever receive — someone writing in to say which allergy the app got wrong, or to ask for their data back.
+
+Easy to miss because it does not feel like infrastructure. Listed for the same reason Hetzner is: the test of a processor is whether personal data reaches them, not whether they appear in the deployment diagram.
 
 ### Hetzner was added by deploying, not by a decision
 

@@ -120,6 +120,7 @@ export const privacyNotice: BilingualDocument = {
               ['Stripe', 'Your email and billing address, and your card details, which never reach our servers. United States and Ireland'],
               ['Cloudflare R2', 'Your profile photo, if you upload one'],
               ['Google', 'Only an account identifier, and only if you sign in with Google. United States'],
+              ['Zoho', 'Anything you put in an email to us, including a request about your own data. European Union'],
             ],
           },
           {
@@ -361,6 +362,7 @@ export const privacyNotice: BilingualDocument = {
               ['Stripe', '你的邮箱和账单地址，以及银行卡信息——后者从不经过我们的服务器。位于美国和爱尔兰'],
               ['Cloudflare R2', '你的头像照片，如果你上传了的话'],
               ['Google', '仅账号标识，且仅在你使用 Google 登录时。位于美国'],
+              ['Zoho', '你写给我们的邮件内容，包括关于你自身数据的请求。位于欧盟'],
             ],
           },
           {
