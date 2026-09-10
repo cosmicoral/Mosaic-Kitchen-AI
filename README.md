@@ -9,10 +9,11 @@ around the opposite assumption: a Hunan household and a Cantonese household
 should not receive the same week of food, and "Chinese" is not a cuisine
 anybody actually cooks.
 
-**Status: feature-complete web application, not yet deployed.** Everything
-described below runs locally against a real database, a real Stripe account
-in test mode, and a real OpenAI account. Nothing in this README describes a
-feature that does not exist; the [known gaps](#known-gaps) are listed as
+**Status: live, taking real payments.**
+[mosaickitchen.gethenfieldlabs.com](https://mosaickitchen.gethenfieldlabs.com)
+— React on Vercel, the API on a Hetzner VPS behind nginx and Let's Encrypt,
+Neon Postgres in London, Stripe in live mode. Nothing in this README describes
+a feature that does not exist; the [known gaps](#known-gaps) are listed as
 plainly as the features.
 
 **Stack** — React + TypeScript (Vite) · Node 24 + Express + TypeScript with
@@ -38,7 +39,9 @@ Server-Sent Events
 | **Knowledge layer (RAG-ready)** | pgvector tables with an HNSW index and scoped retrieval SQL, plus a deterministic grocery-availability catalogue. Built to stop plans suggesting ingredients that cannot be bought locally. **Schema only — the corpus is empty and generation does not consult it.** See [`docs/rag.md`](docs/rag.md) |
 | **Media handling** | Avatar uploads decoded and re-encoded through sharp to 256px WebP, stored in Cloudflare R2. Re-encoding is what strips EXIF, and EXIF on a phone photo contains GPS coordinates |
 | **i18n enforcement** | A lint over the source finds strings that would render in English while the app is in Chinese, in all four ways they can hide. It has caught 100+ gaps that page-by-page review missed |
-| **Tests** | 267 backend, 18 frontend, plus the locale lint. Eight test files read source rather than exercising behaviour, to check that code, SQL, sales copy and the documentation all agree |
+| **UK GDPR compliance** | Article 30 record derived from the migrations rather than from memory; Article 9 explicit consent as its own unticked checkbox, versioned and dated; a postcode column dropped because nothing read it. Bilingual privacy notice and terms, with tests asserting the notice names every processor the code actually sends data to |
+| **Consumer law** | The 14-day cancellation right is acknowledged before Checkout opens, and the record keeps the wording version and **the language it was displayed in** — consent evidenced in a language the customer does not read is not consent |
+| **Tests** | 351 backend across 34 files, 20 frontend, plus the locale lint. Twelve test files read source rather than exercising behaviour, to check that code, SQL, sales copy and the documentation all agree — and every guard among them was reverse-verified against the broken state it exists to catch |
 
 ---
 
@@ -118,9 +121,21 @@ and publishing those alongside a face is not a trade anyone agreed to.
 → [`docs/auth.md`](docs/auth.md)
 
 **Billing** — three tiers, monthly and yearly, through Stripe Checkout and the
-Customer Portal. Entitlements resolved from the live subscription; pricing-page
-copy verified against them by a test.
+Customer Portal, in live mode. Entitlements resolved from the live
+subscription; pricing-page copy verified against them by a test. Before
+Checkout opens the customer acknowledges that starting immediately costs them
+the statutory 14-day cancellation right, and that acknowledgement is stored
+with its wording version and display language.
 → [`docs/billing.md`](docs/billing.md)
+
+**Data protection** — a bilingual privacy notice and terms at `/privacy` and
+`/terms`, written from the Article 30 record rather than from a template, so
+every claim is checkable against the migrations. Special category data
+(allergies, dietary health, cuisine choices that can reveal religion) is
+processed under explicit consent collected in its own unticked checkbox,
+recorded with a date and a notice version. Access, rectification and erasure
+are all self-service.
+→ [`docs/data-protection.md`](docs/data-protection.md)
 
 **Household profile** — adults, teenagers, children and toddlers counted
 separately because each changes the plan differently. Cuisine preferences can
@@ -325,12 +340,17 @@ be corrected.*
 
 Written down deliberately. An honest list is more useful than a clean one.
 
-- **Not deployed.** Production cookie behaviour (`Secure`, `SameSite`), CORS
-  across two subdomains, and SSE through nginx have never been exercised
-  outside localhost
-- **No email verification, password reset or change-email.** All three need a
-  provider sending from a verified domain. The forgot-password screen says so
-  instead of pretending to send anything
+- **No email verification, password reset or change-email.** All three need
+  code that sends mail; the domain is now verified and a mailbox exists, so
+  what is missing is the sending path, not the prerequisite. The
+  forgot-password screen says so instead of pretending to send anything
+- **Nothing about live mode was exercised until it was live.** Switching Stripe
+  from test to live invalidated every id the test mode had ever minted, and
+  each one failed separately at whatever moment the code first touched it: a
+  price id left the subscription unreadable, a customer id turned every
+  checkout into a 500. The code now recovers from the customer case on its own
+  and names the other; the general lesson — that a mode switch is a data
+  migration, not a configuration change — is written up in the runbook
 - **Camera scanning is deferred to the iOS app, and the app is not written.**
   The quota and the pricing row exist; the interface labels it "iOS app" rather
   than "coming soon", because photographing a shelf is something you do
@@ -344,7 +364,16 @@ Written down deliberately. An honest list is more useful than a clean one.
   today comes from style rotation and a 40-dish do-not-repeat list
 - **Avatar uploads are unverified in production.** The R2 path has only been
   exercised against the filesystem fallback used in development; the bucket,
-  the credentials and the public domain are part of deployment
+  the credentials and the public domain are still unconfigured on the live
+  deployment
+- **No retention policy.** Account data is kept for the life of the account and
+  deleted with it, which is what the privacy notice says because it is what the
+  code does. Article 5(1)(e) wants a stated period and an automated cutoff, and
+  there is neither — only `cleanup:sessions`
+- **Not registered with the ICO.** Most UK controllers processing personal data
+  electronically owe an annual fee. The processing here is neither occasional
+  nor free of special category data, so the small-organisation exemption does
+  not apply
 - **No mobile app and no grocery integrations.** Both are roadmap items
 - **Expiry dates are user-entered.** A shelf-life lookup table exists but is
   not yet wired into the pantry write path
@@ -413,13 +442,19 @@ npm test
 
 ## Deployment
 
-Not deployed yet. The plan and its running order are recorded in
-[`docs/deployment.md`](docs/deployment.md).
+Live. The reasoning is in [`docs/deployment.md`](docs/deployment.md); the
+keystrokes, in order, are in
+[`docs/deploy-runbook.md`](docs/deploy-runbook.md).
 
 ```
 Vercel (web)  ──HTTPS──▶  nginx on a VPS  ──▶  Node/Express  ──▶  Neon Postgres
-  app.<domain>                api.<domain>
+mosaickitchen.            mosaic-api.           Hetzner            eu-west-2
+gethenfieldlabs.com       gethenfieldlabs.com   Helsinki           London
 ```
+
+The API runs from the checked-out repository under systemd with
+`ProtectSystem=strict`, TLS from Let's Encrypt with automatic renewal, and no
+build step — Node 24 executes the TypeScript directly.
 
 The API runs on a VPS rather than a serverless platform for three specific
 reasons, each of which is also a production constraint that must be honoured:
@@ -453,7 +488,9 @@ Consumption and Waste: A Case Study of Middle-Class Consumers in Kunming
 
 ## Roadmap
 
-- **Next** — deploy; self-service password reset
+- **Next** — self-service password reset and email verification, now that the
+  domain sends mail; a retention policy with an automated cutoff; ICO
+  registration
 - **Then** — expiry-driven waste-reduction flow (discard / use fresh /
   preserve), shelf-life estimation wired into the pantry
 - **Later** — populate the knowledge layer, in that order: the UK grocery
