@@ -1,6 +1,6 @@
 import { Edit, Loader2, LogOut, RefreshCw, Save, Settings, Sparkles } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { genericAvatar, profileBanner } from "../assets/mascots";
 import { BottomNav } from "../components/navigation/BottomNav";
 import { Badge } from "../components/ui/Badge";
@@ -640,6 +640,50 @@ export function ProfilePage() {
                   </form>
                 ) : null}
               </Card>
+
+              {/*
+                UK GDPR Article 9(2)(a), on the edit path as well as onboarding.
+
+                The server refuses any profile save without recorded consent,
+                and that check has always applied here too — but the checkbox
+                only existed in onboarding, so an account created before the
+                consent column was added could not save its profile at all. The
+                migration comment said existing rows "will be asked on next
+                edit"; this is the asking.
+
+                Only shown while editing, and only when consent is not already
+                on record. Re-asking someone who has already agreed turns a
+                legal act into a nuisance click that means nothing.
+              */}
+              {isEditing && draft && profile.data_consent_at === null ? (
+                <Card className="section" variant="soft">
+                  <label
+                    className="check-item"
+                    style={{ alignItems: "flex-start", cursor: "pointer" }}
+                  >
+                    <input
+                      checked={draft.data_consent}
+                      onChange={(event) =>
+                        updateDraft({ data_consent: event.target.checked })
+                      }
+                      style={{ marginTop: 3 }}
+                      type="checkbox"
+                    />
+                    <span className="small" style={{ marginLeft: 10 }}>
+                      {t(
+                        "I agree to Mosaic Kitchen using my dietary requirements, allergies and food preferences to generate meal plans for me."
+                      )}
+                      <br />
+                      <span className="muted">
+                        {t(
+                          "This information can reveal health conditions and religious beliefs, so we ask separately. You can withdraw it at any time by deleting your profile."
+                        )}{" "}
+                        <Link to="/privacy">{t("How we handle your data")}</Link>
+                      </span>
+                    </span>
+                  </label>
+                </Card>
+              ) : null}
 
               {!isEditing && profile.priorities.length > 0 ? (
                 <Card>
