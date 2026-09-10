@@ -29,6 +29,28 @@ Test mode is a demo. Live mode is a business, and three obligations arrive with 
 
 I am not a lawyer or an accountant, and the thresholds above are external facts that change. Confirm them with HMRC and, for the consumer-rights point, with someone qualified before taking money.
 
+### Switching from test mode leaves ids behind, in three tables
+
+Changing the keys is the part everyone remembers. The part that broke this deployment is that **every id the test mode ever minted is still in the database**, and each one fails separately, at whatever moment the code first touches it.
+
+| Where | Column | How it failed |
+| --- | --- | --- |
+| `subscriptions` | `stripe_price_id` | Not in the live price list, so `tierFor` returned `free` while `findActiveByUser` still saw a row. The page said "Free · Active · Renews 4 October"; checkout said "you already have a subscription" |
+| `subscriptions` | `stripe_subscription_id` | Points at a subscription live Stripe has never heard of |
+| `users` | `stripe_customer_id` | `resource_missing` on `param: customer` — every checkout a 500, with correct keys and correct prices |
+
+None of them announced itself as a mode problem. Two presented as contradictory UI, one as a 500 with no message.
+
+Before the first live checkout, check for survivors:
+
+```sql
+SELECT 'subscription' AS kind, id::text, stripe_price_id AS ref FROM subscriptions
+UNION ALL
+SELECT 'customer', id::text, stripe_customer_id FROM users WHERE stripe_customer_id IS NOT NULL;
+```
+
+Anything whose price is not in `STRIPE_PRICE_*`, and any customer id created before the switch, is dead. The stale customer now heals itself — Checkout clears it and retries — but the subscription rows do not, and are safe to delete once you have confirmed in the Stripe Dashboard that they only exist in test mode.
+
 ---
 
 ## 1. Domain — already done

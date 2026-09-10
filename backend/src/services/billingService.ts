@@ -84,6 +84,20 @@ export async function getTier(userId: string): Promise<Tier> {
   return tierFor(subscription?.status ?? null, subscription?.stripe_price_id ?? null);
 }
 
+/**
+ * Stripe's way of saying "that customer does not exist".
+ *
+ * Matched on the structured fields rather than the message text, because the
+ * message is prose Stripe is free to reword and `code`/`param` are the
+ * contract. Narrow on purpose: `resource_missing` is also how Stripe reports
+ * an unknown price or an unknown subscription, and those must keep throwing.
+ */
+export function isMissingCustomer(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const candidate = error as { code?: unknown; param?: unknown };
+  return candidate.code === 'resource_missing' && candidate.param === 'customer';
+}
+
 export interface CheckoutRequest {
   priceId: string;
   // The Consumer Contracts Regulations 2013 acknowledgement. Not optional, and
@@ -168,33 +182,67 @@ export async function createCheckoutSession(
     locale,
   });
 
-  const session = await stripe().checkout.sessions.create({
-    mode: 'subscription',
-    line_items: [{ price: priceId, quantity: 1 }],
+  function params(
+    customer: string | null
+  ): Stripe.Checkout.SessionCreateParams {
+    return {
+      mode: 'subscription',
+      line_items: [{ price: priceId, quantity: 1 }],
 
-    // Stripe renders its own page, and by default renders it in English at a
-    // customer who has been reading Chinese for the last five screens. Its
-    // locale list uses 'zh' for Simplified Chinese, which matches ours.
-    locale: locale === 'zh' ? 'zh' : 'en',
+      // Stripe renders its own page, and by default renders it in English at a
+      // customer who has been reading Chinese for the last five screens. Its
+      // locale list uses 'zh' for Simplified Chinese, which matches ours.
+      locale: locale === 'zh' ? 'zh' : 'en',
 
-    // Reuse the customer when we have one, so a returning user keeps a single
-    // billing history instead of accumulating duplicate Stripe customers.
-    ...(customerId ? { customer: customerId } : { customer_email: email }),
+      // Reuse the customer when we have one, so a returning user keeps a single
+      // billing history instead of accumulating duplicate Stripe customers.
+      ...(customer ? { customer } : { customer_email: email }),
 
-    // The only link between a Stripe customer and our user the first time
-    // round. Set in two places because checkout sessions and subscriptions are
-    // separate objects and the webhooks we handle arrive on both.
-    client_reference_id: userId,
-    subscription_data: { metadata: { user_id: userId } },
+      // The only link between a Stripe customer and our user the first time
+      // round. Set in two places because checkout sessions and subscriptions are
+      // separate objects and the webhooks we handle arrive on both.
+      client_reference_id: userId,
+      subscription_data: { metadata: { user_id: userId } },
 
-    billing_address_collection: 'required',
-    allow_promotion_codes: true,
+      billing_address_collection: 'required',
+      allow_promotion_codes: true,
 
-    // Both land on the same page. The query flag only tells it to wait for the
-    // webhook rather than trusting the redirect, which anyone can visit.
-    success_url: `${appUrl()}/subscription?checkout=success`,
-    cancel_url: `${appUrl()}/subscription?checkout=cancelled`,
-  });
+      // Both land on the same page. The query flag only tells it to wait for the
+      // webhook rather than trusting the redirect, which anyone can visit.
+      success_url: `${appUrl()}/subscription?checkout=success`,
+      cancel_url: `${appUrl()}/subscription?checkout=cancelled`,
+    };
+  }
+
+  let session: Stripe.Checkout.Session;
+
+  try {
+    session = await stripe().checkout.sessions.create(params(customerId));
+  } catch (error) {
+    // A customer id we hold that Stripe cannot find.
+    //
+    // The cause is almost always a mode switch: a `cus_...` minted against
+    // test keys is meaningless to live ones, and the id sits in our users
+    // table looking perfectly valid. Every future checkout for that account
+    // then fails with a 500 and no amount of correct configuration helps,
+    // because the broken part is a row, not a setting.
+    //
+    // Forgetting the id and retrying is safe. The worst case is a duplicate
+    // Stripe customer for someone whose original really did exist and was
+    // momentarily unreadable — untidy, and far better than an account that
+    // can never subscribe. `syncFromStripe` writes the new id back when the
+    // webhook lands.
+    if (!isMissingCustomer(error)) throw error;
+
+    console.warn(
+      `Stripe does not recognise customer ${customerId} for user ${userId}. ` +
+        'Clearing it and retrying with the email address. This usually means ' +
+        'the id was created in the other Stripe mode.'
+    );
+
+    await userRepository.clearStripeCustomerId(userId);
+    session = await stripe().checkout.sessions.create(params(null));
+  }
 
   if (!session.url) throw new AppError('Could not start checkout', 'BILLING_ERROR');
 

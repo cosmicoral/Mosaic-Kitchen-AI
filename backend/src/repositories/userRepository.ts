@@ -56,6 +56,20 @@ export async function setStripeCustomerId(
   ]);
 }
 
+/**
+ * Forget the Stripe customer we have on file.
+ *
+ * Called when Stripe tells us the customer does not exist, which in practice
+ * means the id was created in the other mode — a test-mode `cus_...` cannot be
+ * used against live keys. Clearing it lets the next Checkout create a fresh
+ * customer instead of failing forever on a reference nothing can resolve.
+ */
+export async function clearStripeCustomerId(userId: string): Promise<void> {
+  await pool.query('UPDATE users SET stripe_customer_id = NULL WHERE id = $1', [
+    userId,
+  ]);
+}
+
 export async function findWithPasswordById(
   id: string
 ): Promise<UserWithPassword | null> {
