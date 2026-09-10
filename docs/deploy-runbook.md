@@ -2,7 +2,18 @@
 
 `deployment.md` is the plan and the reasoning. This is the keystrokes, in order, from nothing to live.
 
-Substitute your own domain for `example.co.uk` throughout. Costs are approximate and worth checking rather than trusting — they move.
+Written against the real names this deployment uses:
+
+```
+mosaickitchen.gethenfieldlabs.com       frontend, on Vercel
+mosaic-api.gethenfieldlabs.com   API, on a Hetzner VPS
+```
+
+Both sit under `gethenfieldlabs.com`, which is what makes the session cookie work: same registrable domain means same-site, so `SameSite=Lax` holds and the CSRF protection that `None` discards is kept.
+
+`mosaic-api.` rather than `api.mosaic.` on purpose — a fourth-level name gives certbot and some DNS panels avoidable trouble for no benefit.
+
+Costs are approximate and worth checking rather than trusting.
 
 ---
 
@@ -20,13 +31,13 @@ I am not a lawyer or an accountant, and the thresholds above are external facts 
 
 ---
 
-## 1. Domain — 15 minutes, ~£8–12/year
+## 1. Domain — already done
 
-Cloudflare Registrar sells at cost with no renewal markup, and its DNS is free and fast. Namecheap is fine too.
+`gethenfieldlabs.com` exists and serves the studio site. Mosaic Kitchen goes on two subdomains of it rather than a new registration: it costs nothing, it is available now, and it keeps the cookie same-site.
 
-Pick something you will not regret on a CV. `.co.uk` is cheap and reads as UK-focused, which this product is.
+A product domain (`mosaickitchen.com`, the way JunoGuard has its own) can be added later and pointed at the same deployment. That is presentation, not infrastructure, and it does not block anything.
 
-After buying, point the nameservers at Cloudflare if they are not already.
+**What is needed here:** find out where DNS for `gethenfieldlabs.com` is managed — the registrar, Cloudflare, or Vercel. Step 3 adds records there.
 
 ---
 
@@ -60,15 +71,17 @@ apt install -y unattended-upgrades fail2ban
 
 | Record | Name | Value |
 | --- | --- | --- |
-| A | `api` | the VPS IPv4 |
-| CNAME | `app` | given to you by Vercel at step 7 |
+| A | `mosaic-api` | the VPS IPv4 |
+| CNAME | `mosaickitchen` | given to you by Vercel at step 7 |
 
-**If you are on Cloudflare, set `api` to "DNS only" — the grey cloud, not the orange one.** Two reasons, both of which produce confusing symptoms rather than errors:
+The apex record for the studio site is untouched — these are two new names beside it.
+
+**If DNS is on Cloudflare, set `mosaic-api` to "DNS only" — the grey cloud, not the orange one.** Two reasons, both of which produce confusing symptoms rather than errors:
 
 - The proxy buffers responses, and generation streams over SSE. Buffered, the progress stages arrive in one lump at the end, which looks exactly like the streaming feature being broken.
 - Certbot's HTTP-01 challenge validates against the real host. Behind the proxy it fails on something that reads like a DNS problem.
 
-Wait for `dig api.example.co.uk +short` to return your IP before step 6.
+Wait for `dig mosaic-api.gethenfieldlabs.com +short` to return your IP before step 6.
 
 ---
 
@@ -100,9 +113,9 @@ Write `/srv/mosaic/backend/.env`. Start from `.env.example` and change these:
 NODE_ENV=production
 PORT=3000
 
-APP_URL=https://app.example.co.uk
-API_ORIGIN=https://api.example.co.uk
-CORS_ORIGINS=https://app.example.co.uk
+APP_URL=https://mosaickitchen.gethenfieldlabs.com
+API_ORIGIN=https://mosaic-api.gethenfieldlabs.com
+CORS_ORIGINS=https://mosaickitchen.gethenfieldlabs.com
 
 # Leave unset. app. and api. are the same registrable domain, so they are
 # same-site and Lax works — which keeps the CSRF protection that None discards.
@@ -189,7 +202,7 @@ sudo ln -sf /snap/bin/certbot /usr/bin/certbot
 ```nginx
 server {
     listen 80;
-    server_name api.example.co.uk;
+    server_name mosaic-api.gethenfieldlabs.com;
 
     client_max_body_size 6m;   # avatar uploads
 
@@ -240,7 +253,7 @@ sudo ln -s /etc/nginx/sites-available/mosaic /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl reload nginx
 
-sudo certbot --nginx -d api.example.co.uk
+sudo certbot --nginx -d mosaic-api.gethenfieldlabs.com
 systemctl list-timers | grep certbot     # renewal is automatic; confirm it exists
 ```
 
@@ -255,11 +268,23 @@ Import the repo at vercel.com.
 | Root directory | `web` |
 | Build command | `npm run build` |
 | Output directory | `dist` |
-| Env var | `VITE_API_URL = https://api.example.co.uk` |
+| Env var | `VITE_API_URL = https://mosaic-api.gethenfieldlabs.com` |
 
-Then add `app.example.co.uk` under the project's Domains tab and create the CNAME it gives you.
+Then add `mosaickitchen.gethenfieldlabs.com` under the project's Domains tab and create the CNAME it gives you.
 
-**Do not stop at the `*.vercel.app` URL.** That is a different registrable domain from `api.example.co.uk`, which makes the session cookie cross-site — you would have to set `COOKIE_SAMESITE=none` and give up the CSRF protection. The custom subdomain is the fix, not the workaround.
+### `web/vercel.json` is not optional
+
+```json
+{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+```
+
+This is a single-page app: React Router resolves `/dashboard` in the browser, and nothing is ever built to that path on disk. Without the rewrite, Vercel looks for a file called `dashboard`, does not find one, and returns its own `404: NOT_FOUND` page.
+
+It bit on the first real login. Google OAuth completed correctly, redirected to `/dashboard`, and the app appeared to be broken — the failure looked like an authentication problem and was not one. Every deep link, every refresh on a page other than the root, and every OAuth return would have done the same.
+
+The rewrite sends all paths to `index.html` so the router can do its job. API calls are unaffected: they go to `mosaic-api.gethenfieldlabs.com`, a different host entirely.
+
+**Do not stop at the `*.vercel.app` URL.** That is a different registrable domain from `mosaic-api.gethenfieldlabs.com`, which makes the session cookie cross-site — you would have to set `COOKIE_SAMESITE=none` and give up the CSRF protection. The custom subdomain is the fix, not the workaround.
 
 ---
 
@@ -268,7 +293,7 @@ Then add `app.example.co.uk` under the project's Domains tab and create the CNAM
 Google Cloud Console → Credentials → your OAuth client → Authorised redirect URIs, add:
 
 ```
-https://api.example.co.uk/api/auth/google/callback
+https://mosaic-api.gethenfieldlabs.com/api/auth/google/callback
 ```
 
 Byte for byte. OAuth fails closed on an unregistered URI, and the error names `redirect_uri_mismatch` without telling you which character is wrong.
@@ -295,7 +320,7 @@ Copy the four `price_...` ids into `.env`. **Test-mode ids do not exist in live 
 **Webhook.** Developers → Webhooks → Add endpoint:
 
 ```
-https://api.example.co.uk/api/stripe/webhook
+https://mosaic-api.gethenfieldlabs.com/api/stripe/webhook
 ```
 
 Events: `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`.
