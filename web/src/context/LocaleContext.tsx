@@ -38,7 +38,11 @@ const zh: Record<string, string> = {
   'Create a free account and start planning meals that fit your household, budget, and food culture.': '免费注册，开始规划符合家庭人数、预算和饮食文化的餐单。',
   'Pantry tracking': '食材库管理', 'Shopping lists': '购物清单', 'Expiry reminders': '保质期提醒',
   '3 AI meal plans total': '共 3 次 AI 餐单', 'Repeat your password': '再次输入密码',
-  'I agree to the Terms of Service and Privacy Policy': '我同意服务条款和隐私政策',
+  // The signup checkbox is now three pieces, because the two document names in
+  // the middle are links. Chinese puts them in the same order, so the join
+  // words are all that differ.
+  'I agree to the': '我同意', 'and': '和',
+  'Terms of Service': '服务条款', 'Privacy Notice': '隐私声明',
   'Included in Free Account': '免费账户包含', 'Free': '免费', 'Inventory management': '库存管理',
   'English and Chinese support': '中英文支持',
   'Email Address': '电子邮箱', 'Password': '密码', 'Confirm Password': '确认密码',

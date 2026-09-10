@@ -68,7 +68,14 @@ Article 9 processing is **prohibited by default**. The only realistic exemption 
 | Stripe | Email, billing address, card details (never touch our servers) | US / Ireland |
 | Cloudflare R2 | Avatar images | Set the bucket's jurisdiction |
 | Google | OAuth identifier, for users who sign in that way | United States |
-| Vercel / the API host | Request metadata, IP addresses | — |
+| Vercel | Serves the frontend; request metadata and IP addresses | — |
+| Hetzner | The VPS the API runs on. **Every request passes through it** | **Helsinki, Finland** |
+
+### Hetzner was added by deploying, not by a decision
+
+This row did not exist when the record was first written, because at that point the API ran nowhere. It now runs on a Hetzner VPS in Helsinki, which means all of §1 is processed in Finland even though it is stored in London.
+
+Finland is in the EEA and covered by the UK's adequacy regulations, so this is a lawful transfer needing no additional mechanism. It still has to be **disclosed**, which is the part that is easy to miss: the deployment target is chosen for latency and price, and nobody thinks of it as a processor until the notice has to list one.
 
 ### The prompt is pseudonymous, and that was deliberate
 
@@ -138,8 +145,8 @@ Article 33 gives 72 hours to report a qualifying breach to the ICO. Deciding wha
 | --- | --- | --- |
 | 1 | ~~Drop `postcode`~~ **done** — migration `1790200000000`, plus backend types, repository, validation, frontend types, onboarding and profile pages | |
 | 2 | ~~Explicit Article 9 consent~~ **done** — `data_consent_at` + `data_consent_version`, separate unticked checkbox, refused server-side with `CONSENT_REQUIRED` | |
-| 3 | Write the privacy notice and publish it. **The consent checkbox already links to `/privacy`, and that route does not exist yet** | New page, linked in the footer and at sign-up |
-| 4 | Write the terms, including the cancellation waiver | New page, plus `consent_collection.terms_of_service` in Checkout |
+| 3 | ~~Write the privacy notice and publish it~~ **done** — `/privacy`, bilingual, linked from the footer, sign-up, onboarding consent and the profile page | |
+| 4 | ~~Write the terms, including the cancellation waiver~~ **done** — `/terms`, plus a required acknowledgement before Checkout, recorded in `cancellation_waivers` with its version and the language it was shown in | |
 | 5 | Accept the DPAs in the OpenAI, Stripe and Google dashboards | External |
 | 6 | Set the R2 bucket jurisdiction | External |
 | 7 | Register with the ICO and pay the fee | External |

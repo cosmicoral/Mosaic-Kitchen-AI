@@ -30,16 +30,35 @@ export async function status(req: Request, res: Response) {
 export async function checkout(req: Request, res: Response) {
   if (!req.user) return res.status(401).json({ error: 'Authentication required' });
 
-  const priceId = (req.body as { price_id?: unknown } | undefined)?.price_id;
+  const body = req.body as
+    | { price_id?: unknown; waive_cancellation_right?: unknown; locale?: unknown }
+    | undefined;
+
+  const priceId = body?.price_id;
   if (typeof priceId !== 'string') {
     return res.status(400).json({ error: 'price_id is required' });
   }
+
+  // Read strictly. `Boolean(body?.waive_cancellation_right)` would turn the
+  // string "false", and every other truthy accident, into a waived statutory
+  // right — so the service is handed only an exact `true`, and treats anything
+  // else as not given.
+  const waived = body?.waive_cancellation_right === true;
+
+  // Which language the checkbox was rendered in, so the record says what the
+  // customer actually read. Falls back to the Accept-Language the browser sent
+  // rather than to a default, and the service rejects anything unrecognised
+  // instead of quietly recording 'en'.
+  const locale =
+    typeof body?.locale === 'string'
+      ? body.locale
+      : req.acceptsLanguages('zh', 'en') || 'en';
 
   try {
     const url = await billingService.createCheckoutSession(
       req.user.id,
       req.user.email,
-      priceId
+      { priceId, waiveCancellationRight: waived, locale }
     );
     // Returned as JSON rather than a 302, so the frontend can show a spinner
     // and surface errors. A fetch cannot inspect a redirect it followed.

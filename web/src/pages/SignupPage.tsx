@@ -139,8 +139,19 @@ async function handleSubmit(event: FormEvent) {
                       onChange={(event) => setAgreed(event.target.checked)}
                       type="checkbox"
                     />
+                    {/* Both documents are linked because agreeing to a document
+                        you were never shown is not agreement. Opened in new
+                        tabs so reading them does not throw away a half-filled
+                        signup form. */}
                     <span>
-                      {t("I agree to the Terms of Service and Privacy Policy")}
+                      {t("I agree to the")}{" "}
+                      <Link target="_blank" to="/terms">
+                        {t("Terms of Service")}
+                      </Link>{" "}
+                      {t("and")}{" "}
+                      <Link target="_blank" to="/privacy">
+                        {t("Privacy Notice")}
+                      </Link>
                     </span>
                   </label>
                 </div>

@@ -1,6 +1,7 @@
 import { Check, Smartphone, Crown, Loader2, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { waiverText } from "../content/waiver";
 import { pricingMascot } from "../assets/mascots";
 import { TopNav } from "../components/navigation/TopNav";
 import { Badge } from "../components/ui/Badge";
@@ -17,12 +18,21 @@ import type { PlanRef, Tier } from "../types";
 export function PricingPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const { user } = useAuth();
 
   const [interval, setInterval] = useState<Interval>("month");
   const [plans, setPlans] = useState<PlanRef[]>([]);
   const [pending, setPending] = useState<Tier | null>(null);
+
+  // Unticked, always, and never persisted. A remembered tick would mean the
+  // second subscription was waived by the first one's decision, which is the
+  // opposite of the specific, informed act the Regulations ask for.
+  const [waived, setWaived] = useState(false);
+  const [waiverError, setWaiverError] = useState(false);
+  const waiverRef = useRef<HTMLDivElement | null>(null);
+
+  const waiver = waiverText[locale];
 
   // Only the price ids are fetched. The copy and the amounts render straight
   // away, so a slow API shows a working page rather than an empty one.
@@ -56,9 +66,19 @@ export function PricingPage() {
       return;
     }
 
+    // Stopped here rather than at the server's refusal, so the reader is shown
+    // the sentence they have not yet agreed to instead of an error about it.
+    // The server checks the same thing regardless — this is the courtesy, not
+    // the control.
+    if (!waived) {
+      setWaiverError(true);
+      waiverRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
     setPending(tier);
     try {
-      const url = await startCheckout(priceId);
+      const url = await startCheckout(priceId, waived, locale);
       // A full-page assignment, not react-router: Stripe Checkout is a
       // different origin and cannot be rendered inside the app.
       window.location.href = url;
@@ -174,6 +194,50 @@ export function PricingPage() {
             );
           })}
         </section>
+
+        {/* Below the plans rather than above them: it is a condition of
+            buying, not a thing to read before deciding what to buy. Rendered
+            for signed-out visitors too, so nobody meets it for the first time
+            immediately after being sent through signup. */}
+        {/* The ref sits on a wrapper because Card does not forward one, and
+            teaching a component shared by every page to do so for the benefit
+            of one scroll target is the wrong trade. */}
+        <div ref={waiverRef}>
+        <Card
+          className="section"
+          variant="soft"
+          style={waiverError ? { borderColor: "var(--danger, #c0392b)" } : undefined}
+        >
+          <label className="check-item" style={{ alignItems: "flex-start", cursor: "pointer" }}>
+            <input
+              checked={waived}
+              onChange={(event) => {
+                setWaived(event.target.checked);
+                if (event.target.checked) setWaiverError(false);
+              }}
+              style={{ marginTop: 3 }}
+              type="checkbox"
+            />
+            <span className="small" style={{ marginLeft: 10 }}>
+              {waiver.label}
+              <br />
+              <span className="muted">
+                {waiver.detail} <Link to="/terms">{t("Terms of Service")}</Link>
+              </span>
+            </span>
+          </label>
+
+          {waiverError ? (
+            <p
+              className="small"
+              role="alert"
+              style={{ color: "var(--danger, #c0392b)", marginTop: 10 }}
+            >
+              {waiver.required}
+            </p>
+          ) : null}
+        </Card>
+        </div>
 
         <p className="small muted" style={{ textAlign: "center", marginTop: 8 }}>
           {t("Pantry, shopping lists and expiry alerts are unlimited on every plan, including Free.")}

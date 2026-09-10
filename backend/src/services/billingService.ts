@@ -1,5 +1,6 @@
 import * as subscriptionRepository from '../repositories/subscriptionRepository.ts';
 import * as userRepository from '../repositories/userRepository.ts';
+import * as waiverRepository from '../repositories/waiverRepository.ts';
 import { stripe, webhookSecret } from './stripe.ts';
 import { entitlementsFor, isKnownPriceId, tierFor } from './entitlements.ts';
 import { AppError } from '../types/index.ts';
@@ -9,6 +10,21 @@ import type Stripe from 'stripe';
 function appUrl(): string {
   return process.env.APP_URL ?? 'http://localhost:5173';
 }
+
+// The version of the cancellation-waiver wording the customer agreed to.
+//
+// Duplicated in web/src/content/waiver.ts, where the sentence itself lives.
+// The duplication is deliberate — the backend must not import from the
+// frontend bundle — and it is exactly the kind that has bitten this codebase
+// four times already, so cancellationWaiver.test.ts reads the other file and
+// fails when the two stop matching.
+export const WAIVER_VERSION = '2026-09';
+
+// Which languages the waiver has actually been written in. A locale outside
+// this set means the customer was shown the English wording while the rest of
+// the interface spoke to them in something else, and recording that as
+// evidence of an informed acknowledgement would be recording a fiction.
+const WAIVER_LOCALES = new Set(['en', 'zh']);
 
 export interface BillingStatus {
   tier: Tier;
@@ -39,16 +55,48 @@ export async function getTier(userId: string): Promise<Tier> {
   return tierFor(subscription?.status ?? null, subscription?.stripe_price_id ?? null);
 }
 
+export interface CheckoutRequest {
+  priceId: string;
+  // The Consumer Contracts Regulations 2013 acknowledgement. Not optional, and
+  // not defaulted to true: a default here would mean an account created by a
+  // future client that forgets to send the field is silently recorded as
+  // having waived a statutory right it was never shown.
+  waiveCancellationRight: boolean;
+  locale: string;
+}
+
 export async function createCheckoutSession(
   userId: string,
   email: string,
-  priceId: string
+  request: CheckoutRequest
 ): Promise<string> {
+  const { priceId, waiveCancellationRight, locale } = request;
+
   // The price id arrives from the browser. Without this check anyone could
   // post the id of a 1p test price — or of a price belonging to a different
   // Stripe account — and subscribe at that rate.
   if (!isKnownPriceId(priceId)) {
     throw new AppError('Unknown plan', 'VALIDATION_ERROR');
+  }
+
+  // Checked before anything else that costs money or touches Stripe.
+  //
+  // A UK consumer keeps a 14-day right to cancel a digital service unless they
+  // expressly asked for it to start immediately AND acknowledged losing the
+  // right. This application activates the plan the instant Stripe's webhook
+  // arrives — there is no delayed-start path — so without the acknowledgement
+  // we would be performing during the cancellation period having never asked.
+  // Refusing here is the only honest option, because the alternative is
+  // charging someone and then discovering the refund is not ours to withhold.
+  if (waiveCancellationRight !== true) {
+    throw new AppError(
+      'Please confirm you want your subscription to start immediately',
+      'WAIVER_REQUIRED'
+    );
+  }
+
+  if (!WAIVER_LOCALES.has(locale)) {
+    throw new AppError('Unsupported language for checkout', 'VALIDATION_ERROR');
   }
 
   const existing = await subscriptionRepository.findActiveByUser(userId);
@@ -60,9 +108,23 @@ export async function createCheckoutSession(
 
   const customerId = await userRepository.findStripeCustomerId(userId);
 
+  // Written before Stripe is called, so the acknowledgement is on record
+  // before there is any possibility of a charge. See waiverRepository.record.
+  const waiverId = await waiverRepository.record({
+    userId,
+    priceId,
+    version: WAIVER_VERSION,
+    locale,
+  });
+
   const session = await stripe().checkout.sessions.create({
     mode: 'subscription',
     line_items: [{ price: priceId, quantity: 1 }],
+
+    // Stripe renders its own page, and by default renders it in English at a
+    // customer who has been reading Chinese for the last five screens. Its
+    // locale list uses 'zh' for Simplified Chinese, which matches ours.
+    locale: locale === 'zh' ? 'zh' : 'en',
 
     // Reuse the customer when we have one, so a returning user keeps a single
     // billing history instead of accumulating duplicate Stripe customers.
@@ -84,6 +146,18 @@ export async function createCheckoutSession(
   });
 
   if (!session.url) throw new AppError('Could not start checkout', 'BILLING_ERROR');
+
+  // Best effort, and deliberately so. This links the acknowledgement to the
+  // payment that followed it, which is convenient when reading the audit trail
+  // and is not what makes the waiver valid — the row, its timestamp and its
+  // version already exist. Throwing here would fail a checkout that Stripe has
+  // already accepted, trading a complete record for a broken purchase.
+  try {
+    await waiverRepository.attachSession(waiverId, session.id);
+  } catch (error) {
+    console.error('Could not attach the Stripe session to waiver', waiverId, error);
+  }
+
   return session.url;
 }
 

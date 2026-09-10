@@ -6,6 +6,7 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { landingFeatures } from "../data/mockData";
 import { useLocale } from "../context/LocaleContext";
+import { PRIVACY_EMAIL } from "../content/privacy";
 
 const featureIcons = {
   money: Wallet,
@@ -117,11 +118,17 @@ export function LandingPage() {
         </section>
 
         <footer className="section" style={{ justifyItems: "center", paddingBottom: 20 }}>
+          {/* These were four spans. They looked like a footer and did nothing,
+              which for Privacy and Terms is not a cosmetic problem: Article 13
+              requires the notice to be reachable, and "it is styled like a
+              link" is not reachable. */}
           <div className="small muted" style={{ display: "flex", gap: 16 }}>
-            <span>{t("About")}</span>
-            <span>{t("Privacy")}</span>
-            <span>{t("Terms")}</span>
-            <span>{t("Contact")}</span>
+            <a href="https://gethenfieldlabs.com" rel="noreferrer" target="_blank">
+              {t("About")}
+            </a>
+            <Link to="/privacy">{t("Privacy")}</Link>
+            <Link to="/terms">{t("Terms")}</Link>
+            <a href={`mailto:${PRIVACY_EMAIL}`}>{t("Contact")}</a>
           </div>
           <span className="tiny muted">2026 Mosaic Kitchen AI. Made with care in the UK</span>
         </footer>

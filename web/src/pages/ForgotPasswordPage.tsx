@@ -8,8 +8,13 @@ import { Button } from "../components/ui/Button";
 import { Card } from "../components/ui/Card";
 import { MascotAvatar } from "../components/ui/MascotAvatar";
 import { useLocale } from "../context/LocaleContext";
+import { PRIVACY_EMAIL } from "../content/privacy";
 
-const SUPPORT_EMAIL = "support@mosaickitchen.ai";
+// Was support@mosaickitchen.ai, a domain nobody owns — so the one screen whose
+// entire purpose is "email us, we cannot help you any other way" pointed at an
+// address that bounces. Now the same address the privacy notice publishes,
+// from one constant, so there is a single thing to change when it changes.
+const SUPPORT_EMAIL = PRIVACY_EMAIL;
 
 // Self-service password reset needs a verified sending domain, which does not
 // exist yet. Until it does, this page says so. The previous version showed a

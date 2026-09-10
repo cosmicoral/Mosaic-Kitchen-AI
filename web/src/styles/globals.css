@@ -2087,3 +2087,132 @@ button:active:not(:disabled) {
     align-items: flex-start;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Legal documents (/privacy, /terms)
+
+   Long-form prose, which nothing else in this app is. The measure is capped
+   because a privacy notice running the full width of a desktop window is one
+   nobody finishes, and the whole obligation is that it be read.
+   --------------------------------------------------------------------------- */
+
+.legal {
+  max-width: 68ch;
+  margin: 0 auto;
+  padding-bottom: var(--space-7);
+}
+
+.legal-section {
+  margin-top: var(--space-6);
+}
+
+.legal-section h2 {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.legal-p {
+  color: var(--color-text);
+  line-height: 1.7;
+  margin: 0 0 var(--space-3);
+}
+
+.legal-list {
+  margin: 0 0 var(--space-3);
+  padding-left: 1.25rem;
+  line-height: 1.7;
+}
+
+.legal-list li {
+  margin-bottom: var(--space-2);
+}
+
+/* The reader must not skim past these — the allergen warning and the
+   cancellation right both cost someone something real if missed. */
+.legal-note {
+  margin: var(--space-4) 0;
+  border-left: 3px solid var(--color-orange);
+}
+
+.legal-note .legal-p:last-child {
+  margin-bottom: 0;
+}
+
+/* Tables carry the "what we collect" and "who else sees it" sections, which
+   are the two a reader most often arrives looking for specifically. */
+.legal-table-wrap {
+  overflow-x: auto;
+  margin: 0 0 var(--space-4);
+  -webkit-overflow-scrolling: touch;
+}
+
+.legal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.legal-table th,
+.legal-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.legal-table thead th {
+  font-family: var(--font-display);
+  border-bottom: 2px solid var(--color-line-strong);
+  white-space: nowrap;
+}
+
+.legal-table tbody th {
+  font-weight: 600;
+  width: 38%;
+}
+
+.legal-table tbody td {
+  color: var(--color-muted);
+}
+
+.legal-crosslink {
+  margin-top: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-line);
+}
+
+@media (max-width: 560px) {
+  /* Two columns at 38% leave about 110px for the label, which breaks every
+     multi-word row. Stacked, each entry reads as a heading and its answer. */
+  .legal-table,
+  .legal-table tbody,
+  .legal-table tr,
+  .legal-table tbody th,
+  .legal-table tbody td {
+    display: block;
+    width: auto;
+  }
+
+  .legal-table thead {
+    display: none;
+  }
+
+  .legal-table tbody th {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .legal-table tbody tr {
+    border-bottom: 1px solid var(--color-line);
+    padding: var(--space-2) 0;
+  }
+
+  .legal-table tbody td {
+    border-bottom: none;
+    padding-top: var(--space-1);
+  }
+}

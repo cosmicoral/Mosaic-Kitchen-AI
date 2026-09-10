@@ -12,6 +12,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { ExpiryAlertPage } from "./pages/ExpiryAlertPage";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { LandingPage } from "./pages/LandingPage";
+import { PrivacyPage, TermsPage } from "./pages/LegalPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MealPlanPage } from "./pages/MealPlanPage";
 import { OnboardingEatingHabitsPage } from "./pages/OnboardingEatingHabitsPage";
@@ -56,6 +57,16 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/pricing" element={<PricingPage />} />
+
+            {/* Public and deliberately outside RequireAuth. The consent
+                checkbox during onboarding links to /privacy, and onboarding
+                happens before a profile exists — a guard here would bounce the
+                reader to a login they are already past, or to a dashboard,
+                rather than to the notice they clicked. Articles 13 and 14 also
+                require the notice to be readable at the point of collection,
+                which includes before anyone has an account at all. */}
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
 
             {/* Onboarding: a pathless layout route, so all three screens share
                 one OnboardingProvider and the draft survives navigation. */}

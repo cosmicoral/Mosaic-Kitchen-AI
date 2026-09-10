@@ -65,6 +65,10 @@ export type AppErrorCode =
     // scroll to a checkbox and explain why it is there, rather than show a
     // red message under an input.
     | 'CONSENT_REQUIRED'
+    // The 14-day cancellation acknowledgement, missing. Separate from
+    // CONSENT_REQUIRED because it is a different checkbox on a different page
+    // for a different statute, and the frontend has to point at the right one.
+    | 'WAIVER_REQUIRED'
     | 'PASSWORD_LOGIN_UNAVAILABLE';
 
 export class AppError extends Error {
